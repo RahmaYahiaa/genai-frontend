@@ -1,6 +1,7 @@
 export const SCREENS = Object.freeze({
   WELCOME: "welcome",
   LOGIN: "login",
+  REGISTER: "register",
   DASHBOARD: "dashboard",
   COURSES: "courses",
   MASTERY: "mastery",
@@ -10,6 +11,7 @@ export const SCREENS = Object.freeze({
   REASSESSMENT: "reassessment",
   PROFILE: "profile",
   INSTRUCTOR: "instructor",
+  ADMIN: "admin",
 });
 
 export const LANGS = Object.freeze({
