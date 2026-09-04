@@ -1,13 +1,15 @@
 import { tk, MONO } from "@/constants/tokens";
+import useMediaQuery from "@/hooks/useMediaQuery";
 import { getCourse } from "@/data/courses";
-import { IconBell, IconGlobe, IconSun, IconMoon, IconSignOut } from "./Icons";
+import { IconBell, IconGlobe, IconSun, IconMoon, IconSignOut, IconMenu } from "./Icons";
 
 const TOPBAR_H = 44;
 
-export default function Topbar({ state, dispatch, role }) {
+export default function Topbar({ state, dispatch, role, onMenu }) {
   const tokens = tk(state.dark);
   const lang = state.lang;
   const isRtl = lang === "ar";
+  const mobile = useMediaQuery("(max-width: 760px)");
   const course = getCourse("CS301");
 
   const contextLabel =
@@ -43,14 +45,21 @@ export default function Topbar({ state, dispatch, role }) {
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        padding: "0 18px",
+        padding: mobile ? "0 10px" : "0 18px",
         gap: 4,
         flexShrink: 0,
         flexDirection: isRtl ? "row-reverse" : "row",
       }}
     >
-      <div style={{ flex: 1, textAlign: isRtl ? "right" : "left" }}>
-        <span style={{ fontFamily: MONO, fontSize: 11, color: tokens.textMuted }}>{contextLabel}</span>
+      <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8, minWidth: 0, textAlign: isRtl ? "right" : "left" }}>
+        {onMenu && (
+          <button aria-label="open-menu" title={lang === "ar" ? "القائمة" : "Menu"} onClick={onMenu} style={iconBtn}>
+            <IconMenu size={16} color={tokens.textMuted} />
+          </button>
+        )}
+        <span style={{ fontFamily: MONO, fontSize: 11, color: tokens.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {contextLabel}
+        </span>
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 4 }}>

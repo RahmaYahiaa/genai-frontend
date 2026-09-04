@@ -132,6 +132,15 @@ export function IconSignOut({ size = defaultSize, color = "currentColor" }) {
     </svg>
   );
 }
+export function IconMenu({ size = defaultSize, color = "currentColor" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none">
+      <path d="M3 5.5H17" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M3 10H17" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M3 14.5H17" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
 
 export function IconEye({ size = defaultSize, color = "currentColor" }) {
   return (

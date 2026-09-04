@@ -1,6 +1,8 @@
 import useAsync from "@/hooks/useAsync";
+import useMediaQuery from "@/hooks/useMediaQuery";
 import { fetchMastery } from "@/services/api";
-import { tk, headingFont, bodyFont, masteryLevel } from "@/constants/tokens";
+import { tk, headingFont, bodyFont } from "@/constants/tokens";
+import { masteryLevel } from "@/constants/tokens";
 import { SCREENS } from "@/constants/routes";
 import { Card, Chip, Stat, AsyncGate, Btn } from "@/components/ui";
 import MasteryBar, { MasteryLabel } from "@/components/MasteryBar";
@@ -11,11 +13,12 @@ export default function MasteryPage({ state, dispatch }) {
   const tokens = tk(state.dark);
   const lang = state.lang;
   const t = (en, ar) => (lang === "ar" ? ar : en);
+  const mobile = useMediaQuery("(max-width: 760px)");
   const { data, loading, error, reload } = useAsync(fetchMastery);
 
   return (
-    <div style={{ padding: 28, maxWidth: 1080, margin: "0 auto", fontFamily: bodyFont(lang) }}>
-      <h1 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, letterSpacing: "-0.02em", color: tokens.textPrimary, fontFamily: headingFont(lang) }}>
+    <div style={{ padding: mobile ? 16 : 28, maxWidth: 1080, margin: "0 auto", fontFamily: bodyFont(lang) }}>
+      <h1 style={{ margin: "0 0 4px", fontSize: mobile ? 19 : 22, fontWeight: 700, letterSpacing: "-0.02em", color: tokens.textPrimary, fontFamily: headingFont(lang) }}>
         {t("Topics & Mastery", "المواضيع والإتقان")}
       </h1>
       <p style={{ margin: "0 0 20px", fontSize: 12.5, color: tokens.textMuted }}>
@@ -29,6 +32,7 @@ export default function MasteryPage({ state, dispatch }) {
 }
 
 function MasteryInner({ courses, tokens, lang, t, dispatch }) {
+  const mobile = useMediaQuery("(max-width: 760px)");
   const course = courses[0];
   const withEvidence = course.topics.filter((x) => x.evidence > 0);
   const totalEvidence = course.topics.reduce((s, x) => s + x.evidence, 0);
@@ -42,7 +46,7 @@ function MasteryInner({ courses, tokens, lang, t, dispatch }) {
         ))}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "repeat(3, 1fr)", gap: 12, marginBottom: 14 }}>
         <Stat tokens={tokens} label={t("Course mastery", "إتقان المقرر")} value={`${course.overall}%`} accent={tokens.mastered} />
         <Stat tokens={tokens} label={t("Evidence items", "عناصر الأدلة")} value={totalEvidence} hint={t(`${withEvidence.length}/${course.topics.length} topics`, `${withEvidence.length}/${course.topics.length} مواضيع`)} />
         <Stat tokens={tokens} label={t("Next focus", "التركيز التالي")} value={focus ? focus.label[lang] : t("—", "—")} accent={tokens.gap} />

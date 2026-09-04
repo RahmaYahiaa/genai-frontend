@@ -1,5 +1,6 @@
 import { useState } from "react";
 import useAsync from "@/hooks/useAsync";
+import useMediaQuery from "@/hooks/useMediaQuery";
 import { fetchReassessmentQuestions } from "@/services/api";
 import { tk, headingFont, bodyFont } from "@/constants/tokens";
 import { SCREENS } from "@/constants/routes";
@@ -11,6 +12,7 @@ export default function ReassessmentPage({ state, dispatch }) {
   const tokens = tk(state.dark);
   const lang = state.lang;
   const t = (en, ar) => (lang === "ar" ? ar : en);
+  const mobile = useMediaQuery("(max-width: 760px)");
   const { data: questions, loading, error, reload } = useAsync(fetchReassessmentQuestions);
   const [phase, setPhase] = useState("intro");
   const [index, setIndex] = useState(0);
@@ -54,7 +56,7 @@ export default function ReassessmentPage({ state, dispatch }) {
   });
 
   return (
-    <div style={{ padding: 28, maxWidth: 820, margin: "0 auto", fontFamily: bodyFont(lang) }}>
+    <div style={{ padding: mobile ? 16 : 28, maxWidth: 820, margin: "0 auto", fontFamily: bodyFont(lang) }}>
       <AsyncGate tokens={tokens} lang={lang} loading={loading} error={error} reload={reload} label={t("Preparing reassessment…", "جاري تجهيز إعادة التقييم…")}>
         {phase === "intro" && (
           <Card tokens={tokens} style={{ marginTop: 12 }}>
@@ -88,7 +90,7 @@ export default function ReassessmentPage({ state, dispatch }) {
             </div>
             <Card tokens={tokens}>
               <div style={{ fontSize: 15.5, fontWeight: 600, lineHeight: 1.55, color: tokens.textPrimary, marginBottom: 18 }}>{q.stem[lang]}</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "1fr 1fr", gap: 8 }}>
                 {q.options.map((o, i) => (
                   <button key={i} onClick={() => pick(i)} style={optionStyle(answers[q.id] === i)}>
                     {o[lang]}

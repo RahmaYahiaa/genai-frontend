@@ -1,6 +1,7 @@
 import { useState } from "react";
 import AuthLayout from "@/components/AuthLayout";
 import { tk, headingFont, bodyFont } from "@/constants/tokens";
+import useMediaQuery from "@/hooks/useMediaQuery";
 import { SCREENS, ROLES } from "@/constants/routes";
 import { REGISTER_ROLES, REGISTER_FEATURES } from "@/data/auth";
 
@@ -10,6 +11,7 @@ export default function RegisterPage({ state, dispatch }) {
   const isRtl = lang === "ar";
   const hFont = headingFont(lang);
   const bFont = bodyFont(lang);
+  const mobile = useMediaQuery("(max-width: 760px)");
   const [role, setRole] = useState(ROLES.STUDENT);
   const [step, setStep] = useState(1);
 
@@ -69,7 +71,7 @@ export default function RegisterPage({ state, dispatch }) {
 
   const form = (
     <>
-      {/* Step indicator */}
+
       <div style={{ display: "flex", gap: 5, marginBottom: 24 }}>
         {[1, 2].map((s) => (
           <div
@@ -133,7 +135,7 @@ export default function RegisterPage({ state, dispatch }) {
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "1fr 1fr", gap: 10, marginBottom: 12 }}>
             <div>
               <label style={label}>{lang === "ar" ? "الاسم الأول" : "First name"}</label>
               <input style={inp} placeholder={lang === "ar" ? "سارة" : "Sarah"} />

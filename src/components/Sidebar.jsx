@@ -6,7 +6,7 @@ import BrandMark from "./BrandMark";
 const MONO = "'JetBrains Mono', monospace";
 const SIDEBAR_W = 220;
 
-export default function Sidebar({ state, dispatch, role }) {
+export default function Sidebar({ state, dispatch, role, onNavigate }) {
   const tokens = tk(state.dark);
   const lang = state.lang;
   const isRtl = lang === "ar";
@@ -21,7 +21,10 @@ export default function Sidebar({ state, dispatch, role }) {
     return (
       <button
         key={item.id}
-        onClick={() => dispatch({ type: "NAVIGATE", screen: item.id })}
+        onClick={() => {
+          dispatch({ type: "NAVIGATE", screen: item.id });
+          onNavigate?.();
+        }}
         title={label}
         style={{
           display: "flex",
@@ -63,7 +66,7 @@ export default function Sidebar({ state, dispatch, role }) {
         flexDirection: "column",
       }}
     >
-      {/* Brand */}
+
       <div
         style={{
           display: "flex",
@@ -80,7 +83,6 @@ export default function Sidebar({ state, dispatch, role }) {
         </div>
       </div>
 
-      {/* Role tag */}
       <div style={{ padding: "10px 16px 4px" }}>
         <span
           style={{
@@ -95,17 +97,14 @@ export default function Sidebar({ state, dispatch, role }) {
         </span>
       </div>
 
-      {/* Nav */}
       <nav style={{ flex: 1, padding: "4px 8px", overflowY: "auto" }}>
         {nav.map((item) => navItem(item))}
       </nav>
 
-      {/* Bottom nav (profile) */}
       {navBottom.length > 0 && (
         <div style={{ padding: "4px 8px 10px" }}>{navBottom.map((item) => navItem(item))}</div>
       )}
 
-      {/* Mini user card */}
       <div
         style={{
           margin: "0 8px 10px",

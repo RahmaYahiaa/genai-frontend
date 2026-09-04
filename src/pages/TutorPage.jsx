@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import useAsync from "@/hooks/useAsync";
+import useMediaQuery from "@/hooks/useMediaQuery";
 import { fetchTutor, sendTutorMessage } from "@/services/api";
 import { tk, headingFont, bodyFont } from "@/constants/tokens";
 import { TUTOR_TOPICS } from "@/data/student";
@@ -9,6 +10,7 @@ export default function TutorPage({ state }) {
   const tokens = tk(state.dark);
   const lang = state.lang;
   const t = (en, ar) => (lang === "ar" ? ar : en);
+  const mobile = useMediaQuery("(max-width: 760px)");
   const { data: seed, loading } = useAsync(fetchTutor);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
@@ -46,9 +48,9 @@ export default function TutorPage({ state }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", fontFamily: bodyFont(lang) }}>
-      <div style={{ padding: "22px 28px 0", maxWidth: 820, width: "100%", margin: "0 auto" }}>
+      <div style={{ padding: mobile ? "18px 16px 0" : "22px 28px 0", maxWidth: 820, width: "100%", margin: "0 auto" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
-          <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, letterSpacing: "-0.02em", color: tokens.textPrimary, fontFamily: headingFont(lang) }}>
+          <h1 style={{ margin: 0, fontSize: mobile ? 17 : 20, fontWeight: 700, letterSpacing: "-0.02em", color: tokens.textPrimary, fontFamily: headingFont(lang) }}>
             {t("AI Tutor", "المعلّم الذكي")}
           </h1>
           <Chip tokens={tokens} tone="primary">
@@ -77,7 +79,7 @@ export default function TutorPage({ state }) {
         </div>
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto", padding: "6px 28px 18px", maxWidth: 820, width: "100%", margin: "0 auto" }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: mobile ? "6px 16px 18px" : "6px 28px 18px", maxWidth: 820, width: "100%", margin: "0 auto" }}>
         {messages.map((m) => (
           <div key={m.id} style={{ display: "flex", justifyContent: m.from === "user" ? "flex-end" : "flex-start", marginBottom: 12 }}>
             <div
@@ -123,7 +125,7 @@ export default function TutorPage({ state }) {
         )}
       </div>
 
-      <div style={{ padding: "12px 28px 22px", maxWidth: 820, width: "100%", margin: "0 auto" }}>
+      <div style={{ padding: mobile ? "12px 16px 22px" : "12px 28px 22px", maxWidth: 820, width: "100%", margin: "0 auto" }}>
         <div style={{ display: "flex", gap: 8 }}>
           <input
             value={input}

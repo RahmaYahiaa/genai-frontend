@@ -1,5 +1,6 @@
 import { useState } from "react";
 import useAsync from "@/hooks/useAsync";
+import useMediaQuery from "@/hooks/useMediaQuery";
 import { fetchPracticeQuestions } from "@/services/api";
 import { tk, headingFont, bodyFont } from "@/constants/tokens";
 import { SCREENS } from "@/constants/routes";
@@ -10,6 +11,7 @@ export default function PracticePage({ state, dispatch }) {
   const tokens = tk(state.dark);
   const lang = state.lang;
   const t = (en, ar) => (lang === "ar" ? ar : en);
+  const mobile = useMediaQuery("(max-width: 760px)");
   const { data: questions, loading, error, reload } = useAsync(fetchPracticeQuestions);
   const [index, setIndex] = useState(0);
   const [picked, setPicked] = useState(null);
@@ -54,8 +56,8 @@ export default function PracticePage({ state, dispatch }) {
   };
 
   return (
-    <div style={{ padding: 28, maxWidth: 820, margin: "0 auto", fontFamily: bodyFont(lang) }}>
-      <h1 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, letterSpacing: "-0.02em", color: tokens.textPrimary, fontFamily: headingFont(lang) }}>
+    <div style={{ padding: mobile ? 16 : 28, maxWidth: 820, margin: "0 auto", fontFamily: bodyFont(lang) }}>
+      <h1 style={{ margin: "0 0 4px", fontSize: mobile ? 19 : 22, fontWeight: 700, letterSpacing: "-0.02em", color: tokens.textPrimary, fontFamily: headingFont(lang) }}>
         {t("Practice", "التدريب")}
       </h1>
       <p style={{ margin: "0 0 20px", fontSize: 12.5, color: tokens.textMuted }}>
@@ -73,7 +75,7 @@ export default function PracticePage({ state, dispatch }) {
             </div>
             <Card tokens={tokens}>
               <div style={{ fontSize: 15.5, fontWeight: 600, lineHeight: 1.55, color: tokens.textPrimary, marginBottom: 18 }}>{q.stem[lang]}</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "1fr 1fr", gap: 8 }}>
                 {q.options.map((o, i) => (
                   <button key={i} onClick={() => pick(i)} style={{ padding: "11px 14px", borderRadius: 10, fontSize: 13, fontWeight: 500, cursor: picked !== null ? "default" : "pointer", textAlign: "left", ...optionStyle(i) }}>
                     {o[lang]}

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import useAsync from "@/hooks/useAsync";
+import useMediaQuery from "@/hooks/useMediaQuery";
 import { fetchDiagnosticQuestions } from "@/services/api";
 import { tk, headingFont, bodyFont } from "@/constants/tokens";
 import { SCREENS } from "@/constants/routes";
@@ -11,6 +12,7 @@ export default function DiagnosticPage({ state, dispatch }) {
   const tokens = tk(state.dark);
   const lang = state.lang;
   const t = (en, ar) => (lang === "ar" ? ar : en);
+  const mobile = useMediaQuery("(max-width: 760px)");
   const { data: questions, loading, error, reload } = useAsync(fetchDiagnosticQuestions);
   const [phase, setPhase] = useState("intro");
   const [index, setIndex] = useState(0);
@@ -51,7 +53,7 @@ export default function DiagnosticPage({ state, dispatch }) {
   });
 
   return (
-    <div style={{ padding: 28, maxWidth: 820, margin: "0 auto", fontFamily: bodyFont(lang) }}>
+    <div style={{ padding: mobile ? 16 : 28, maxWidth: 820, margin: "0 auto", fontFamily: bodyFont(lang) }}>
       <AsyncGate tokens={tokens} lang={lang} loading={loading} error={error} reload={reload} label={t("Preparing diagnostic…", "جاري تجهيز التشخيص…")}>
         {phase === "intro" && (
           <Card tokens={tokens} style={{ marginTop: 12 }}>

@@ -1,4 +1,5 @@
 import useAsync from "@/hooks/useAsync";
+import useMediaQuery from "@/hooks/useMediaQuery";
 import { fetchDashboard } from "@/services/api";
 import { tk, headingFont, bodyFont } from "@/constants/tokens";
 import { SCREENS } from "@/constants/routes";
@@ -12,10 +13,11 @@ export default function DashboardPage({ state, dispatch }) {
   const tokens = tk(state.dark);
   const lang = state.lang;
   const t = (en, ar) => (lang === "ar" ? ar : en);
+  const mobile = useMediaQuery("(max-width: 760px)");
   const { data, loading, error, reload } = useAsync(fetchDashboard);
 
   return (
-    <div style={{ padding: 28, maxWidth: 1080, margin: "0 auto", fontFamily: bodyFont(lang) }}>
+    <div style={{ padding: mobile ? 16 : 28, maxWidth: 1080, margin: "0 auto", fontFamily: bodyFont(lang) }}>
       <AsyncGate tokens={tokens} lang={lang} loading={loading} error={error} reload={reload} label={t("Loading your dashboard…", "جاري تحميل لوحتك…")}>
         {data && <DashboardInner data={data} tokens={tokens} lang={lang} t={t} dispatch={dispatch} />}
       </AsyncGate>
@@ -24,6 +26,7 @@ export default function DashboardPage({ state, dispatch }) {
 }
 
 function DashboardInner({ data, tokens, lang, t, dispatch }) {
+  const mobile = useMediaQuery("(max-width: 760px)");
   const { user, stats, courses, tasks } = data;
   const course = courses[0];
   const withEvidence = course.topics.filter((x) => x.evidence > 0);
@@ -33,7 +36,7 @@ function DashboardInner({ data, tokens, lang, t, dispatch }) {
     <>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 22, flexWrap: "wrap" }}>
         <div>
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, letterSpacing: "-0.02em", color: tokens.textPrimary, fontFamily: headingFont(lang) }}>
+          <h1 style={{ margin: 0, fontSize: mobile ? 19 : 22, fontWeight: 700, letterSpacing: "-0.02em", color: tokens.textPrimary, fontFamily: headingFont(lang) }}>
             {t("Welcome back", "أهلاً بعودتك")}, {lang === "ar" ? user.name.ar.split(" ")[0] : user.name.en.split(" ")[0]}
           </h1>
           <div style={{ fontSize: 12.5, color: tokens.textMuted, marginTop: 4 }}>
@@ -46,14 +49,14 @@ function DashboardInner({ data, tokens, lang, t, dispatch }) {
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: 12, marginBottom: 14 }}>
         <Stat tokens={tokens} label={t("Avg mastery", "متوسط الإتقان")} value={`${stats.avgMastery}%`} accent={tokens.mastered} />
         <Stat tokens={tokens} label={t("Evidence items", "عناصر الأدلة")} value={stats.evidenceItems} hint={t(`${stats.topicsCovered}/${stats.topicsTotal} topics covered`, `${stats.topicsCovered}/${stats.topicsTotal} موضوعاً مغطى`)} />
         <Stat tokens={tokens} label={t("Streak", "سلسلة الأيام")} value={`${stats.streakDays} ${t("days", "أيام")}`} />
         <Stat tokens={tokens} label={t("Study time", "وقت الدراسة")} value={`${stats.studyMinutes}m`} hint={t(`Goal ${stats.goalMinutes}m`, `الهدف ${stats.goalMinutes} د`)} />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1.7fr 1fr", gap: 14, marginBottom: 14, alignItems: "start" }}>
+      <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "1.7fr 1fr", gap: 14, marginBottom: 14, alignItems: "start" }}>
         <Card tokens={tokens}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
             <div style={{ fontWeight: 700, fontSize: 14, color: tokens.textPrimary }}>{t("Course mastery", "إتقان المقرر")}</div>
@@ -109,7 +112,7 @@ function DashboardInner({ data, tokens, lang, t, dispatch }) {
               {t(`${stats.studyMinutes} of ${stats.goalMinutes} minutes this week`, `${stats.studyMinutes} من ${stats.goalMinutes} دقيقة هذا الأسبوع`)}
             </div>
           </div>
-          <div style={{ width: 220 }}>
+          <div style={{ width: mobile ? "100%" : 220 }}>
             <Bar tokens={tokens} value={(stats.studyMinutes / stats.goalMinutes) * 100} color={tokens.primary} height={8} />
           </div>
         </div>

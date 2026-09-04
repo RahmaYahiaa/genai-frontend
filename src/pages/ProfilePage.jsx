@@ -1,4 +1,5 @@
 import useAsync from "@/hooks/useAsync";
+import useMediaQuery from "@/hooks/useMediaQuery";
 import { fetchProfile } from "@/services/api";
 import { tk, headingFont, bodyFont } from "@/constants/tokens";
 import { Card, Chip, Bar, AsyncGate, Btn } from "@/components/ui";
@@ -7,11 +8,12 @@ export default function ProfilePage({ state, dispatch }) {
   const tokens = tk(state.dark);
   const lang = state.lang;
   const t = (en, ar) => (lang === "ar" ? ar : en);
+  const mobile = useMediaQuery("(max-width: 760px)");
   const { data, loading, error, reload } = useAsync(fetchProfile);
 
   return (
-    <div style={{ padding: 28, maxWidth: 820, margin: "0 auto", fontFamily: bodyFont(lang) }}>
-      <h1 style={{ margin: "0 0 20px", fontSize: 22, fontWeight: 700, letterSpacing: "-0.02em", color: tokens.textPrimary, fontFamily: headingFont(lang) }}>
+    <div style={{ padding: mobile ? 16 : 28, maxWidth: 820, margin: "0 auto", fontFamily: bodyFont(lang) }}>
+      <h1 style={{ margin: "0 0 20px", fontSize: mobile ? 19 : 22, fontWeight: 700, letterSpacing: "-0.02em", color: tokens.textPrimary, fontFamily: headingFont(lang) }}>
         {t("Profile", "الملف الشخصي")}
       </h1>
       <AsyncGate tokens={tokens} lang={lang} loading={loading} error={error} reload={reload} label={t("Loading profile…", "جاري تحميل الملف…")}>
@@ -48,7 +50,7 @@ export default function ProfilePage({ state, dispatch }) {
               </div>
             </Card>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+            <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "1fr 1fr", gap: 14, marginBottom: 14 }}>
               <Card tokens={tokens}>
                 <div style={{ fontWeight: 700, fontSize: 14, color: tokens.textPrimary, marginBottom: 12 }}>{t("Preferences", "التفضيلات")}</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
