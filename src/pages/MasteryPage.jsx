@@ -64,25 +64,50 @@ function MasteryInner({ courses, tokens, lang, t, dispatch }) {
           const isFocus = focus?.id === topic.id;
           return (
             <div key={topic.id} style={{ padding: "12px 0", borderBottom: `1px solid ${tokens.cardBorder}`, ...(topic.id === course.topics[course.topics.length - 1].id ? { borderBottom: "none" } : {}) }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                <div style={{ flex: 1, minWidth: 160 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: 13.5, fontWeight: 600, color: tokens.textPrimary }}>{topic.label[lang]}</span>
-                    {isFocus && <Chip tokens={tokens} tone="gap">{t("Focus", "تركيز")}</Chip>}
+              {mobile ? (
+                <>
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                        <span style={{ fontSize: 13.5, fontWeight: 600, color: tokens.textPrimary }}>{topic.label[lang]}</span>
+                        {isFocus && <Chip tokens={tokens} tone="gap">{t("Focus", "تركيز")}</Chip>}
+                      </div>
+                      <div style={{ fontSize: 11, color: tokens.textFaint, marginTop: 2 }}>
+                        {topic.evidence > 0 ? `${topic.evidence} ${t("evidence items", "عناصر أدلة")}` : t("No evidence yet", "لا توجد أدلة بعد")}
+                      </div>
+                    </div>
+                    <MasteryLabel level={level} lang={lang} tokens={tokens} />
                   </div>
-                  <div style={{ fontSize: 11, color: tokens.textFaint, marginTop: 2 }}>
-                    {topic.evidence > 0 ? `${topic.evidence} ${t("evidence items", "عناصر أدلة")}` : t("No evidence yet", "لا توجد أدلة بعد")}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 8 }}>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: topic.evidence > 0 ? tokens.textPrimary : tokens.textFaint, fontFamily: "'JetBrains Mono', monospace" }}>
+                      {topic.evidence > 0 ? `${topic.pct}%` : "—"}
+                    </span>
+                    <Btn tokens={tokens} variant="soft" onClick={() => dispatch({ type: "NAVIGATE", screen: SCREENS.PRACTICE })}>
+                      {t("Train", "تدرّب")}
+                    </Btn>
                   </div>
+                </>
+              ) : (
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                  <div style={{ flex: 1, minWidth: 160 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontSize: 13.5, fontWeight: 600, color: tokens.textPrimary }}>{topic.label[lang]}</span>
+                      {isFocus && <Chip tokens={tokens} tone="gap">{t("Focus", "تركيز")}</Chip>}
+                    </div>
+                    <div style={{ fontSize: 11, color: tokens.textFaint, marginTop: 2 }}>
+                      {topic.evidence > 0 ? `${topic.evidence} ${t("evidence items", "عناصر أدلة")}` : t("No evidence yet", "لا توجد أدلة بعد")}
+                    </div>
+                  </div>
+                  <MasteryLabel level={level} lang={lang} tokens={tokens} />
+                  <span style={{ width: 56, textAlign: "right", fontSize: 13, fontWeight: 700, color: topic.evidence > 0 ? tokens.textPrimary : tokens.textFaint, fontFamily: "'JetBrains Mono', monospace" }}>
+                    {topic.evidence > 0 ? `${topic.pct}%` : "—"}
+                  </span>
+                  <Btn tokens={tokens} variant="soft" onClick={() => dispatch({ type: "NAVIGATE", screen: SCREENS.PRACTICE })}>
+                    {t("Train", "تدرّب")}
+                  </Btn>
                 </div>
-                <MasteryLabel level={level} lang={lang} tokens={tokens} />
-                <span style={{ width: 56, textAlign: "right", fontSize: 13, fontWeight: 700, color: topic.evidence > 0 ? tokens.textPrimary : tokens.textFaint, fontFamily: "'JetBrains Mono', monospace" }}>
-                  {topic.evidence > 0 ? `${topic.pct}%` : "—"}
-                </span>
-                <Btn tokens={tokens} variant="soft" onClick={() => dispatch({ type: "NAVIGATE", screen: SCREENS.PRACTICE })}>
-                  {t("Train", "تدرّب")}
-                </Btn>
-              </div>
-              <div style={{ marginTop: 8 }}>
+              )}
+              <div style={{ marginTop: mobile ? 12 : 8 }}>
                 <MasteryBar pct={topic.pct} evidence={topic.evidence} tokens={tokens} height={7} />
               </div>
             </div>
