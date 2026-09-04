@@ -6,4 +6,5 @@ export const DEMO_USER = {
   },
   email: "r.hamam@university.edu",
   enrolled: ["CS301", "CS302"],
+  institution: "Menofia University",
 };

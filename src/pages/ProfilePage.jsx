@@ -44,7 +44,7 @@ export default function ProfilePage({ state, dispatch }) {
                   <div style={{ fontSize: 12, color: tokens.textMuted, marginTop: 2, fontFamily: "'JetBrains Mono', monospace" }}>{data.user.email}</div>
                 </div>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  <Chip tokens={tokens} tone="primary">{data.user.institution}</Chip>
+                  {data.user.institution && <Chip tokens={tokens} tone="primary">{data.user.institution}</Chip>}
                   <Chip tokens={tokens}>{t("Student", "طالب")}</Chip>
                 </div>
               </div>
