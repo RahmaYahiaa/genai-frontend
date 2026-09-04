@@ -33,7 +33,7 @@ export default function AppShell({ state, dispatch, role = "student", children }
                 zIndex: 40,
               }}
             />
-            <div style={{ position: "fixed", insetInlineStart: 0, top: 0, bottom: 0, zIndex: 50 }}>
+            <div style={{ position: "fixed", insetInlineStart: 0, top: 0, bottom: 0, zIndex: 50, display: "flex" }}>
               <Sidebar state={state} dispatch={dispatch} role={role} onNavigate={() => setDrawer(false)} />
             </div>
           </>

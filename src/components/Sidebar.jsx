@@ -1,4 +1,5 @@
 import { tk, headingFont } from "@/constants/tokens";
+import useMediaQuery from "@/hooks/useMediaQuery";
 import { navForRole, navBottomForRole } from "@/constants/nav";
 import { DEMO_USER } from "@/data/user";
 import BrandMark from "./BrandMark";
@@ -7,6 +8,7 @@ const MONO = "'JetBrains Mono', monospace";
 const SIDEBAR_W = 220;
 
 export default function Sidebar({ state, dispatch, role, onNavigate }) {
+  const mobile = useMediaQuery("(max-width: 760px)");
   const tokens = tk(state.dark);
   const lang = state.lang;
   const isRtl = lang === "ar";
@@ -57,7 +59,7 @@ export default function Sidebar({ state, dispatch, role, onNavigate }) {
   return (
     <aside
       style={{
-        width: SIDEBAR_W,
+        width: mobile ? "min(78vw, 260px)" : SIDEBAR_W,
         flexShrink: 0,
         background: tokens.sidebar,
         borderRight: isRtl ? "none" : `1px solid ${tokens.sidebarBorder}`,
