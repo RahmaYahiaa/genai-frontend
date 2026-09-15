@@ -6,12 +6,9 @@ import { IconWarning } from "@/components/Icons";
 import { SCREENS } from "@/constants/routes";
 import { approvedMaterials } from "@/data/instructorModule";
 import AssignmentsTab from "@/components/AssignmentsTab";
+import CourseAnalyticsTab from "@/components/CourseAnalyticsTab";
+import AuditTrailTab from "@/components/AuditTrailTab";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Course Workspace shell — reference d3/d6/d7: circular back button, course
-// title header, and segmented pill tabs. Part 2 ships the Assignments tab;
-// Analytics + Audit Trail tabs join in Part 4.
-// ─────────────────────────────────────────────────────────────────────────────
 export default function CourseWorkspacePage({ state, dispatch }) {
   const { state: mod } = useInstructorModule();
   const mobile = useMediaQuery("(max-width: 760px)");
@@ -23,7 +20,7 @@ export default function CourseWorkspacePage({ state, dispatch }) {
 
   const courseId = state.courseId ?? "CS301";
   const course = mod.courses.find((c) => c.id === courseId) ?? mod.courses[0];
-  const tab = "assignments";
+  const tab = state.tab === "analytics" || state.tab === "audit" ? state.tab : "assignments";
   const coverageGaps = course.topics.filter((t) => approvedMaterials(t) === 0).length;
 
   return (
@@ -31,7 +28,6 @@ export default function CourseWorkspacePage({ state, dispatch }) {
       className="genai-pad"
       style={{ padding: "26px 32px", maxWidth: 1180, margin: "0 auto", direction: isRtl ? "rtl" : "ltr" }}
     >
-      {/* Header */}
       <div style={{ display: "flex", gap: 14, alignItems: "flex-start", marginBottom: 20, flexDirection: isRtl ? "row-reverse" : "row" }}>
         <BackCircle tokens={tokens} rtl={isRtl} onClick={() => dispatch({ type: "NAVIGATE", screen: SCREENS.INSTRUCTOR_HOME, tab: undefined })} />
         <div style={{ textAlign: isRtl ? "right" : "left", minWidth: 0 }}>
@@ -52,17 +48,22 @@ export default function CourseWorkspacePage({ state, dispatch }) {
         </div>
       </div>
 
-      {/* Pill tabs — Analytics & Audit Trail arrive in Part 4 */}
       <PillTabs
         tokens={tokens}
         lang={lang}
         active={tab}
-        onSelect={() => {}}
-        tabs={[{ id: "assignments", label: lang === "ar" ? "التكليفات" : "Assignments" }]}
+        onSelect={(id) => dispatch({ type: "NAVIGATE", screen: SCREENS.COURSE_WORKSPACE, courseId: course.id, tab: id })}
+        tabs={[
+          { id: "assignments", label: lang === "ar" ? "التكليفات" : "Assignments" },
+          { id: "analytics", label: lang === "ar" ? "التحليلات" : "Analytics" },
+          { id: "audit", label: lang === "ar" ? "سجل التدقيق" : "Audit Trail" },
+        ]}
       />
 
       <div style={{ marginTop: 24 }}>
-        <AssignmentsTab state={state} dispatch={dispatch} courseId={course.id} />
+        {tab === "assignments" && <AssignmentsTab state={state} dispatch={dispatch} courseId={course.id} />}
+        {tab === "analytics" && <CourseAnalyticsTab state={state} dispatch={dispatch} courseId={course.id} />}
+        {tab === "audit" && <AuditTrailTab state={state} courseId={course.id} />}
       </div>
     </div>
   );
