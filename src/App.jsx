@@ -16,6 +16,7 @@ import ProfilePage from "@/pages/ProfilePage";
 import InstructorHomePage from "@/pages/InstructorHomePage";
 import CourseWorkspacePage from "@/pages/CourseWorkspacePage";
 import AssignmentBuilderPage from "@/pages/AssignmentBuilderPage";
+import AssignmentReviewPage from "@/pages/AssignmentReviewPage";
 import AppShell from "@/components/AppShell";
 import "./App.css";
 
@@ -23,6 +24,7 @@ const PAGES = {
   [SCREENS.INSTRUCTOR_HOME]: InstructorHomePage,
   [SCREENS.COURSE_WORKSPACE]: CourseWorkspacePage,
   [SCREENS.ASSIGNMENT_CREATE]: AssignmentBuilderPage,
+  [SCREENS.ASSIGNMENT_REVIEW]: AssignmentReviewPage,
   [SCREENS.DASHBOARD]: DashboardPage,
   [SCREENS.COURSES]: CoursesPage,
   [SCREENS.MASTERY]: MasteryPage,
