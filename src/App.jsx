@@ -14,11 +14,15 @@ import PracticePage from "@/pages/PracticePage";
 import ReassessmentPage from "@/pages/ReassessmentPage";
 import ProfilePage from "@/pages/ProfilePage";
 import InstructorHomePage from "@/pages/InstructorHomePage";
+import CourseWorkspacePage from "@/pages/CourseWorkspacePage";
+import AssignmentBuilderPage from "@/pages/AssignmentBuilderPage";
 import AppShell from "@/components/AppShell";
 import "./App.css";
 
 const PAGES = {
   [SCREENS.INSTRUCTOR_HOME]: InstructorHomePage,
+  [SCREENS.COURSE_WORKSPACE]: CourseWorkspacePage,
+  [SCREENS.ASSIGNMENT_CREATE]: AssignmentBuilderPage,
   [SCREENS.DASHBOARD]: DashboardPage,
   [SCREENS.COURSES]: CoursesPage,
   [SCREENS.MASTERY]: MasteryPage,

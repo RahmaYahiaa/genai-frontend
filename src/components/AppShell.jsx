@@ -3,6 +3,7 @@ import { tk } from "@/constants/tokens";
 import useMediaQuery from "@/hooks/useMediaQuery";
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
+import { Toaster } from "./ModuleUI";
 
 export default function AppShell({ state, dispatch, role = "student", children }) {
   const tokens = tk(state.dark);
@@ -52,9 +53,11 @@ export default function AppShell({ state, dispatch, role = "student", children }
             transition: "background 200ms ease",
           }}
         >
-          {children}
+                   {children}
         </main>
       </div>
+
+      <Toaster tokens={tokens} lang={lang} />
     </div>
   );
 }
