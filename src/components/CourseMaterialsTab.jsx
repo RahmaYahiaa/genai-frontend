@@ -23,6 +23,19 @@ export default function CourseMaterialsTab({ state, courseId }) {
   useEffect(() => {
     if (state.materialsTopic) setTopic(state.materialsTopic);
   }, [state.materialsTopic]);
+  const [fQuery, setFQuery] = useState("");
+  const [fStatus, setFStatus] = useState("all");
+  const [fKind, setFKind] = useState("all");
+  const [fTopicView, setFTopicView] = useState("all");
+
+  const kindOf = (m) => (m.file ? fileKind(m.file.fileName, m.file.mime).tag : "NOFILE");
+  const matches = (m) =>
+    (fStatus === "all" || m.status === fStatus) &&
+    (fKind === "all" || kindOf(m) === fKind) &&
+    (!fQuery || m.title.toLowerCase().includes(fQuery.toLowerCase()) || (m.file?.fileName ?? "").toLowerCase().includes(fQuery.toLowerCase()));
+  const filtersActive = fQuery !== "" || fStatus !== "all" || fKind !== "all" || fTopicView !== "all";
+  const visibleTopics = course.topics.filter((t) => fTopicView === "all" || t.id === fTopicView);
+  const shownCount = visibleTopics.reduce((n, t) => n + t.materials.filter(matches).length, 0);
 
   const totals = useMemo(
     () => course.topics.reduce((acc, t) => { acc.approved += approvedMaterials(t); acc.pending += pendingMaterials(t); return acc; }, { approved: 0, pending: 0 }),
@@ -108,10 +121,49 @@ export default function CourseMaterialsTab({ state, courseId }) {
         <MaterialUploader courseId={course.id} topicId={topic} tokens={tokens} lang={lang} />
       </Card>
 
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14, alignItems: "center", flexDirection: isRtl ? "row-reverse" : "row" }}>
+        <input value={fQuery} onChange={(e) => setFQuery(e.target.value)} placeholder={lang === "ar" ? "بحث بالعنوان أو اسم الملف…" : "Search title or file name…"} style={{ ...inputStyle(tokens, bFont), width: mobile ? "100%" : 220 }} className="genai-input" />
+        <select value={fStatus} onChange={(e) => setFStatus(e.target.value)} style={{ ...inputStyle(tokens, bFont), cursor: "pointer", width: mobile ? "calc(50% - 5px)" : 150 }} className="genai-input">
+          <option value="all">{lang === "ar" ? "كل الحالات" : "All statuses"}</option>
+          <option value="approved">{lang === "ar" ? "معتمد" : "Approved"}</option>
+          <option value="pending">{lang === "ar" ? "بانتظار الاعتماد" : "Pending"}</option>
+        </select>
+        <select value={fKind} onChange={(e) => setFKind(e.target.value)} style={{ ...inputStyle(tokens, bFont), cursor: "pointer", width: mobile ? "calc(50% - 5px)" : 150 }} className="genai-input">
+          <option value="all">{lang === "ar" ? "كل الأنواع" : "All types"}</option>
+          <option value="PDF">PDF</option>
+          <option value="DOC">DOC</option>
+          <option value="SLIDES">SLIDES</option>
+          <option value="SHEET">SHEET</option>
+          <option value="VIDEO">VIDEO</option>
+          <option value="IMG">IMG</option>
+          <option value="ARCHIVE">ARCHIVE</option>
+          <option value="TEXT">TEXT</option>
+          <option value="NOFILE">{lang === "ar" ? "بدون ملف مرفوع" : "No uploaded file"}</option>
+        </select>
+        <select value={fTopicView} onChange={(e) => setFTopicView(e.target.value)} style={{ ...inputStyle(tokens, bFont), cursor: "pointer", width: mobile ? "100%" : 190 }} className="genai-input">
+          <option value="all">{lang === "ar" ? "كل المواضيع" : "All topics"}</option>
+          {course.topics.map((t) => (
+            <option key={t.id} value={t.id}>{lang === "ar" ? t.label.ar : t.label.en}</option>
+          ))}
+        </select>
+        {filtersActive && (
+          <Btn tokens={tokens} lang={lang} variant="ghost" style={{ padding: "7px 12px", fontSize: 11.5 }}
+            onClick={() => { setFQuery(""); setFStatus("all"); setFKind("all"); setFTopicView("all"); }}>
+            {lang === "ar" ? "مسح الفلاتر" : "Clear filters"}
+          </Btn>
+        )}
+      </div>
+      {filtersActive && (
+        <div style={{ fontFamily: MONO, fontSize: 10.5, color: tokens.textMuted, marginBottom: 12 }}>
+          {lang === "ar" ? `معروض ${shownCount} مادة مطابقة` : `${shownCount} matching material${shownCount === 1 ? "" : "s"} shown`}
+        </div>
+      )}
+
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        {course.topics.map((t) => {
+        {visibleTopics.map((t) => {
           const approved = approvedMaterials(t);
           const pending = pendingMaterials(t);
+          const mats = t.materials.filter(matches);
           return (
             <Card key={t.id} tokens={tokens} style={{ padding: "16px 20px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: t.materials.length ? 10 : 0, flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
@@ -130,8 +182,12 @@ export default function CourseMaterialsTab({ state, courseId }) {
                 <div style={{ fontFamily: bFont, fontSize: 12, color: tokens.textFaint, paddingTop: 4 }}>
                   {lang === "ar" ? "لا مواد لهذا الموضوع بعد — ارفعي من الأعلى." : "No materials for this topic yet — upload above."}
                 </div>
+              ) : mats.length === 0 ? (
+                <div style={{ fontFamily: bFont, fontSize: 12, color: tokens.textFaint, paddingTop: 4 }}>
+                  {lang === "ar" ? "لا مواد مطابقة للفلاتر الحالية في هذا الموضوع." : "No materials match the current filters in this topic."}
+                </div>
               ) : (
-                t.materials.map((m, i) => {
+                mats.map((m, i) => {
                   const kind = fileKind(m.file?.fileName ?? m.title, m.file?.mime);
                   return (
                     <div key={m.id} style={{ display: "flex", gap: 12, alignItems: "center", padding: "11px 0", borderTop: i > 0 ? `1px solid ${tokens.cardBorder}` : "none", flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
