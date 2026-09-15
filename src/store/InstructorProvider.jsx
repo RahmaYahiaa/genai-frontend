@@ -242,9 +242,14 @@ export default function InstructorModuleProvider({ children }) {
     u.status = "awaiting_review";
     return s;
   });
-  const addMaterial = (courseId, topicId, title) => mutate((s) => {
+    const addMaterial = (courseId, topicId, title, file) => mutate((s) => {
     const t = s.courses.find((c) => c.id === courseId)?.topics.find((x) => x.id === topicId);
-    if (t) t.materials.push({ id: nextId("mat"), title, status: "pending", addedAt: nowIso() });
+    if (t) t.materials.push({ id: nextId("mat"), title, status: "pending", addedAt: nowIso(), file: file ?? null });
+    return s;
+  });
+  const removeMaterial = (courseId, topicId, materialId) => mutate((s) => {
+    const t = s.courses.find((c) => c.id === courseId)?.topics.find((x) => x.id === topicId);
+    if (t) t.materials = t.materials.filter((m) => m.id !== materialId);
     return s;
   });
   const approveMaterial = (courseId, topicId, materialId) => mutate((s) => {
@@ -288,6 +293,7 @@ export default function InstructorModuleProvider({ children }) {
     submitAssignment,
     resubmitUnit,
     addMaterial,
+    removeMaterial,
     approveMaterial,
     saveRemedial,
     publishRemedial,

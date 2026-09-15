@@ -2,8 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { tk, MONO, masteryColor, masteryLevel, masteryBg } from "@/constants/tokens";
 import useMediaQuery from "@/hooks/useMediaQuery";
 import { useInstructorModule } from "@/store/InstructorProvider";
-import { Card, Btn, Chip, Modal, inputStyle, bFontFor, hFontFor, toast, Th, Skeleton } from "@/components/ModuleUI";
-import { IconWarning, IconUpload, IconCheck, IconDownload, IconSparkle } from "@/components/Icons";
+import { Card, Btn, Chip, Modal, bFontFor, hFontFor, toast, Th, Skeleton } from "@/components/ModuleUI";
+import { IconWarning, IconCheck, IconDownload, IconSparkle } from "@/components/Icons";
+import MaterialUploader from "@/components/MaterialUploader";
+import { SCREENS } from "@/constants/routes";
 import RemedialModal from "@/components/RemedialModal";
 import StudentInterventionModal from "@/components/StudentInterventionModal";
 import { MISCONCEPTIONS, STUDENTS, COURSE_SESSIONS, approvedMaterials, fmtWhen } from "@/data/instructorModule";
@@ -26,8 +28,8 @@ function CitationChip({ label, tokens }) {
   );
 }
 
-export default function CourseAnalyticsTab({ state, courseId }) {
-  const { state: mod, addMaterial, approveMaterial } = useInstructorModule();
+export default function CourseAnalyticsTab({ state, courseId, dispatch }) {
+  const { state: mod, approveMaterial } = useInstructorModule();
   const mobile = useMediaQuery("(max-width: 760px)");
   const tokens = tk(state.dark);
   const lang = state.lang;
@@ -40,7 +42,6 @@ export default function CourseAnalyticsTab({ state, courseId }) {
   const [materialsFor, setMaterialsFor] = useState(null);
   const [loading, setLoading] = useState(typeof window !== "undefined");
   useEffect(() => { const t = window.setTimeout(() => setLoading(false), 420); return () => window.clearTimeout(t); }, []);
-  const [uploadTitle, setUploadTitle] = useState("");
   const [exportOpen, setExportOpen] = useState(false);
   const [exportText, setExportText] = useState("");
   const [interveneFor, setInterveneFor] = useState(null);
@@ -348,7 +349,7 @@ export default function CourseAnalyticsTab({ state, courseId }) {
                 {lang === "ar" ? t.label.ar : t.label.en}
                 <span style={{ fontFamily: MONO, fontSize: 11, color: tokens.textMuted }}>· 0 {lang === "ar" ? "معتمد" : "approved"}</span>
               </div>
-              <Btn tokens={tokens} lang={lang} variant="soft" style={{ padding: "7px 14px", fontSize: 11.5 }} onClick={() => { setMaterialsFor(t.id); setUploadTitle(""); }}>
+              <Btn tokens={tokens} lang={lang} variant="soft" style={{ padding: "7px 14px", fontSize: 11.5 }} onClick={() => setMaterialsFor(t.id)}>
                 {lang === "ar" ? "فتح المواد" : "Open materials"}
               </Btn>
             </div>
@@ -399,11 +400,11 @@ export default function CourseAnalyticsTab({ state, courseId }) {
                 </div>
               ))}
             </div>
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
-              <input value={uploadTitle} onChange={(e) => setUploadTitle(e.target.value)} placeholder={lang === "ar" ? "عنوان المادة الجديدة" : "New material title"} style={{ ...inputStyle(tokens, bFont), flex: 1, minWidth: 180 }} className="genai-input" />
-              <Btn tokens={tokens} lang={lang} disabled={!uploadTitle.trim()}
-                onClick={() => { addMaterial(course.id, materialsTopic.id, uploadTitle.trim()); setUploadTitle(""); toast(lang === "ar" ? "رُفعت المادة كمسودة بانتظار الاعتماد." : "Material uploaded as pending approval."); }}>
-                <IconUpload size={13} color="#fff" /> {lang === "ar" ? "رفع" : "Upload"}
+            <MaterialUploader courseId={course.id} topicId={materialsTopic.id} tokens={tokens} lang={lang} />
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
+              <Btn tokens={tokens} lang={lang} variant="ghost"
+                onClick={() => { const focused = materialsFor; setMaterialsFor(null); dispatch({ type: "NAVIGATE", screen: SCREENS.COURSE_WORKSPACE, courseId: course.id, tab: "materials", materialsTopic: focused }); }}>
+                {lang === "ar" ? "إدارة كل المواد في تاب المواد" : "Manage everything in the Materials tab"}
               </Btn>
             </div>
           </>

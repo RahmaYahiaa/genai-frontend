@@ -6,8 +6,11 @@ import { IconWarning } from "@/components/Icons";
 import { SCREENS } from "@/constants/routes";
 import { approvedMaterials } from "@/data/instructorModule";
 import AssignmentsTab from "@/components/AssignmentsTab";
+import CourseMaterialsTab from "@/components/CourseMaterialsTab";
 import CourseAnalyticsTab from "@/components/CourseAnalyticsTab";
 import AuditTrailTab from "@/components/AuditTrailTab";
+
+const TAB_IDS = ["assignments", "materials", "analytics", "audit"];
 
 export default function CourseWorkspacePage({ state, dispatch }) {
   const { state: mod } = useInstructorModule();
@@ -20,7 +23,7 @@ export default function CourseWorkspacePage({ state, dispatch }) {
 
   const courseId = state.courseId ?? "CS301";
   const course = mod.courses.find((c) => c.id === courseId) ?? mod.courses[0];
-  const tab = state.tab === "analytics" || state.tab === "audit" ? state.tab : "assignments";
+  const tab = TAB_IDS.includes(state.tab) ? state.tab : "assignments";
   const coverageGaps = course.topics.filter((t) => approvedMaterials(t) === 0).length;
 
   return (
@@ -55,6 +58,7 @@ export default function CourseWorkspacePage({ state, dispatch }) {
         onSelect={(id) => dispatch({ type: "NAVIGATE", screen: SCREENS.COURSE_WORKSPACE, courseId: course.id, tab: id })}
         tabs={[
           { id: "assignments", label: lang === "ar" ? "التكليفات" : "Assignments" },
+          { id: "materials", label: lang === "ar" ? "المواد" : "Materials" },
           { id: "analytics", label: lang === "ar" ? "التحليلات" : "Analytics" },
           { id: "audit", label: lang === "ar" ? "سجل التدقيق" : "Audit Trail" },
         ]}
@@ -62,6 +66,7 @@ export default function CourseWorkspacePage({ state, dispatch }) {
 
       <div style={{ marginTop: 24 }}>
         {tab === "assignments" && <AssignmentsTab state={state} dispatch={dispatch} courseId={course.id} />}
+        {tab === "materials" && <CourseMaterialsTab state={state} dispatch={dispatch} courseId={course.id} />}
         {tab === "analytics" && <CourseAnalyticsTab state={state} dispatch={dispatch} courseId={course.id} />}
         {tab === "audit" && <AuditTrailTab state={state} courseId={course.id} />}
       </div>
