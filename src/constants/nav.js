@@ -8,6 +8,7 @@ import {
   IconReassessment,
   IconProfile,
   IconUsers,
+  IconSparkle,
 } from "@/components/Icons";
 import { SCREENS } from "./routes";
 
@@ -28,6 +29,7 @@ export const STUDENT_NAV_BOTTOM = [
 export const INSTRUCTOR_NAV = [
   { id: SCREENS.INSTRUCTOR_HOME, en: "My Courses", ar: "مقرراتي", Icon: IconCourses },
   { id: SCREENS.INSTRUCTOR_STUDENTS, en: "Students", ar: "الطلاب", Icon: IconUsers },
+  { id: SCREENS.CONTENT_STUDIO, en: "Content Studio", ar: "استوديو المحتوى", Icon: IconSparkle },
 ];
 
 export const ADMIN_NAV = [
