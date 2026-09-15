@@ -19,6 +19,8 @@ import AssignmentBuilderPage from "@/pages/AssignmentBuilderPage";
 import AssignmentReviewPage from "@/pages/AssignmentReviewPage";
 import InstructorStudentsPage from "@/pages/InstructorStudentsPage";
 import ContentStudioPage from "@/pages/ContentStudioPage";
+import StudentAssignmentsPage from "@/pages/StudentAssignmentsPage";
+import StudentAssignmentPage from "@/pages/StudentAssignmentPage";
 import AppShell from "@/components/AppShell";
 import "./App.css";
 
@@ -29,6 +31,8 @@ const PAGES = {
   [SCREENS.ASSIGNMENT_REVIEW]: AssignmentReviewPage,
   [SCREENS.INSTRUCTOR_STUDENTS]: InstructorStudentsPage,
   [SCREENS.CONTENT_STUDIO]: ContentStudioPage,
+  [SCREENS.STUDENT_ASSIGNMENTS]: StudentAssignmentsPage,
+  [SCREENS.STUDENT_ASSIGNMENT]: StudentAssignmentPage,
   [SCREENS.DASHBOARD]: DashboardPage,
   [SCREENS.COURSES]: CoursesPage,
   [SCREENS.MASTERY]: MasteryPage,

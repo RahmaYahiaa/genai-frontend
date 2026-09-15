@@ -9,17 +9,19 @@ import {
   IconProfile,
   IconUsers,
   IconSparkle,
+  IconClipboard,
 } from "@/components/Icons";
+
 import { SCREENS } from "./routes";
 
 export const STUDENT_NAV = [
   { id: SCREENS.DASHBOARD, en: "Dashboard", ar: "لوحة التحكم", Icon: IconDashboard },
   { id: SCREENS.COURSES, en: "My Courses", ar: "مقرراتي", Icon: IconCourses },
+  { id: SCREENS.STUDENT_ASSIGNMENTS, en: "Assignments", ar: "التكليفات", Icon: IconClipboard },
   { id: SCREENS.MASTERY, en: "Topics & Mastery", ar: "المواضيع والإتقان", Icon: IconMastery },
   { id: SCREENS.TUTOR, en: "AI Tutor", ar: "المعلم الذكي", Icon: IconTutor },
   { id: SCREENS.DIAGNOSTIC, en: "Diagnostic", ar: "التشخيص", Icon: IconDiagnostic },
   { id: SCREENS.PRACTICE, en: "Practice", ar: "التدريب", Icon: IconPractice },
-  { id: SCREENS.REASSESSMENT, en: "Reassessment", ar: "إعادة التقييم", Icon: IconReassessment },
 ];
 
 export const STUDENT_NAV_BOTTOM = [
