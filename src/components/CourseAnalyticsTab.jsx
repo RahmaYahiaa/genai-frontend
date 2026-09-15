@@ -429,9 +429,9 @@ export default function CourseAnalyticsTab({ state, courseId, dispatch }) {
         </div>
       </Modal>
 
-      <StudentInterventionModal open={interveneFor !== null} onClose={() => setInterveneFor(null)} studentId={interveneFor}
-        courseId={courseId} tokens={tokens} lang={lang} />
-
+            <StudentInterventionModal open={interveneFor !== null} onClose={() => setInterveneFor(null)} studentId={interveneFor}
+        courseId={courseId} tokens={tokens} lang={lang}
+        onOpenFile={(id) => dispatch({ type: "NAVIGATE", screen: SCREENS.INSTRUCTOR_STUDENTS, studentId: id, courseId })} />
       <RemedialModal open={remedialEntry !== null} onClose={() => setRemedialEntry(null)} entry={remedialEntry} tokens={tokens} lang={lang} />
     </div>
   );

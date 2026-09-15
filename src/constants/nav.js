@@ -7,6 +7,7 @@ import {
   IconPractice,
   IconReassessment,
   IconProfile,
+  IconUsers,
 } from "@/components/Icons";
 import { SCREENS } from "./routes";
 
@@ -26,6 +27,7 @@ export const STUDENT_NAV_BOTTOM = [
 
 export const INSTRUCTOR_NAV = [
   { id: SCREENS.INSTRUCTOR_HOME, en: "My Courses", ar: "مقرراتي", Icon: IconCourses },
+  { id: SCREENS.INSTRUCTOR_STUDENTS, en: "Students", ar: "الطلاب", Icon: IconUsers },
 ];
 
 export const ADMIN_NAV = [
