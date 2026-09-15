@@ -3,7 +3,7 @@ import { tk, MONO } from "@/constants/tokens";
 import useMediaQuery from "@/hooks/useMediaQuery";
 import { useInstructorModule } from "@/store/InstructorProvider";
 import { Card, Btn, Chip, inputStyle, textareaStyle, bFontFor, hFontFor, toast, Skeleton } from "@/components/ModuleUI";
-import { IconSparkle, IconDoc, IconPencil, IconImageAttach, IconClipboard, IconSend, IconDoubleCheck, IconInbox, IconRefresh } from "@/components/Icons";
+import { IconSparkle, IconDoc, IconPencil, IconImageAttach, IconClipboard, IconSend, IconDoubleCheck, IconInbox, IconRefresh, IconDownload, IconCheck } from "@/components/Icons";
 import { INSTRUCTOR_COURSE_IDS } from "@/data/instructorModule";
 
 const TYPES = [
@@ -16,6 +16,15 @@ const TYPES = [
   { id: "slides", en: "Slide deck outline", ar: "هيكل سلايدز", Icon: IconInbox },
   { id: "flashcards", en: "Flashcards", ar: "بطاقات مراجعة", Icon: IconRefresh },
 ];
+
+function videoScenes() {
+  return [
+    { time: "0:00–0:40", visual: "title card over the structure diagram", narration: "why this topic earns four minutes" },
+    { time: "0:40–1:50", visual: "animated trace, one step per cut", narration: "the governing condition, spoken once, shown twice" },
+    { time: "1:50–3:10", visual: "side-by-side failure case", narration: "the misconception, named plainly" },
+    { time: "3:10–4:20", visual: "summary card + one check question", narration: "what to try next in the practice set" },
+  ];
+}
 
 function generateDraft(type, topicLabel, courseId, length, tone, extra) {
   const deep = length === "deep" ? 3 : length === "short" ? 1 : 2;
@@ -30,7 +39,7 @@ function generateDraft(type, topicLabel, courseId, length, tone, extra) {
     case "images":
       return [head, "", "Three diagram slots, each with alt-text and a caption the layout engine can place:", "\n[DIAGRAM 1] Structure map of " + topicLabel + " — nodes, edges, and the invariant labelled on the edge that carries it.", "\n[DIAGRAM 2] Failure case: the input shape that breaks the naive intuition, annotated at the exact step where it breaks.", "\n[DIAGRAM 3] Cost/benefit quadrant for " + topicLabel + " against its neighbours in " + courseId + ".", extraLine].join("\n");
     case "video":
-      return [head, "", "Storyboard — total runtime ~4:20", ...Array.from({ length: 4 }, (_, i) => `\nSCENE ${i + 1} · ${["0:00–0:40", "0:40–1:50", "1:50–3:10", "3:10–4:20"][i]}\nVISUAL: ${["title card over the structure diagram", "animated trace, one step per cut", "side-by-side failure case", "summary card + one check question"][i]}\nNARRATION: ${["why this topic earns four minutes", "the governing condition, spoken once, shown twice", "the misconception, named plainly", "what to try next in the practice set"][i]}`), extraLine].join("\n");
+      return [head, "", "Storyboard — total runtime ~4:20", ...videoScenes().map((s, i) => `\nSCENE ${i + 1} · ${s.time}\nVISUAL: ${s.visual}\nNARRATION: ${s.narration}`), extraLine].join("\n");
     case "audio":
       return [head, "", "VOICEOVER READY · ~2:30 · single speaker, calm pace", "\n" + `Listen for the condition, not the example: in ${topicLabel}, what governs behaviour is the internal invariant, not the shape of the input. `.repeat(deep + 1) + "\n\n[pause 0.8s] Close with: one question to answer before the next lecture.", extraLine].join("\n");
     case "quiz":
@@ -62,6 +71,7 @@ export default function ContentStudioPage({ state }) {
   const [busy, setBusy] = useState(false);
   const [draft, setDraft] = useState(null);
   const [draftType, setDraftType] = useState("text");
+  const [exporting, setExporting] = useState(false);
 
   const topicLabel = topicId === "__custom" ? (customTopic.trim() || "Untitled topic") : (course.topics.find((t) => t.id === topicId)?.label[lang === "ar" ? "ar" : "en"] ?? topicId);
 
@@ -80,7 +90,188 @@ export default function ContentStudioPage({ state }) {
     }, 900);
   };
 
-  const Diagram = ({ n }) => (
+  const triggerBlob = (blob, filename) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const fileBase = () => {
+    const slug = (topicId === "__custom" ? "custom" : topicId).replace(/[^a-zA-Z0-9-]/g, "");
+    return `${course.id}-${slug}-${draftType}`;
+  };
+
+  const drawDiagramPanel = (ctx, x, y, w, h, n) => {
+    ctx.fillStyle = tokens.inset;
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = tokens.cardBorder;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
+    const px = (v) => x + (v / 220) * w;
+    const py = (v) => y + (v / 90) * h;
+    ctx.strokeStyle = tokens.primary;
+    ctx.lineWidth = Math.max(2, w / 110);
+    ctx.beginPath(); ctx.moveTo(px(44), py(55)); ctx.lineTo(px(96), py(34)); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(px(124), py(34)); ctx.lineTo(px(176), py(55)); ctx.stroke();
+    for (const [cx, cy, label] of [[30, 60, "A"], [110, 30, "B"], [190, 60, "C"]]) {
+      ctx.beginPath();
+      ctx.arc(px(cx), py(cy), (14 / 220) * w, 0, Math.PI * 2);
+      ctx.fillStyle = tokens.primaryLight;
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = tokens.primary;
+      ctx.font = `700 ${Math.round(w / 22)}px monospace`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(label, px(cx), py(cy));
+    }
+    ctx.fillStyle = tokens.textMuted;
+    ctx.font = `${Math.round(w / 44)}px monospace`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "alphabetic";
+    ctx.fillText(`slot ${n} · invariant labelled on the carrying edge`, x + w / 2, y + h - 10);
+  };
+
+  const wrapText = (ctx, text, x, y, maxW, lh) => {
+    const words = text.split(" ");
+    let line = "";
+    let yy = y;
+    for (const w of words) {
+      const test = line ? `${line} ${w}` : w;
+      if (ctx.measureText(test).width > maxW && line) {
+        ctx.fillText(line, x, yy);
+        line = w;
+        yy += lh;
+      } else line = test;
+    }
+    if (line) ctx.fillText(line, x, yy);
+    return yy;
+  };
+
+  const downloadImages = () => {
+    const s = 3;
+    const pad = 24;
+    const pw = 220 * s;
+    const ph = 90 * s;
+    const gap = 28;
+    const canvas = document.createElement("canvas");
+    canvas.width = pw + pad * 2;
+    canvas.height = ph * 3 + gap * 2 + pad * 2;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = tokens.card;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    for (let n = 1; n <= 3; n++) drawDiagramPanel(ctx, pad, pad + (n - 1) * (ph + gap), pw, ph, n);
+    canvas.toBlob((b) => {
+      if (!b) {
+        toast(lang === "ar" ? "تعذر تصدير الصورة." : "Image export failed.");
+        return;
+      }
+      triggerBlob(b, `${fileBase()}.png`);
+      toast(lang === "ar" ? "بدأ تنزيل الصورة PNG." : "PNG download started.");
+    }, "image/png");
+  };
+
+  const downloadText = () => {
+    try {
+      const blob = new Blob([draft], { type: "text/plain;charset=utf-8" });
+      triggerBlob(blob, `${fileBase()}.txt`);
+      toast(lang === "ar" ? "بدء تنزيل المسودة." : "Draft download started.");
+    } catch {
+      toast(lang === "ar" ? "التنزيل محجوب هنا — انسخي النص بدلاً منه." : "Download blocked here — copy the text instead.");
+    }
+  };
+
+  const downloadVideo = async () => {
+    if (!window.MediaRecorder || !HTMLCanvasElement.prototype.captureStream) {
+      toast(lang === "ar" ? "متصفحك لا يدعم تسجيل الفيديو — نزّلي الستوري بورد نصياً." : "Your browser cannot record video — downloading the storyboard as text instead.");
+      downloadText();
+      return;
+    }
+    setExporting(true);
+    toast(lang === "ar" ? "جارٍ تسجيل الفيديو (~8 ثوانٍ)…" : "Recording video (~8 seconds)…");
+    try {
+      const canvas = document.createElement("canvas");
+      canvas.width = 960;
+      canvas.height = 540;
+      const ctx = canvas.getContext("2d");
+      const stream = canvas.captureStream(25);
+      const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9") ? "video/webm;codecs=vp9" : "video/webm";
+      const rec = new MediaRecorder(stream, { mimeType });
+      const chunks = [];
+      rec.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+      const stopped = new Promise((res) => { rec.onstop = res; });
+      const scenes = videoScenes();
+      const drawScene = (sc, i) => {
+        ctx.fillStyle = tokens.card;
+        ctx.fillRect(0, 0, 960, 540);
+        ctx.fillStyle = tokens.primary;
+        ctx.fillRect(0, 0, 960, 84);
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "700 30px monospace";
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+        ctx.fillText(`SCENE ${i + 1} · ${sc.time}`, 40, 44);
+        ctx.fillStyle = tokens.textPrimary;
+        ctx.font = "600 34px sans-serif";
+        ctx.fillText(topicLabel, 40, 140);
+        ctx.fillStyle = tokens.textSecondary;
+        ctx.font = "400 26px sans-serif";
+        wrapText(ctx, `VISUAL: ${sc.visual}`, 40, 210, 880, 36);
+        ctx.fillStyle = tokens.textMuted;
+        wrapText(ctx, `NARRATION: ${sc.narration}`, 40, 310, 880, 36);
+        ctx.fillStyle = tokens.textFaint;
+        ctx.font = "400 20px monospace";
+        ctx.fillText(`${course.id} · content studio storyboard`, 40, 500);
+      };
+      drawScene(scenes[0], 0);
+      rec.start();
+      for (let i = 0; i < scenes.length; i++) {
+        drawScene(scenes[i], i);
+        await new Promise((r) => setTimeout(r, 2000));
+      }
+      rec.stop();
+      await stopped;
+      stream.getTracks().forEach((t) => t.stop());
+      triggerBlob(new Blob(chunks, { type: "video/webm" }), `${fileBase()}.webm`);
+      toast(lang === "ar" ? "بدأ تنزيل الفيديو WebM." : "WebM video download started.");
+    } catch {
+      toast(lang === "ar" ? "فشل تسجيل الفيديو — جرّبي التنزيل النصي." : "Video recording failed — try the text download.");
+    }
+    setExporting(false);
+  };
+
+  const previewAudio = () => {
+    if (!("speechSynthesis" in window)) {
+      toast(lang === "ar" ? "المعاينة الصوتية غير مدعومة في هذا المتصفح." : "Audio preview is unsupported in this browser.");
+      return;
+    }
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(draft.replace(/\[.*?\]/g, " "));
+    u.lang = lang === "ar" ? "ar-SA" : "en-US";
+    u.rate = 0.95;
+    window.speechSynthesis.speak(u);
+    toast(lang === "ar" ? "جارٍ التشغيل بصوت المتصفح — السكريت نفسه قابل للتنزيل." : "Playing with the browser voice — the script itself stays downloadable.");
+  };
+
+  const downloadNative = () => {
+    if (draftType === "images") downloadImages();
+    else if (draftType === "video") downloadVideo();
+    else downloadText();
+  };
+
+  const copyDraft = async () => {
+    try {
+      await navigator.clipboard.writeText(draft);
+      toast(lang === "ar" ? "تم نسخ المسودة." : "Draft copied.");
+    } catch {
+      toast(lang === "ar" ? "انسخي النص المحدد يدوياً (Ctrl+C)." : "Select the text and copy manually (Ctrl+C).");
+    }
+  };  const Diagram = ({ n }) => (
     <svg viewBox="0 0 220 90" width="100%" height="90" role="img" aria-label={`diagram ${n}`} style={{ borderRadius: 10, border: `1px solid ${tokens.cardBorder}`, background: tokens.inset }}>
       {[30, 110, 190].map((x, i) => (
         <g key={x}>
@@ -231,6 +422,26 @@ export default function ContentStudioPage({ state }) {
                   onClick={() => { if (topicId !== "__custom") { addMaterial(course.id, topicId, `[studio] ${topicLabel} — ${TYPES.find((t) => t.id === draftType)?.en}`); toast(lang === "ar" ? "أُضيفت كمادة قيد الاعتماد في تغطية المقرر." : "Filed as pending material in the course coverage list."); } else { toast(lang === "ar" ? "الموضوع الحر لا يُضاف لتغطية المقرر — احفظيه كمسودة." : "Free-form topics cannot join course coverage — kept as draft."); } }}
                   disabled={topicId === "__custom" || topicId === ""}>
                   {lang === "ar" ? "إضافة لمواد المقرر (قيد الاعتماد)" : "Add to course materials (pending)"}
+                </Btn>
+                <Btn tokens={tokens} lang={lang} variant="soft" disabled={exporting} onClick={downloadNative}>
+                  <IconDownload size={13} color={tokens.primary} />
+                  {exporting
+                    ? (lang === "ar" ? "جارٍ التصدير…" : "Exporting…")
+                    : draftType === "images"
+                      ? (lang === "ar" ? "تنزيل الصور PNG" : "Download PNG")
+                      : draftType === "video"
+                        ? (lang === "ar" ? "تنزيل الفيديو WebM" : "Download WebM video")
+                        : (lang === "ar" ? "تنزيل .txt" : "Download .txt")}
+                </Btn>
+                {draftType === "audio" && (
+                  <Btn tokens={tokens} lang={lang} variant="ghost" onClick={previewAudio}>
+                    <IconSend size={13} />
+                    {lang === "ar" ? "معاينة صوتية" : "Audio preview"}
+                  </Btn>
+                )}
+                <Btn tokens={tokens} lang={lang} variant="ghost" onClick={copyDraft}>
+                  <IconCheck size={13} />
+                  {lang === "ar" ? "نسخ" : "Copy"}
                 </Btn>
                 <Btn tokens={tokens} lang={lang} variant="ghost" onClick={() => toast(lang === "ar" ? "المسودة محفوظة في الجلسة." : "Draft kept in this session.")}>
                   {lang === "ar" ? "حفظ المسودة" : "Save draft"}
