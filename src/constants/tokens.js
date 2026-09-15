@@ -51,6 +51,7 @@ export const LIGHT = {
   groundedBg: "#EBF2FD",
   insufficient: "#7398E4",
   insufficientBg: "#F3F7FE",
+  primaryShadow: "0 4px 14px rgba(27,77,168,0.30)",
 
   sidebar: "#FFFFFF",
   sidebarBorder: "#DDE3ED",
@@ -105,6 +106,7 @@ export const DARK = {
   groundedBg: "#101A3C",
   insufficient: "#A9BAF1",
   insufficientBg: "#1A2148",
+  primaryShadow: "0 4px 14px rgba(108,142,242,0.32)",
 
   sidebar: "#0E1430",
   sidebarBorder: "#242E5C",

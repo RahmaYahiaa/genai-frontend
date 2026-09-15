@@ -25,7 +25,7 @@ export const STUDENT_NAV_BOTTOM = [
 ];
 
 export const INSTRUCTOR_NAV = [
-  { id: SCREENS.INSTRUCTOR, en: "Analytics", ar: "التحليلات", Icon: IconDashboard },
+  { id: SCREENS.INSTRUCTOR_HOME, en: "My Courses", ar: "مقرراتي", Icon: IconCourses },
 ];
 
 export const ADMIN_NAV = [

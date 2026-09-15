@@ -41,7 +41,7 @@ export default function LoginPage({ state, dispatch }) {
   };
 
   const goAfterSignIn = () => {
-    const target = state.role === ROLES.INSTRUCTOR ? SCREENS.INSTRUCTOR : state.role === ROLES.ADMIN ? SCREENS.ADMIN : SCREENS.DASHBOARD;
+            const target = state.role === ROLES.INSTRUCTOR ? SCREENS.INSTRUCTOR_HOME : state.role === ROLES.ADMIN ? SCREENS.ADMIN : SCREENS.DASHBOARD;
     dispatch({ type: "NAVIGATE", screen: target });
   };
 

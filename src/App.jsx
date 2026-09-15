@@ -1,4 +1,5 @@
 import AppProvider from "@/store/AppProvider";
+import { InstructorModuleProvider } from "@/store/InstructorProvider";
 import { useApp } from "@/store/useApp";
 import { SCREENS, ROLES } from "@/constants/routes";
 import WelcomePage from "@/pages/WelcomePage";
@@ -12,10 +13,12 @@ import DiagnosticPage from "@/pages/DiagnosticPage";
 import PracticePage from "@/pages/PracticePage";
 import ReassessmentPage from "@/pages/ReassessmentPage";
 import ProfilePage from "@/pages/ProfilePage";
+import InstructorHomePage from "@/pages/InstructorHomePage";
 import AppShell from "@/components/AppShell";
 import "./App.css";
 
 const PAGES = {
+  [SCREENS.INSTRUCTOR_HOME]: InstructorHomePage,
   [SCREENS.DASHBOARD]: DashboardPage,
   [SCREENS.COURSES]: CoursesPage,
   [SCREENS.MASTERY]: MasteryPage,
@@ -46,7 +49,9 @@ function AppContent() {
 export default function App() {
   return (
     <AppProvider>
-      <AppContent />
+      <InstructorModuleProvider>
+        <AppContent />
+      </InstructorModuleProvider>
     </AppProvider>
   );
 }

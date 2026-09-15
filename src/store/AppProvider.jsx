@@ -12,8 +12,13 @@ const initialState = {
 
 function reducer(state, action) {
   switch (action.type) {
-    case "NAVIGATE":
-      return { ...state, screen: action.screen };
+    case "NAVIGATE": {
+      // extra keys (courseId, tab, assignmentId, studentId) merge when present,
+      // so module screens can deep-link without losing the rest of the context
+      const rest = { ...action };
+      delete rest.type;
+      return { ...state, ...rest };
+    }
     case "TOGGLE_THEME":
       return { ...state, dark: !state.dark };
     case "SET_THEME":

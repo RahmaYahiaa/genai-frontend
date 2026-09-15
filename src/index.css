@@ -72,3 +72,97 @@ textarea:focus-visible {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ── Instructor Workspace module (ported from GenAIDesign) ─────────────── */
+.genai-input {
+  transition: border-color 150ms ease, box-shadow 150ms ease, background 150ms ease !important;
+}
+.genai-input:focus {
+  border-color: #1b4da8 !important;
+  box-shadow: 0 0 0 3px rgba(27, 77, 168, 0.13) !important;
+  background: #ffffff !important;
+}
+.dark .genai-input:focus {
+  border-color: #7d9bf6 !important;
+  box-shadow: 0 0 0 3px rgba(125, 155, 246, 0.16) !important;
+  background: #1a2248 !important;
+}
+
+.genai-cta {
+  transition: filter 150ms ease, transform 150ms ease, box-shadow 150ms ease !important;
+}
+.genai-cta:hover {
+  filter: brightness(1.07);
+  transform: translateY(-1px);
+}
+.genai-cta:active {
+  filter: brightness(0.96);
+  transform: translateY(0);
+}
+
+.card-interactive {
+  transition: box-shadow 160ms ease, transform 160ms ease !important;
+}
+.card-interactive:hover {
+  box-shadow: 0 4px 20px rgba(27, 77, 168, 0.06);
+  transform: translateY(-1px);
+}
+
+@keyframes drawerIn {
+  from {
+    opacity: 0;
+    transform: translateX(var(--drawer-from, 28px));
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+.genai-drawer {
+  animation: drawerIn 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes genai-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes genai-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .genai-drawer {
+    animation: none !important;
+  }
+}
+
+/* mobile pass: module screens stack cleanly */
+@media (max-width: 760px) {
+  .genai-grid-builder,
+  .genai-grid-2 {
+    grid-template-columns: 1fr !important;
+  }
+  .genai-pad {
+    padding: 16px !important;
+  }
+  .genai-modal-card {
+    max-width: 100% !important;
+    padding: 18px 16px !important;
+  }
+  .genai-tiles-5 {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
