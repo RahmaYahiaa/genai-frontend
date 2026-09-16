@@ -21,6 +21,7 @@ import InstructorStudentsPage from "@/pages/InstructorStudentsPage";
 import ContentStudioPage from "@/pages/ContentStudioPage";
 import StudentAssignmentsPage from "@/pages/StudentAssignmentsPage";
 import StudentAssignmentPage from "@/pages/StudentAssignmentPage";
+import StudentCoursePage from "@/pages/StudentCoursePage";
 import AppShell from "@/components/AppShell";
 import "./App.css";
 
@@ -33,6 +34,7 @@ const PAGES = {
   [SCREENS.CONTENT_STUDIO]: ContentStudioPage,
   [SCREENS.STUDENT_ASSIGNMENTS]: StudentAssignmentsPage,
   [SCREENS.STUDENT_ASSIGNMENT]: StudentAssignmentPage,
+  [SCREENS.STUDENT_COURSE]: StudentCoursePage,
   [SCREENS.DASHBOARD]: DashboardPage,
   [SCREENS.COURSES]: CoursesPage,
   [SCREENS.MASTERY]: MasteryPage,

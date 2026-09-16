@@ -238,12 +238,12 @@ export default function InstructorModuleProvider({ children }) {
     const q = a?.questions.find((x) => x.id === u.questionId);
     if (!course || !q) return s;
     u.attempts.push({ n: u.attempts.length + 1, text, image, submittedAt: nowIso(), eval: evaluateAnswer(q, text, course) });
-    u.status = "awaiting_review";
+        u.status = "awaiting_review";
     return s;
   });
-  const addMaterial = (courseId, topicId, title, file) => mutate((s) => {
+  const addMaterial = (courseId, topicId, title, file, autoApprove) => mutate((s) => {
     const t = s.courses.find((c) => c.id === courseId)?.topics.find((x) => x.id === topicId);
-    if (t) t.materials.push({ id: nextId("mat"), title, status: "pending", addedAt: nowIso(), file: file ?? null });
+    if (t) t.materials.push({ id: nextId("mat"), title, status: autoApprove ? "approved" : "pending", addedAt: nowIso(), file: file ?? null });
     return s;
   });
   const removeMaterial = (courseId, topicId, materialId) => mutate((s) => {
@@ -251,6 +251,39 @@ export default function InstructorModuleProvider({ children }) {
     if (t) t.materials = t.materials.filter((m) => m.id !== materialId);
     return s;
   });
+  const renameMaterial = (courseId, topicId, materialId, title) => mutate((s) => {
+    const t = s.courses.find((c) => c.id === courseId)?.topics.find((x) => x.id === topicId);
+    const m = t?.materials.find((x) => x.id === materialId);
+    if (m) m.title = title;
+    return s;
+  });
+  const addPersonalCourse = (title) => {
+    const id = nextId("pc");
+    mutate((s) => {
+      s.courses.push({
+        id,
+        title: { en: title, ar: title },
+        isPersonal: true,
+        week: 0,
+        weeksTotal: 0,
+        enrolled: 1,
+        instructor: "—",
+        overall: 0,
+        topics: []
+      });
+      return s;
+    });
+    return id;
+  };
+  const addPersonalTopic = (courseId, label) => {
+    const id = nextId("tp");
+    mutate((s) => {
+      const c = s.courses.find((x) => x.id === courseId && x.isPersonal);
+      if (c) c.topics.push({ id, short: label.slice(0, 18), label: { en: label, ar: label }, pct: 0, evidence: 0, materials: [] });
+      return s;
+    });
+    return id;
+  };
   const approveMaterial = (courseId, topicId, materialId) => mutate((s) => {
     const t = s.courses.find((c) => c.id === courseId)?.topics.find((x) => x.id === topicId);
     const m = t?.materials.find((x) => x.id === materialId);
@@ -294,6 +327,9 @@ export default function InstructorModuleProvider({ children }) {
     addMaterial,
     approveMaterial,
     removeMaterial,
+    renameMaterial,
+    addPersonalCourse,
+    addPersonalTopic,
     saveRemedial,
     publishRemedial,
     discardRemedial,

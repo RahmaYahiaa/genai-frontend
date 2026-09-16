@@ -7,7 +7,7 @@ import { fmtBytes, fileKind } from "@/utils/fileMeta";
 
 const MAX_BYTES = 25 * 1024 * 1024;
 
-export default function MaterialUploader({ courseId, topicId, tokens, lang, style }) {
+export default function MaterialUploader({ courseId, topicId, tokens, lang, style, autoApprove = false }) {
   const { addMaterial } = useInstructorModule();
   const inputRef = useRef(null);
   const [drag, setDrag] = useState(false);
@@ -37,10 +37,14 @@ export default function MaterialUploader({ courseId, topicId, tokens, lang, styl
         size: item.file.size,
         mime: item.file.type,
         url: URL.createObjectURL(item.file)
-      });
+      }, autoApprove);
     }
     toast(
-      lang === "ar"
+      autoApprove
+        ? lang === "ar"
+          ? `تم رفع ${queue.length === 1 ? "مادة واحدة" : `${queue.length} مواد`} — مفعّلة فوراً في مقررك الشخصي.`
+          : `Uploaded ${queue.length} material${queue.length === 1 ? "" : "s"} — active immediately in your self-study course.`
+        : lang === "ar"
         ? `تم رفع ${queue.length === 1 ? "مادة واحدة" : `${queue.length} مواد`} كمسودات بانتظار الاعتماد.`
         : `Uploaded ${queue.length} material${queue.length === 1 ? "" : "s"} as pending approval.`
     );
@@ -101,7 +105,7 @@ export default function MaterialUploader({ courseId, topicId, tokens, lang, styl
                   <input
                     value={item.title}
                     onChange={(e) => setQueue((q) => q.map((x) => (x.key === item.key ? { ...x, title: e.target.value } : x)))}
-                    placeholder={lang === "ar" ? "عنوان المادة كما سيظهر للطلاب" : "Material title as students will see it"}
+                    placeholder={autoApprove ? (lang === "ar" ? "عنوان المادة" : "Material title") : (lang === "ar" ? "عنوان المادة كما سيظهر للطلاب" : "Material title as students will see it")}
                     style={{ ...inputStyle(tokens, bFont), marginTop: 7, fontSize: 12 }}
                     className="genai-input"
                   />
