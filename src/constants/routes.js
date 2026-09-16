@@ -18,6 +18,8 @@ export const SCREENS = Object.freeze({
   ASSIGNMENT_REVIEW: "assignment-review",
   INSTRUCTOR_STUDENTS: "instructor-students",
   CONTENT_STUDIO: "content-studio",
+  STUDENT_ASSIGNMENTS: "student-assignments",
+  STUDENT_ASSIGNMENT: "student-assignment",
 });
 
 export const LANGS = Object.freeze({
@@ -34,8 +36,4 @@ export const ROLES = Object.freeze({
 export const STORAGE_KEYS = Object.freeze({
   PREFS: "genai-prefs",
   SESSION: "genai-session",
-  INSTRUCTOR_STUDENTS: "instructor-students",
-  CONTENT_STUDIO: "content-studio",
-  STUDENT_ASSIGNMENTS: "student-assignments",
-  STUDENT_ASSIGNMENT: "student-assignment",
 });

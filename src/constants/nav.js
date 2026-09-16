@@ -11,7 +11,6 @@ import {
   IconSparkle,
   IconClipboard,
 } from "@/components/Icons";
-
 import { SCREENS } from "./routes";
 
 export const STUDENT_NAV = [
@@ -22,6 +21,7 @@ export const STUDENT_NAV = [
   { id: SCREENS.TUTOR, en: "AI Tutor", ar: "المعلم الذكي", Icon: IconTutor },
   { id: SCREENS.DIAGNOSTIC, en: "Diagnostic", ar: "التشخيص", Icon: IconDiagnostic },
   { id: SCREENS.PRACTICE, en: "Practice", ar: "التدريب", Icon: IconPractice },
+  { id: SCREENS.REASSESSMENT, en: "Reassessment", ar: "إعادة التقييم", Icon: IconReassessment },
 ];
 
 export const STUDENT_NAV_BOTTOM = [
