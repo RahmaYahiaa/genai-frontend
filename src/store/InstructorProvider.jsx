@@ -57,9 +57,7 @@ export default function InstructorModuleProvider({ children }) {
         courseId,
         title: { en: draft.titleEn, ar: draft.titleAr || draft.titleEn },
         status,
-        // FR-AC-05 — publish ⇒ Open unless saved as draft
         showScoreToStudent: draft.showScore,
-        // FR-VIS-05 default handled by caller (false)
         createdAt: nowIso(),
         questions: draft.questions
       });
@@ -195,8 +193,8 @@ export default function InstructorModuleProvider({ children }) {
     }
     return s;
   });
-  const saveDraft = (assignmentId, questionId, text, image) => mutate((s) => {
-    s.drafts[`${assignmentId}|${questionId}`] = { text, image, savedAt: nowIso() };
+  const saveDraft = (assignmentId, questionId, text, image, selected) => mutate((s) => {
+    s.drafts[`${assignmentId}|${questionId}`] = { text, image, selected, savedAt: nowIso() };
     return s;
   });
   const submitAssignment = (assignmentId) => mutate((s) => {
@@ -210,9 +208,10 @@ export default function InstructorModuleProvider({ children }) {
       const draft = s.drafts[`${assignmentId}|${q.id}`];
       const text = draft?.text ?? "";
       const image = draft?.image;
+      const selected = draft?.selected;
       const ev = evaluateAnswer(q, text, course);
       if (existing && existing.status === "resubmission_requested") {
-        existing.attempts.push({ n: existing.attempts.length + 1, text, image, submittedAt: nowIso(), eval: ev });
+        existing.attempts.push({ n: existing.attempts.length + 1, text, image, selected, submittedAt: nowIso(), eval: ev });
         existing.status = "awaiting_review";
       } else if (!existing) {
         s.units.push({
@@ -223,7 +222,7 @@ export default function InstructorModuleProvider({ children }) {
           studentId: student.id,
           studentName: student.name,
           status: "awaiting_review",
-          attempts: [{ n: 1, text, image, submittedAt: nowIso(), eval: ev }]
+          attempts: [{ n: 1, text, image, selected, submittedAt: nowIso(), eval: ev }]
         });
       }
       delete s.drafts[`${assignmentId}|${q.id}`];
@@ -242,7 +241,7 @@ export default function InstructorModuleProvider({ children }) {
     u.status = "awaiting_review";
     return s;
   });
-    const addMaterial = (courseId, topicId, title, file) => mutate((s) => {
+  const addMaterial = (courseId, topicId, title, file) => mutate((s) => {
     const t = s.courses.find((c) => c.id === courseId)?.topics.find((x) => x.id === topicId);
     if (t) t.materials.push({ id: nextId("mat"), title, status: "pending", addedAt: nowIso(), file: file ?? null });
     return s;
@@ -293,13 +292,12 @@ export default function InstructorModuleProvider({ children }) {
     submitAssignment,
     resubmitUnit,
     addMaterial,
-    removeMaterial,
     approveMaterial,
+    removeMaterial,
     saveRemedial,
     publishRemedial,
     discardRemedial,
     reset
-    // handlers close over setState only — re-created per render is intentional
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [state]);
   return <ModuleContext.Provider value={value}>{children}</ModuleContext.Provider>;

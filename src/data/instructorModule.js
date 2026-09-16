@@ -141,8 +141,6 @@ const COURSES = [
     ]
   },
   {
-    // Personal course — created by the individual learner. The whole instructor
-    // module must be invisible here (FR-SCOPE-01..03).
     id: "LIN101",
     title: { en: "Self-Study · Linear Algebra Foundations", ar: "دراسة ذاتية · أساسات الجبر الخطي" },
     isPersonal: true,
@@ -212,14 +210,34 @@ const ASSIGNMENTS = [
         referenceAnswer: "Every node's left subtree holds smaller values and its right subtree larger ones. Inserting 1..n in order yields a degenerate chain of height n−1 with no branching.",
         rubric: "5 pts invariant · 5 pts sorted-insert consequence.",
         keyTerms: ["invariant", "sorted", "chain", "balance", "left", "right"]
+      },
+      {
+        id: "q3",
+        topicId: "bst",
+        kind: "multiple_choice",
+        maxScore: 5,
+        prompt: { en: "Which traversal of a BST visits the keys in ascending sorted order?", ar: "أي اجتياز لشجرة BST يزور المفاتيح بترتيب تصاعدي؟" },
+        options: ["In-order", "Pre-order", "Post-order", "Level-order"],
+        referenceAnswer: "In-order traversal (left, node, right) yields ascending sorted order because of the BST ordering invariant.",
+        rubric: "5 pts correct option.",
+        keyTerms: ["in-order", "ascending", "sorted"]
+      },
+      {
+        id: "q4",
+        topicId: "bst",
+        kind: "true_false",
+        maxScore: 2,
+        prompt: { en: "True or false: inserting sorted keys 1..n into an empty BST keeps it balanced.", ar: "صح أم خطأ: إدراج مفاتيح مرتبة 1..n في شجرة BST فارغة يبقيها متوازنة." },
+        referenceAnswer: "False — sorted inserts produce a degenerate right-only chain of height n−1.",
+        rubric: "2 pts correct verdict.",
+        keyTerms: ["false", "degenerate", "chain"]
       }
     ]
   },
   {
     id: "as-hash",
     courseId: "CS301",
-    title: { en: "Hash Tables in Practice", ar: "جداول التجزئة عملياً" },
-    status: "open",
+    title: { en: "Hash Tables in Practice", ar: "جداول التجزئة عملياً" },    status: "open",
     showScoreToStudent: true,
     createdAt: ago(200),
     questions: [
@@ -328,7 +346,6 @@ const ASSIGNMENTS = [
 const unit = (id, assignmentId, courseId, questionId, studentId, studentName, status, attempts) => ({ id, assignmentId, courseId, questionId, studentId, studentName, status, attempts });
 const att = (n, text, submittedAt, ev, extra) => ({ n, text, submittedAt, eval: ev, ...extra });
 const SEED_UNITS = [
-  // ── CS301 · BST Invariants & Traversal — 7 received · 5 pending (3 quick) ──
   unit("u-bst-q1-omar", "as-bst", "CS301", "q1", "st-omar", "Omar Khaled", "awaiting_review", [
     att(
       1,
@@ -387,7 +404,6 @@ const SEED_UNITS = [
       { decision: { action: "edit", finalScore: 4, finalFeedback: "Lowered to 4: the example never shows why height becomes n−1, so half the rubric is unmet.", decidedBy: INSTRUCTOR_NAME, decidedAt: at("2026-09-08T18:20:00") } }
     )
   ]),
-  // ── CS301 · Hash Tables in Practice — 4 received · 3 pending (2 quick) ──
   unit("u-hash-q1-nour", "as-hash", "CS301", "q1", "st-nour", "Nour Al-Qahtani", "awaiting_review", [
     att(
       1,
@@ -421,7 +437,6 @@ const SEED_UNITS = [
       { resubmitReason: "Show the computation and state whether a resize is urgent." }
     )
   ]),
-  // ── CS301 · Graph Traversal Quiz (closed) — 3 received · 0 pending ──
   unit("u-quiz-q1-tariq", "as-quiz", "CS301", "q2", "st-tariq", "Tariq Al-Nasser", "final", [
     att(
       1,
@@ -449,7 +464,6 @@ const SEED_UNITS = [
       { decision: { action: "edit", finalScore: 5, finalFeedback: "Raised to 5 after re-reading: recursion-stack mention covers the condition.", decidedBy: INSTRUCTOR_NAME, decidedAt: at("2026-08-28T16:45:00") } }
     )
   ]),
-  // ── CS401 · CPU Scheduling Worksheet — 6 pending (3 quick) ──
   unit("u-sched-q1-nour", "as-sched", "CS401", "q1", "st-nour", "Nour Al-Qahtani", "awaiting_review", [
     att(
       1,
@@ -462,8 +476,7 @@ const SEED_UNITS = [
     att(
       1,
       "RR(2): P1 0-2, P2 2-4, P1 4-5, P3 5-7, P2 7-8. Average waiting 2.33.",
-      ago(17),
-      { aiScore: 9, confidence: "high", feedback: "Correct; presentation terse but complete.", misconceptions: [], sources: ["CS401 · Lec 4"] }
+      ago(17),      { aiScore: 9, confidence: "high", feedback: "Correct; presentation terse but complete.", misconceptions: [], sources: ["CS401 · Lec 4"] }
     )
   ]),
   unit("u-sched-q2-hana", "as-sched", "CS401", "q2", "st-hana", "Hana Saeed", "awaiting_review", [
@@ -500,7 +513,6 @@ const SEED_UNITS = [
       { decision: { action: "reject", finalScore: 1, finalFeedback: "Rejected: ageing addresses starvation, not priority inversion — the answer conflates the two.", decidedBy: INSTRUCTOR_NAME, decidedAt: at("2026-09-07T09:20:00") } }
     )
   ]),
-  // ── CS401 · Sarah (demo student) — submitted, under review (reference d9 state) ──
   unit("u-sched-q1-sarah", "as-sched", "CS401", "q1", DEMO_STUDENT_ID, "Sarah Al-Rashidi", "awaiting_review", [
     att(
       1,
@@ -517,7 +529,6 @@ const SEED_UNITS = [
       { aiScore: 7, confidence: "medium", feedback: "Both halves named; the mechanism of ageing needs one more sentence to be complete.", misconceptions: [], sources: ["CS401 · Lec 4"] }
     )
   ]),
-  // ── CS303 · SQL Joins & Indexes — 2 pending (1 quick) ──
   unit("u-sql-q1-lina", "as-sql", "CS303", "q1", "st-lina", "Lina Hassan", "awaiting_review", [
     att(
       1,
@@ -669,6 +680,29 @@ function misconceptionText(id, _lang) {
   const m = MISCONCEPTIONS.find((x) => x.id === id);
   return m ? m.text : id;
 }
+const QUESTION_KINDS = Object.freeze({
+  MULTIPLE_CHOICE: "multiple_choice",
+  MULTIPLE_SELECT: "multiple_select",
+  TRUE_FALSE: "true_false",
+  SHORT_ANSWER: "short_answer",
+  LONG_ANSWER: "long_answer",
+  ESSAY: "essay",
+  PROBLEM_SOLVING: "problem_solving"
+});
+const QUESTION_KIND_LABELS = {
+  multiple_choice: { en: "Multiple choice", ar: "اختيار من متعدد" },
+  multiple_select: { en: "Multiple select", ar: "اختيار متعدد الإجابات" },
+  true_false: { en: "True / False", ar: "صح / خطأ" },
+  short_answer: { en: "Short answer", ar: "إجابة قصيرة" },
+  long_answer: { en: "Long answer", ar: "إجابة طويلة" },
+  essay: { en: "Essay", ar: "مقال" },
+  problem_solving: { en: "Problem-solving", ar: "حل مسألة" }
+};
+const kindOf = (q) => q?.kind ?? QUESTION_KINDS.LONG_ANSWER;
+const kindNeedsOptions = (kind) => kind === QUESTION_KINDS.MULTIPLE_CHOICE || kind === QUESTION_KINDS.MULTIPLE_SELECT;
+const isChoiceKind = (kind) => kindNeedsOptions(kind) || kind === QUESTION_KINDS.TRUE_FALSE;
+const kindRows = (kind) => (kind === QUESTION_KINDS.SHORT_ANSWER ? 2 : kind === QUESTION_KINDS.ESSAY ? 9 : kind === QUESTION_KINDS.PROBLEM_SOLVING ? 7 : 5);
+const kindLabel = (kind, lang) => QUESTION_KIND_LABELS[kind] ? QUESTION_KIND_LABELS[kind][lang] : kind;
 export {
   ANALYTICS_AS_OF,
   ASSIGNMENTS,
@@ -679,6 +713,8 @@ export {
   INSTRUCTOR_COURSE_IDS,
   INSTRUCTOR_NAME,
   MISCONCEPTIONS,
+  QUESTION_KINDS,
+  QUESTION_KIND_LABELS,
   SEED_AUDIT,
   SEED_DRAFTS,
   SEED_REMEDIAL,
@@ -693,6 +729,11 @@ export {
   finalScoreOf,
   fmtAgo,
   fmtWhen,
+  isChoiceKind,
+  kindLabel,
+  kindNeedsOptions,
+  kindOf,
+  kindRows,
   latestAttempt,
   misconceptionText,
   pendingMaterials,

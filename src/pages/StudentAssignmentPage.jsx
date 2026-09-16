@@ -5,7 +5,7 @@ import { useInstructorModule } from "@/store/InstructorProvider";
 import { Card, Chip, ScoreValue, AlertStrip, BackCircle, ConfirmBtn, Modal, bFontFor, hFontFor, textareaStyle, toast } from "@/components/ModuleUI";
 import { IconCheck, IconImageAttach, IconReply, IconBan, IconTrash } from "@/components/Icons";
 import { SCREENS } from "@/constants/routes";
-import { DEMO_STUDENT_ID, latestAttempt, fmtAgo } from "@/data/instructorModule";
+import { DEMO_STUDENT_ID, latestAttempt, fmtAgo, kindOf, kindLabel, kindRows, kindNeedsOptions, isChoiceKind } from "@/data/instructorModule";
 
 export default function StudentAssignmentPage({ state, dispatch }) {
   const { state: mod, saveDraft, submitAssignment } = useInstructorModule();
@@ -38,11 +38,11 @@ export default function StudentAssignmentPage({ state, dispatch }) {
       const d = mod.drafts[`${assignment.id}|${q.id}`];
       if (u) {
         const last = latestAttempt(u);
-        map[q.id] = { text: last.text, image: last.image };
+        map[q.id] = { text: last.text, image: last.image, selected: last.selected ?? [] };
       } else if (d) {
-        map[q.id] = { text: d.text, image: d.image };
+        map[q.id] = { text: d.text, image: d.image, selected: d.selected ?? [] };
       } else {
-        map[q.id] = { text: "", image: undefined };
+        map[q.id] = { text: "", image: undefined, selected: [] };
       }
     }
     return map;
@@ -61,7 +61,7 @@ export default function StudentAssignmentPage({ state, dispatch }) {
     setSaving(true);
     const t = window.setTimeout(() => {
       for (const q of assignment.questions) {
-        if (isEditable(q.id)) saveDraft(assignment.id, q.id, answers[q.id]?.text ?? "", answers[q.id]?.image);
+        if (isEditable(q.id)) saveDraft(assignment.id, q.id, answers[q.id]?.text ?? "", answers[q.id]?.image, answers[q.id]?.selected);
       }
       setSaving(false);
     }, 600);
@@ -88,19 +88,33 @@ export default function StudentAssignmentPage({ state, dispatch }) {
 
   const doSubmit = () => {
     for (const qq of assignment.questions) {
-      if (isEditable(qq.id)) saveDraft(assignment.id, qq.id, answers[qq.id]?.text ?? "", answers[qq.id]?.image);
+      if (isEditable(qq.id)) saveDraft(assignment.id, qq.id, answers[qq.id]?.text ?? "", answers[qq.id]?.image, answers[qq.id]?.selected);
     }
     submitAssignment(assignment.id);
     toast(lang === "ar" ? "أُرسل التكليف — إجاباتك قيد المراجعة." : "Assignment submitted — your answers are under review.");
   };
+
+  const pick = (qid, value, multi) => {
+    setAnswers((xs) => {
+      const cur = xs[qid] ?? { text: "", image: undefined, selected: [] };
+      const selected = multi
+        ? cur.selected?.includes(value)
+          ? cur.selected.filter((x) => x !== value)
+          : [...(cur.selected ?? []), value]
+        : [value];
+      return { ...xs, [qid]: { ...cur, selected, text: selected.join(" · ") } };
+    });
+  };
+
+  const tfLabel = (v) => (v === "True" ? (lang === "ar" ? "صح" : "True") : v === "False" ? (lang === "ar" ? "خطأ" : "False") : v);
 
   const onPickImage = (qid, file) => {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
       const url = String(reader.result);
-      setAnswers((a) => ({ ...a, [qid]: { text: a[qid]?.text ?? "", image: url } }));
-      saveDraft(assignment.id, qid, answers[qid]?.text ?? "", url);
+      setAnswers((a) => ({ ...a, [qid]: { text: a[qid]?.text ?? "", image: url, selected: a[qid]?.selected ?? [] } }));
+      saveDraft(assignment.id, qid, answers[qid]?.text ?? "", url, answers[qid]?.selected);
     };
     reader.readAsDataURL(file);
   };
@@ -144,7 +158,7 @@ export default function StudentAssignmentPage({ state, dispatch }) {
             body={resubReason} />
         </div>
       )}
-      {!anyResub && !closedBlocked && allSubmitted && !allFinal && (
+            {!anyResub && !closedBlocked && allSubmitted && !allFinal && (
         <div style={{ marginBottom: 16 }}>
           <AlertStrip tokens={tokens} lang={lang} tone="peri" icon={<IconCheck size={14} color={tokens.primary} />}
             title={lang === "ar"
@@ -166,8 +180,10 @@ export default function StudentAssignmentPage({ state, dispatch }) {
           const u = units.find((x) => x.questionId === q.id);
           const editable = isEditable(q.id);
           const topic = course?.topics.find((t) => t.id === q.topicId);
-          const a = answers[q.id] ?? { text: "", image: undefined };
+          const a = answers[q.id] ?? { text: "", image: undefined, selected: [] };
           const last = u ? latestAttempt(u) : null;
+          const kind = kindOf(q);
+          const choice = isChoiceKind(kind);
           return (
             <Card tokens={tokens} key={q.id} style={{ padding: "18px 20px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, marginBottom: 8, flexDirection: isRtl ? "row-reverse" : "row" }}>
@@ -175,21 +191,57 @@ export default function StudentAssignmentPage({ state, dispatch }) {
                   {lang === "ar" ? `السؤال ${i + 1} · ${topic?.label.ar ?? ""}` : `Question ${i + 1} · ${topic?.label.en ?? ""}`}
                 </div>
                 <span style={{ fontFamily: MONO, fontSize: 11, color: tokens.textMuted, flexShrink: 0 }}>
-                  {lang === "ar" ? `الحد ${q.maxScore}` : `max ${q.maxScore}`}
+                  {kindLabel(kind, lang)} · {lang === "ar" ? `الحد ${q.maxScore}` : `max ${q.maxScore}`}
                 </span>
               </div>
               <p style={{ fontFamily: bFont, fontSize: 13.5, color: tokens.textSecondary, lineHeight: 1.7, margin: "0 0 14px" }}>
                 {lang === "ar" ? q.prompt.ar : q.prompt.en}
               </p>
 
-              {mono(lang === "ar" ? "إجابتك" : "Your answer")}
+              {mono(choice ? (lang === "ar" ? "اختر إجابتك" : "Your selection") : (lang === "ar" ? "إجابتك" : "Your answer"))}
               {editable ? (
+                choice ? (
+                  kindNeedsOptions(kind) ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      {(q.options ?? []).map((opt, oi) => {
+                        const sel = (a.selected ?? []).includes(opt);
+                        return (
+                          <button key={oi} onClick={() => pick(q.id, opt, kind === "multiple_select")}
+                            style={{ display: "flex", gap: 10, alignItems: "center", padding: "10px 13px", borderRadius: 10, cursor: "pointer", textAlign: "start", background: sel ? tokens.primaryLight : tokens.card, border: `1px solid ${sel ? tokens.primary : tokens.cardBorder}`, fontFamily: bFont, fontSize: 13, color: sel ? tokens.primary : tokens.textPrimary }}>
+                            <span style={{ width: 18, height: 18, borderRadius: kind === "multiple_select" ? 5 : "50%", border: `1.5px solid ${sel ? tokens.primary : tokens.cardBorder}`, background: sel ? tokens.primary : "transparent", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                              {sel ? <span style={{ width: 8, height: 8, borderRadius: kind === "multiple_select" ? 2 : "50%", background: "#fff" }} /> : null}
+                            </span>
+                            <span style={{ fontFamily: MONO, fontSize: 11, color: tokens.textFaint, flexShrink: 0 }}>{String.fromCharCode(65 + oi)}</span>
+                            {opt}
+                          </button>
+                        );
+                      })}
+                      {!(q.options ?? []).length && (
+                        <div style={{ fontFamily: bFont, fontSize: 12, color: tokens.textMuted }}>
+                          {lang === "ar" ? "لم يضف المدرس خيارات لهذا السؤال بعد." : "Your instructor has not added options for this question yet."}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", gap: 10 }}>
+                      {["True", "False"].map((v) => {
+                        const sel = (a.selected ?? []).includes(v);
+                        return (
+                          <button key={v} onClick={() => pick(q.id, v, false)}
+                            style={{ flex: 1, padding: "12px 0", borderRadius: 10, cursor: "pointer", fontFamily: bFont, fontSize: 13.5, fontWeight: 600, background: sel ? tokens.primaryLight : tokens.card, border: `1px solid ${sel ? tokens.primary : tokens.cardBorder}`, color: sel ? tokens.primary : tokens.textSecondary }}>
+                            {tfLabel(v)}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )
+                ) : (
                 <>
                   <textarea
                     value={a.text}
                     onChange={(e) => setAnswers((xs) => ({ ...xs, [q.id]: { ...a, text: e.target.value } }))}
-                    rows={4}
-                    placeholder={lang === "ar" ? "اكتبي إجابتك هنا — تُحفظ مسودة تلقائياً." : "Write your answer here — drafts save automatically."}
+                    rows={kindRows(kind)}
+                    placeholder={lang === "ar" ? "اكتب إجابتك هنا — تُحفظ مسودة تلقائياً." : "Write your answer here — drafts save automatically."}
                     style={textareaStyle(tokens, bFont)}
                     className="genai-input"
                   />
@@ -208,11 +260,20 @@ export default function StudentAssignmentPage({ state, dispatch }) {
                   </div>
                   {a.image && <img src={a.image} alt="attachment" style={{ maxWidth: "100%", borderRadius: 10, marginTop: 10, border: `1px solid ${tokens.cardBorder}` }} />}
                 </>
+                )
               ) : (
                 <>
-                  <div style={{ background: tokens.inset, border: `1px solid ${tokens.cardBorder}`, borderRadius: 10, padding: "12px 14px", fontFamily: bFont, fontSize: 13, color: tokens.textPrimary, lineHeight: 1.65, whiteSpace: "pre-wrap" }}>
-                    {last?.text || a.text || (lang === "ar" ? "(لا نص)" : "(no text)")}
-                  </div>
+                  {(last?.selected ?? a.selected ?? []).length ? (
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
+                      {(last?.selected ?? a.selected).map((v) => (
+                        <Chip tokens={tokens} tone="primary" key={v}>{kind === "true_false" ? tfLabel(v) : v}</Chip>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ background: tokens.inset, border: `1px solid ${tokens.cardBorder}`, borderRadius: 10, padding: "12px 14px", fontFamily: bFont, fontSize: 13, color: tokens.textPrimary, lineHeight: 1.65, whiteSpace: "pre-wrap" }}>
+                      {last?.text || a.text || (lang === "ar" ? "(لا نص)" : "(no text)")}
+                    </div>
+                  )}
                   {(last?.image || a.image) && <img src={last?.image ?? a.image} alt="attachment" onClick={() => setZoom(last?.image ?? a.image)} title={lang === "ar" ? "اضغط للتكبير" : "Click to zoom"} style={{ maxWidth: "100%", borderRadius: 10, marginTop: 10, border: `1px solid ${tokens.cardBorder}`, cursor: "zoom-in" }} />}
                   {u?.status === "final" && u && assignment.showScoreToStudent && last?.decision && (
                     <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 10, flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>

@@ -8,17 +8,10 @@ import {
 } from "@/components/ModuleUI";
 import { IconPlus, IconTrash, IconSparkle, IconEyeOff, IconWarning } from "@/components/Icons";
 import { SCREENS } from "@/constants/routes";
-import { evaluateAnswer, COURSE_BY_ID } from "@/data/instructorModule";
+import { evaluateAnswer, COURSE_BY_ID, QUESTION_KIND_LABELS, kindNeedsOptions } from "@/data/instructorModule";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Assignment builder — create AND edit (spec 4.3). Form-based, never a file
-// upload. The two accuracy fields (reference answer + free-text rubric) live
-// in their own "Improve AI grading accuracy" section, marked never-visible to
-// students. The preview rail renders the shared AI Grading Result Card — the
-// identical component the review screen uses (spec 4.4 / FR-AC-09).
-// ─────────────────────────────────────────────────────────────────────────────
 let qSeq = 0;
-const newQ = () => ({ key: ++qSeq, prompt: "", topicId: "", maxScore: "10", referenceAnswer: "", rubric: "" });
+const newQ = () => ({ key: ++qSeq, prompt: "", topicId: "", maxScore: "10", kind: "long_answer", options: ["", ""], referenceAnswer: "", rubric: "" });
 
 const STOP = ["that", "with", "from", "this", "have", "will", "each", "when", "than", "into", "over", "such", "they", "their", "which", "because", "order", "vertices", "vertex"];
 
@@ -36,11 +29,11 @@ export default function AssignmentBuilderPage({ state, dispatch }) {
   const editing = mod.assignments.find((a) => a.id === state.assignmentId && a.courseId === courseId) ?? null;
 
   const [title, setTitle] = useState(editing ? editing.title.en : "");
-  const [showScore, setShowScore] = useState(editing?.showScoreToStudent ?? false); // FR-VIS-05 default off
+  const [showScore, setShowScore] = useState(editing?.showScoreToStudent ?? false);
   const [status, setStatus] = useState(editing?.status ?? "open");
   const [questions, setQuestions] = useState(
     editing
-      ? editing.questions.map((q) => ({ key: ++qSeq, prompt: q.prompt.en, topicId: q.topicId, maxScore: String(q.maxScore), referenceAnswer: q.referenceAnswer ?? "", rubric: q.rubric ?? "" }))
+      ? editing.questions.map((q) => ({ key: ++qSeq, prompt: q.prompt.en, topicId: q.topicId, maxScore: String(q.maxScore), kind: q.kind ?? "long_answer", options: q.options?.length >= 2 ? [...q.options] : ["", ""], referenceAnswer: q.referenceAnswer ?? "", rubric: q.rubric ?? "" }))
       : [newQ()]
   );
   const [previewQ, setPreviewQ] = useState(0);
@@ -49,14 +42,13 @@ export default function AssignmentBuilderPage({ state, dispatch }) {
   const [previewResult, setPreviewResult] = useState(null);
   const [touched, setTouched] = useState(false);
 
-  // reload form when the edit target changes
   useEffect(() => {
     setTitle(editing?.title.en ?? "");
     setShowScore(editing?.showScoreToStudent ?? false);
     setStatus(editing?.status ?? "open");
     setQuestions(
       editing
-        ? editing.questions.map((q) => ({ key: ++qSeq, prompt: q.prompt.en, topicId: q.topicId, maxScore: String(q.maxScore), referenceAnswer: q.referenceAnswer ?? "", rubric: q.rubric ?? "" }))
+        ? editing.questions.map((q) => ({ key: ++qSeq, prompt: q.prompt.en, topicId: q.topicId, maxScore: String(q.maxScore), kind: q.kind ?? "long_answer", options: q.options?.length >= 2 ? [...q.options] : ["", ""], referenceAnswer: q.referenceAnswer ?? "", rubric: q.rubric ?? "" }))
         : [newQ()]
     );
     setPreviewResult(null);
@@ -71,6 +63,8 @@ export default function AssignmentBuilderPage({ state, dispatch }) {
     prompt: { en: q.prompt, ar: q.prompt },
     topicId: q.topicId,
     maxScore: Math.max(1, Number(q.maxScore) || 10),
+    kind: q.kind,
+    options: kindNeedsOptions(q.kind) ? q.options.map((o) => o.trim()).filter(Boolean) : undefined,
     referenceAnswer: q.referenceAnswer.trim() || undefined,
     rubric: q.rubric.trim() || undefined,
     keyTerms: [
@@ -84,7 +78,7 @@ export default function AssignmentBuilderPage({ state, dispatch }) {
   });
 
   const titleValid = title.trim().length > 0;
-  const questionsValid = questions.every((q) => q.prompt.trim().length > 0 && q.topicId && Number(q.maxScore) > 0);
+  const questionsValid = questions.every((q) => q.prompt.trim().length > 0 && q.topicId && Number(q.maxScore) > 0 && (!kindNeedsOptions(q.kind) || q.options.filter((o) => o.trim()).length >= 2));
   const canSave = titleValid && questionsValid;
   const accuracyEmpty = questions.every((q) => !q.referenceAnswer.trim() && !q.rubric.trim());
 
@@ -107,7 +101,6 @@ export default function AssignmentBuilderPage({ state, dispatch }) {
       backToWorkspace();
       return;
     }
-    // FR-AC-05 — publish ⇒ status Open; no deadline concept exists
     publishAssignment(courseId, { titleEn: title.trim(), titleAr: title.trim(), showScore, questions: defs }, "open");
     toast(lang === "ar" ? "نُشر التكليف — الحالة: مفتوح." : "Assignment published — status Open.");
     backToWorkspace();
@@ -117,10 +110,10 @@ export default function AssignmentBuilderPage({ state, dispatch }) {
   const runPreview = () => {
     const def = previewDefs[previewQ];
     if (!def || !def.topicId || !previewText.trim()) return;
-    setPreviewing(true); // spec 6 — real-call latency
+    setPreviewing(true);
     setPreviewResult(null);
     window.setTimeout(() => {
-      setPreviewResult(evaluateAnswer(def, previewText, course)); // FR-AC-09 — same pipeline
+      setPreviewResult(evaluateAnswer(def, previewText, course));
       setPreviewing(false);
     }, 650);
   };
@@ -132,7 +125,6 @@ export default function AssignmentBuilderPage({ state, dispatch }) {
 
   return (
     <div className="genai-pad" style={{ padding: "26px 32px", maxWidth: 1280, margin: "0 auto", direction: isRtl ? "rtl" : "ltr" }}>
-      {/* Header */}
       <div style={{ display: "flex", gap: 14, alignItems: "flex-start", marginBottom: 22, flexDirection: isRtl ? "row-reverse" : "row" }}>
         <BackCircle tokens={tokens} rtl={isRtl} onClick={backToWorkspace} />
         <div style={{ textAlign: isRtl ? "right" : "left", minWidth: 0 }}>
@@ -153,7 +145,6 @@ export default function AssignmentBuilderPage({ state, dispatch }) {
         className="genai-grid-builder"
         style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "minmax(0, 1fr) 440px", gap: mobile ? 16 : 24, alignItems: "start" }}
       >
-        {/* ── Authoring column ── */}
         <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
           <Card tokens={tokens} style={{ padding: "18px 20px" }}>
             {monoLabel(lang === "ar" ? "عنوان التكليف" : "ASSIGNMENT TITLE")}
@@ -209,6 +200,20 @@ export default function AssignmentBuilderPage({ state, dispatch }) {
                 )}
               </div>
 
+              {monoLabel(lang === "ar" ? "نوع السؤال" : "QUESTION TYPE")}
+              <select
+                value={q.kind}
+                onChange={(e) => patchQ(q.key, { kind: e.target.value })}
+                style={{ ...inputStyle(tokens, bFont), cursor: "pointer", marginBottom: 14 }}
+                className="genai-input"
+              >
+                {Object.entries(QUESTION_KIND_LABELS).map(([k, l]) => (
+                  <option key={k} value={k}>
+                    {lang === "ar" ? l.ar : l.en}
+                  </option>
+                ))}
+              </select>
+
               {monoLabel(lang === "ar" ? "نص السؤال" : "PROMPT")}
               <textarea
                 value={q.prompt}
@@ -217,6 +222,43 @@ export default function AssignmentBuilderPage({ state, dispatch }) {
                 style={textareaStyle(tokens, bFont)}
                 className="genai-input"
               />
+
+              {kindNeedsOptions(q.kind) && (
+                <div style={{ marginTop: 14 }}>
+                  {monoLabel(q.kind === "multiple_select" ? (lang === "ar" ? "الخيارات (يُسمح بأكثر من إجابة)" : "OPTIONS (MORE THAN ONE ALLOWED)") : (lang === "ar" ? "الخيارات (إجابة واحدة صحيحة)" : "OPTIONS (ONE CORRECT ANSWER)"))}
+                  {q.options.map((opt, oi) => (
+                    <div key={oi} style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8, flexDirection: isRtl ? "row-reverse" : "row" }}>
+                      <span style={{ fontFamily: MONO, fontSize: 11, color: tokens.textFaint, width: 18, flexShrink: 0, textAlign: "center" }}>{String.fromCharCode(65 + oi)}</span>
+                      <input
+                        value={opt}
+                        onChange={(e) => patchQ(q.key, { options: q.options.map((o, j) => (j === oi ? e.target.value : o)) })}
+                        placeholder={lang === "ar" ? `نص الخيار ${oi + 1}` : `Option ${oi + 1} text`}
+                                                style={{ ...inputStyle(tokens, bFont), flex: 1, minWidth: 0 }}
+                        className="genai-input"
+                      />
+                      {q.options.length > 2 && (
+                        <button
+                          onClick={() => patchQ(q.key, { options: q.options.filter((_, j) => j !== oi) })}
+                          title={lang === "ar" ? "حذف الخيار" : "Remove option"}
+                          aria-label={lang === "ar" ? "حذف الخيار" : "Remove option"}
+                          style={{ background: "none", border: "none", cursor: "pointer", padding: 4, borderRadius: 6, flexShrink: 0 }}
+                        >
+                          <IconTrash size={13} color={tokens.textFaint} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  <Btn tokens={tokens} lang={lang} variant="ghost" onClick={() => patchQ(q.key, { options: [...q.options, ""] })} style={{ padding: "7px 14px", fontSize: 12 }}>
+                    {lang === "ar" ? "إضافة خيار" : "Add option"}
+                  </Btn>
+                  {touched && q.options.filter((o) => o.trim()).length < 2 && (
+                    <div style={{ display: "flex", gap: 6, alignItems: "center", fontFamily: bFont, fontSize: 11, color: tokens.gap, marginTop: 8, flexDirection: isRtl ? "row-reverse" : "row" }}>
+                      <IconWarning size={12} color={tokens.gap} />
+                      {lang === "ar" ? "خياران على الأقل مطلوبان." : "At least two options are required."}
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "minmax(0, 2fr) minmax(0, 1fr)", gap: 14, marginTop: 14 }}>
                 <div>
@@ -254,7 +296,6 @@ export default function AssignmentBuilderPage({ state, dispatch }) {
                 </div>
               </div>
 
-              {/* Improve AI grading accuracy — visually separate section (spec 4.3) */}
               <div style={{ marginTop: 16, padding: "14px 14px", background: tokens.inset, border: `1px dashed ${tokens.cardBorder}`, borderRadius: 10 }}>
                 <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4, flexDirection: isRtl ? "row-reverse" : "row" }}>
                   <IconSparkle size={13} color={tokens.primary} />
@@ -345,7 +386,6 @@ export default function AssignmentBuilderPage({ state, dispatch }) {
           )}
         </div>
 
-        {/* ── Preview rail (FR-AC-09 / spec 4.4) ── */}
         <Card tokens={tokens} style={{ padding: "18px 20px", ...(mobile ? {} : { position: "sticky", top: 20 }) }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5, flexDirection: isRtl ? "row-reverse" : "row" }}>
             <IconSparkle size={15} color={tokens.primary} />
