@@ -1,4 +1,5 @@
 import AppProvider from "@/store/AppProvider";
+import { InstructorModuleProvider } from "@/store/InstructorProvider";
 import { useApp } from "@/store/useApp";
 import { SCREENS, ROLES } from "@/constants/routes";
 import WelcomePage from "@/pages/WelcomePage";
@@ -12,10 +13,28 @@ import DiagnosticPage from "@/pages/DiagnosticPage";
 import PracticePage from "@/pages/PracticePage";
 import ReassessmentPage from "@/pages/ReassessmentPage";
 import ProfilePage from "@/pages/ProfilePage";
+import InstructorHomePage from "@/pages/InstructorHomePage";
+import CourseWorkspacePage from "@/pages/CourseWorkspacePage";
+import AssignmentBuilderPage from "@/pages/AssignmentBuilderPage";
+import AssignmentReviewPage from "@/pages/AssignmentReviewPage";
+import InstructorStudentsPage from "@/pages/InstructorStudentsPage";
+import ContentStudioPage from "@/pages/ContentStudioPage";
+import StudentAssignmentsPage from "@/pages/StudentAssignmentsPage";
+import StudentAssignmentPage from "@/pages/StudentAssignmentPage";
+import StudentCoursePage from "@/pages/StudentCoursePage";
 import AppShell from "@/components/AppShell";
 import "./App.css";
 
 const PAGES = {
+  [SCREENS.INSTRUCTOR_HOME]: InstructorHomePage,
+  [SCREENS.COURSE_WORKSPACE]: CourseWorkspacePage,
+  [SCREENS.ASSIGNMENT_CREATE]: AssignmentBuilderPage,
+  [SCREENS.ASSIGNMENT_REVIEW]: AssignmentReviewPage,
+  [SCREENS.INSTRUCTOR_STUDENTS]: InstructorStudentsPage,
+  [SCREENS.CONTENT_STUDIO]: ContentStudioPage,
+  [SCREENS.STUDENT_ASSIGNMENTS]: StudentAssignmentsPage,
+  [SCREENS.STUDENT_ASSIGNMENT]: StudentAssignmentPage,
+  [SCREENS.STUDENT_COURSE]: StudentCoursePage,
   [SCREENS.DASHBOARD]: DashboardPage,
   [SCREENS.COURSES]: CoursesPage,
   [SCREENS.MASTERY]: MasteryPage,
@@ -46,7 +65,9 @@ function AppContent() {
 export default function App() {
   return (
     <AppProvider>
-      <AppContent />
+      <InstructorModuleProvider>
+        <AppContent />
+      </InstructorModuleProvider>
     </AppProvider>
   );
 }

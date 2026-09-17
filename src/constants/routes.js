@@ -12,6 +12,15 @@ export const SCREENS = Object.freeze({
   PROFILE: "profile",
   INSTRUCTOR: "instructor",
   ADMIN: "admin",
+  INSTRUCTOR_HOME: "instructor-home",
+  COURSE_WORKSPACE: "course-workspace",
+  ASSIGNMENT_CREATE: "assignment-create",
+  ASSIGNMENT_REVIEW: "assignment-review",
+  INSTRUCTOR_STUDENTS: "instructor-students",
+  CONTENT_STUDIO: "content-studio",
+  STUDENT_ASSIGNMENTS: "student-assignments",
+  STUDENT_ASSIGNMENT: "student-assignment",
+  STUDENT_COURSE: "student-course",
 });
 
 export const LANGS = Object.freeze({

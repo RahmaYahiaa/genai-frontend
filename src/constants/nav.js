@@ -7,12 +7,16 @@ import {
   IconPractice,
   IconReassessment,
   IconProfile,
+  IconUsers,
+  IconSparkle,
+  IconClipboard,
 } from "@/components/Icons";
 import { SCREENS } from "./routes";
 
 export const STUDENT_NAV = [
   { id: SCREENS.DASHBOARD, en: "Dashboard", ar: "لوحة التحكم", Icon: IconDashboard },
   { id: SCREENS.COURSES, en: "My Courses", ar: "مقرراتي", Icon: IconCourses },
+  { id: SCREENS.STUDENT_ASSIGNMENTS, en: "Assignments", ar: "التكليفات", Icon: IconClipboard },
   { id: SCREENS.MASTERY, en: "Topics & Mastery", ar: "المواضيع والإتقان", Icon: IconMastery },
   { id: SCREENS.TUTOR, en: "AI Tutor", ar: "المعلم الذكي", Icon: IconTutor },
   { id: SCREENS.DIAGNOSTIC, en: "Diagnostic", ar: "التشخيص", Icon: IconDiagnostic },
@@ -25,7 +29,9 @@ export const STUDENT_NAV_BOTTOM = [
 ];
 
 export const INSTRUCTOR_NAV = [
-  { id: SCREENS.INSTRUCTOR, en: "Analytics", ar: "التحليلات", Icon: IconDashboard },
+  { id: SCREENS.INSTRUCTOR_HOME, en: "My Courses", ar: "مقرراتي", Icon: IconCourses },
+  { id: SCREENS.INSTRUCTOR_STUDENTS, en: "Students", ar: "الطلاب", Icon: IconUsers },
+  { id: SCREENS.CONTENT_STUDIO, en: "Content Studio", ar: "استوديو المحتوى", Icon: IconSparkle },
 ];
 
 export const ADMIN_NAV = [
