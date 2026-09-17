@@ -1,8 +1,14 @@
 import { tk, MONO } from "@/constants/tokens";
 import useMediaQuery from "@/hooks/useMediaQuery";
 import { getCourse } from "@/data/courses";
-import { signOut } from "@/services/auth";
-import { IconBell, IconGlobe, IconSun, IconMoon, IconSignOut, IconMenu } from "./Icons";
+import {
+  IconBell,
+  IconGlobe,
+  IconSun,
+  IconMoon,
+  IconSignOut,
+  IconMenu,
+} from "./Icons";
 
 const TOPBAR_H = 44;
 
@@ -125,7 +131,6 @@ export default function Topbar({ state, dispatch, role, onMenu }) {
         </button>
         <button
           onClick={() => {
-            signOut();
             dispatch({ type: "RESET" });
           }}
           title={lang === "ar" ? "تسجيل الخروج" : "Sign out"}
