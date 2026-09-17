@@ -2,7 +2,7 @@ import { useEffect, useReducer } from "react";
 import { SCREENS, STORAGE_KEYS } from "@/constants/routes";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { restoreSession } from "@/services/auth";
-import { setUnauthorizedHandler } from "@/services/http";
+import { readSession, setUnauthorizedHandler } from "@/services/http";
 import { homeScreenFor } from "@/utils";
 import { AppContext } from "./app-context";
 
@@ -38,17 +38,25 @@ function reducer(state, action) {
   }
 }
 
+function bootstrap(persisted) {
+  const user = readSession()?.user ?? null;
+  return {
+    ...initialState,
+    dark: persisted.dark,
+    lang: persisted.lang,
+    user,
+    role: user?.role ?? null,
+    screen: user ? homeScreenFor(user.role) : SCREENS.WELCOME,
+  };
+}
+
 export default function AppProvider({ children }) {
   const [persisted, setPersisted] = useLocalStorage(STORAGE_KEYS.PREFS, {
     dark: false,
     lang: "en",
   });
 
-  const [state, dispatch] = useReducer(reducer, {
-    ...initialState,
-    dark: persisted.dark,
-    lang: persisted.lang,
-  });
+  const [state, dispatch] = useReducer(reducer, persisted, bootstrap);
 
   useEffect(() => {
     setPersisted({ dark: state.dark, lang: state.lang });
@@ -62,10 +70,11 @@ export default function AppProvider({ children }) {
   useEffect(() => {
     let alive = true;
     setUnauthorizedHandler(() => dispatch({ type: "RESET" }));
+    if (!readSession()) return;
     restoreSession().then((user) => {
-      if (!alive || !user) return;
-      dispatch({ type: "SET_USER", user });
-      dispatch({ type: "NAVIGATE", screen: homeScreenFor(user.role) });
+      if (!alive) return;
+      if (user) dispatch({ type: "SET_USER", user });
+      else dispatch({ type: "RESET" });
     });
     return () => {
       alive = false;
