@@ -60,6 +60,7 @@ export function mapAssignment(assignment) {
     canSubmit: assignment.canSubmit ?? null,
     submission: assignment.submission ?? null,
     resubmissionRequest: assignment.resubmissionRequest ?? null,
+    workingAnswers: assignment.workingAnswers ?? null,
   };
 }
 
