@@ -47,9 +47,23 @@ export default function LoginPage({ state, dispatch }) {
     textAlign: isRtl ? "right" : "left",
   };
 
-  const goAfterSignIn = () => {
-            const target = state.role === ROLES.INSTRUCTOR ? SCREENS.INSTRUCTOR_HOME : state.role === ROLES.ADMIN ? SCREENS.ADMIN : SCREENS.DASHBOARD;
-    dispatch({ type: "NAVIGATE", screen: target });
+  const submit = async () => {
+    if (busy) return;
+    setError("");
+    if (!email.trim() || !pass) {
+      setError(lang === "ar" ? "أدخل البريد وكلمة المرور." : "Enter your email and password.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const user = await login(email.trim(), pass, state.role);
+      dispatch({ type: "SET_USER", user });
+      dispatch({ type: "NAVIGATE", screen: homeScreenFor(user.role) });
+    } catch (err) {
+      setError(apiErrorText(err, lang));
+    } finally {
+      setBusy(false);
+    }
   };
 
   const form = (
