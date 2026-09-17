@@ -1,7 +1,7 @@
 import { tk, MONO } from "@/constants/tokens";
 import useMediaQuery from "@/hooks/useMediaQuery";
 import { getCourse } from "@/data/courses";
-import { signOut } from "@/services/auth";
+import { signOut, demoMode } from "@/services/auth";
 import { IconBell, IconGlobe, IconSun, IconMoon, IconSignOut, IconMenu } from "./Icons";
 
 const TOPBAR_H = 44;
@@ -13,14 +13,25 @@ export default function Topbar({ state, dispatch, role, onMenu }) {
   const mobile = useMediaQuery("(max-width: 760px)");
   const course = getCourse(state.courseId ?? "CS301");
 
-  const contextLabel =
-    role === "instructor"
+  const contextLabel = demoMode()
+    ? role === "instructor"
       ? lang === "ar"
         ? `لوحة تحكم المدرّس — ${state.courseId ?? course.id}`
         : `Instructor Dashboard — ${state.courseId ?? course.id}`
       : lang === "ar"
         ? `${course.id} · الأسبوع ${course.week}`
-        : `${course.id} · Week ${course.week}`;
+        : `${course.id} · Week ${course.week}`
+    : role === "instructor"
+      ? state.courseId
+        ? lang === "ar"
+          ? `لوحة تحكم المدرّس — ${state.courseId}`
+          : `Instructor Dashboard — ${state.courseId}`
+        : lang === "ar"
+          ? "لوحة تحكم المدرّس"
+          : "Instructor Dashboard"
+      : lang === "ar"
+        ? "مساحة الطالب"
+        : "Student workspace";
 
   const iconBtn = {
     width: 32,
@@ -76,7 +87,7 @@ export default function Topbar({ state, dispatch, role, onMenu }) {
         </button>
         <button
           onClick={() => dispatch({ type: "TOGGLE_THEME" })}
-          title={state.dark ? (lang === "ar" ? "الوضع النهاري" : "Light Mode") : lang === "ar" ? "الوضع الليلي" : "Dark Mode"}
+          title={state.dark ? (lang === "ar" ? "الوضع النهاري" : "Light Mode") : (lang === "ar" ? "الوضع الليلي" : "Dark Mode")}
           style={iconBtn}
         >
           {state.dark ? <IconSun size={15} color={tokens.textMuted} /> : <IconMoon size={15} color={tokens.textMuted} />}

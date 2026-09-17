@@ -1,6 +1,9 @@
+import { useCallback } from "react";
 import useAsync from "@/hooks/useAsync";
 import useMediaQuery from "@/hooks/useMediaQuery";
 import { fetchProfile } from "@/services/api";
+import { listCourses } from "@/services/courses";
+import { demoMode } from "@/services/auth";
 import { tk, headingFont, bodyFont } from "@/constants/tokens";
 import { Card, Chip, Bar, AsyncGate, Btn } from "@/components/ui";
 import { signOut } from "@/services/auth";
@@ -10,7 +13,9 @@ export default function ProfilePage({ state, dispatch }) {
   const lang = state.lang;
   const t = (en, ar) => (lang === "ar" ? ar : en);
   const mobile = useMediaQuery("(max-width: 760px)");
+  const real = !demoMode();
   const { data, loading, error, reload } = useAsync(fetchProfile);
+  const { data: liveCourses } = useAsync(useCallback(() => (real ? listCourses() : Promise.resolve(null)), [real]));
 
   const viewUser = state.user
     ? { initials: state.user.initials, name: state.user.name, email: state.user.email, institution: null }
@@ -50,7 +55,13 @@ export default function ProfilePage({ state, dispatch }) {
                 </div>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   {viewUser.institution && <Chip tokens={tokens} tone="primary">{viewUser.institution}</Chip>}
-                  <Chip tokens={tokens}>{t("Student", "طالب")}</Chip>
+                  <Chip tokens={tokens}>
+                    {state.user?.role === "instructor"
+                      ? t("Instructor", "مدرّس")
+                      : state.user?.role === "admin"
+                        ? t("Admin", "مسؤول مؤسسة")
+                        : t("Student", "طالب")}
+                  </Chip>
                 </div>
               </div>
             </Card>
@@ -86,15 +97,29 @@ export default function ProfilePage({ state, dispatch }) {
 
               <Card tokens={tokens}>
                 <div style={{ fontWeight: 700, fontSize: 14, color: tokens.textPrimary, marginBottom: 12 }}>{t("Enrolled courses", "المقررات المسجلة")}</div>
-                {data.courses.map((course) => (
-                  <div key={course.id} style={{ marginBottom: 12 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5, fontSize: 12.5, color: tokens.textSecondary }}>
-                      <span style={{ fontWeight: 600 }}>{course.id} · {course.title[lang]}</span>
-                      <span style={{ fontWeight: 700, color: tokens.mastered }}>{course.overall}%</span>
+                {real
+                  ? (liveCourses?.items ?? []).length === 0
+                    ? <div style={{ fontSize: 12.5, color: tokens.textMuted }}>{t("No courses yet.", "مفيش مقررات لسه.")}</div>
+                    : (liveCourses?.items ?? []).map((course) => (
+                      <div key={course.id} style={{ marginBottom: 12 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 5, fontSize: 12.5, color: tokens.textSecondary }}>
+                          <span style={{ fontWeight: 600, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{course.title[lang]}</span>
+                          <Chip tokens={tokens} tone={course.isPersonal ? "violet" : "primary"}>
+                            {course.isPersonal ? t("Self-study", "دراسة ذاتية") : course.code ?? t("University", "جامعي")}
+                          </Chip>
+                        </div>
+                        {typeof course.overall === "number" && <Bar tokens={tokens} value={course.overall} color={tokens.mastered} height={6} />}
+                      </div>
+                    ))
+                  : data.courses.map((course) => (
+                    <div key={course.id} style={{ marginBottom: 12 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5, fontSize: 12.5, color: tokens.textSecondary }}>
+                        <span style={{ fontWeight: 600 }}>{course.id} · {course.title[lang]}</span>
+                        <span style={{ fontWeight: 700, color: tokens.mastered }}>{course.overall}%</span>
+                      </div>
+                      <Bar tokens={tokens} value={course.overall} color={tokens.mastered} height={6} />
                     </div>
-                    <Bar tokens={tokens} value={course.overall} color={tokens.mastered} height={6} />
-                  </div>
-                ))}
+                  ))}
               </Card>
             </div>
 

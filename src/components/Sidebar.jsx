@@ -1,6 +1,7 @@
 import { tk, headingFont } from "@/constants/tokens";
 import useMediaQuery from "@/hooks/useMediaQuery";
 import { navForRole, navBottomForRole } from "@/constants/nav";
+import { demoMode } from "@/services/auth";
 import { DEMO_USER } from "@/data/user";
 import { INSTRUCTOR_NAME } from "@/data/instructorModule";
 import BrandMark from "./BrandMark";
@@ -48,20 +49,10 @@ export default function Sidebar({ state, dispatch, role, onNavigate }) {
           flexDirection: isRtl ? "row-reverse" : "row",
         }}
       >
-        <item.Icon
-          size={17}
-          color={isActive ? tokens.primary : tokens.textMuted}
-        />
+        <item.Icon size={17} color={isActive ? tokens.primary : tokens.textMuted} />
         <span style={{ flex: 1 }}>{label}</span>
         {isActive && (
-          <span
-            style={{
-              width: 4,
-              height: 4,
-              borderRadius: "50%",
-              background: tokens.primary,
-            }}
-          />
+          <span style={{ width: 4, height: 4, borderRadius: "50%", background: tokens.primary }} />
         )}
       </button>
     );
@@ -79,6 +70,7 @@ export default function Sidebar({ state, dispatch, role, onNavigate }) {
         flexDirection: "column",
       }}
     >
+
       <div
         style={{
           display: "flex",
@@ -90,27 +82,8 @@ export default function Sidebar({ state, dispatch, role, onNavigate }) {
       >
         <BrandMark size={26} />
         <div>
-          <div
-            style={{
-              fontFamily: hFont,
-              fontWeight: 800,
-              fontSize: 14,
-              color: tokens.textPrimary,
-              letterSpacing: "-0.03em",
-            }}
-          >
-            GenAI
-          </div>
-          <div
-            style={{
-              fontFamily: MONO,
-              fontSize: 7.5,
-              color: tokens.textFaint,
-              letterSpacing: "0.12em",
-            }}
-          >
-            ACADEMIC INTELLIGENCE
-          </div>
+          <div style={{ fontFamily: hFont, fontWeight: 800, fontSize: 14, color: tokens.textPrimary, letterSpacing: "-0.03em" }}>GenAI</div>
+          <div style={{ fontFamily: MONO, fontSize: 7.5, color: tokens.textFaint, letterSpacing: "0.12em" }}>ACADEMIC INTELLIGENCE</div>
         </div>
       </div>
 
@@ -124,11 +97,7 @@ export default function Sidebar({ state, dispatch, role, onNavigate }) {
             textTransform: "uppercase",
           }}
         >
-          {role === "instructor"
-            ? "Instructor"
-            : role === "admin"
-              ? "Admin"
-              : "Student"}
+          {role === "instructor" ? "Instructor" : role === "admin" ? "Admin" : "Student"}
         </span>
       </div>
 
@@ -137,9 +106,7 @@ export default function Sidebar({ state, dispatch, role, onNavigate }) {
       </nav>
 
       {navBottom.length > 0 && (
-        <div style={{ padding: "4px 8px 10px" }}>
-          {navBottom.map((item) => navItem(item))}
-        </div>
+        <div style={{ padding: "4px 8px 10px" }}>{navBottom.map((item) => navItem(item))}</div>
       )}
 
       <div
@@ -171,7 +138,11 @@ export default function Sidebar({ state, dispatch, role, onNavigate }) {
             flexShrink: 0,
           }}
         >
-          {role === "instructor" ? "NM" : DEMO_USER.initials}
+          {!demoMode() && state.user?.initials
+            ? state.user.initials
+            : role === "instructor"
+              ? "NM"
+              : DEMO_USER.initials}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div
@@ -184,18 +155,20 @@ export default function Sidebar({ state, dispatch, role, onNavigate }) {
               whiteSpace: "nowrap",
             }}
           >
-            {role === "instructor"
-              ? INSTRUCTOR_NAME
-              : lang === "ar"
-                ? DEMO_USER.name.ar
-                : DEMO_USER.name.en}
+            {!demoMode() && state.user
+              ? state.user.name?.[lang] || state.user.email
+              : role === "instructor"
+                ? INSTRUCTOR_NAME
+                : lang === "ar"
+                  ? DEMO_USER.name.ar
+                  : DEMO_USER.name.en}
           </div>
-          <div
-            style={{ fontFamily: MONO, fontSize: 9, color: tokens.textMuted }}
-          >
-            {role === "instructor"
-              ? "CS301 · CS401 · CS303"
-              : DEMO_USER.enrolled.join(" · ")}
+          <div style={{ fontFamily: MONO, fontSize: 9, color: tokens.textMuted }}>
+            {!demoMode() && state.user?.email
+              ? state.user.email
+              : role === "instructor"
+                ? "CS301 · CS401 · CS303"
+                : DEMO_USER.enrolled.join(" · ")}
           </div>
         </div>
       </div>
