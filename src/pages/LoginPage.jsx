@@ -3,9 +3,9 @@ import AuthLayout from "@/components/AuthLayout";
 import MasteryLadder from "@/components/MasteryLadder";
 import { tk, headingFont, bodyFont } from "@/constants/tokens";
 import { SCREENS } from "@/constants/routes";
-import { ROLE_TABS, INSTITUTIONS, PREVIEW_SCREENS } from "@/data/auth";
-import { IconEye, IconEyeOff, IconLock } from "@/components/Icons";
-import { login } from "@/services/auth";
+import { ROLE_TABS, INSTITUTIONS } from "@/data/auth";
+import { IconEye, IconEyeOff } from "@/components/Icons";
+import { login, demoMode } from "@/services/auth";
 import { apiErrorText } from "@/services/http";
 import { homeScreenFor } from "@/utils";
 
@@ -75,6 +75,7 @@ export default function LoginPage({ state, dispatch }) {
         {lang === "ar" ? "ادخل إلى منصتك الأكاديمية الذكية." : "Access your academic intelligence platform."}
       </p>
 
+      {demoMode() && (
       <div style={{ marginBottom: 18 }}>
         <label style={labelStyle}>{lang === "ar" ? "الدور" : "Role"}</label>
         <div
@@ -113,13 +114,14 @@ export default function LoginPage({ state, dispatch }) {
           })}
         </div>
       </div>
+      )}
 
       <div style={{ marginBottom: 14 }}>
-        <label style={labelStyle}>{lang === "ar" ? "البريد الجامعي" : "Institutional email"}</label>
+        <label style={labelStyle}>{lang === "ar" ? "البريد الإلكتروني" : "Email address"}</label>
         <input
           style={inputStyle}
           type="email"
-          placeholder="you@university.edu"
+          placeholder="name@email.com"
           dir="ltr"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
@@ -216,34 +218,6 @@ export default function LoginPage({ state, dispatch }) {
             : "Sign In"}
       </button>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-        <div style={{ flex: 1, height: 1, background: tokens.cardBorder }} />
-        <span style={{ fontSize: 12, color: tokens.textFaint }}>{lang === "ar" ? "أو" : "or"}</span>
-        <div style={{ flex: 1, height: 1, background: tokens.cardBorder }} />
-      </div>
-
-      <button
-        style={{
-          width: "100%",
-          padding: "10px 0",
-          borderRadius: 10,
-          border: `1.5px solid ${tokens.cardBorder}`,
-          background: tokens.card,
-          color: tokens.textPrimary,
-          fontFamily: bFont,
-          fontWeight: 500,
-          fontSize: 13,
-          cursor: "pointer",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 8,
-        }}
-      >
-        <IconLock size={14} color={tokens.textMuted} />
-        {lang === "ar" ? "دخول عبر الجامعة (SSO)" : "Continue with University SSO"}
-      </button>
-
       <p style={{ textAlign: "center", fontSize: 12, color: tokens.textMuted, margin: "18px 0 0", fontFamily: bFont }}>
         {lang === "ar" ? "جديد على GenAI؟" : "New to GenAI?"}{" "}
         <button
@@ -253,40 +227,6 @@ export default function LoginPage({ state, dispatch }) {
           {lang === "ar" ? "اطلب الوصول" : "Request access"}
         </button>
       </p>
-
-      <div
-        style={{
-          marginTop: 22,
-          padding: "14px 16px",
-          background: tokens.inset,
-          border: `1px solid ${tokens.cardBorder}`,
-          borderRadius: 10,
-        }}
-      >
-        <div style={{ fontFamily: MONO, fontSize: 9, color: tokens.textFaint, letterSpacing: "0.12em", marginBottom: 8, textAlign: isRtl ? "right" : "left" }}>
-          {lang === "ar" ? "معاينة الشاشات" : "Preview screens"}
-        </div>
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-          {PREVIEW_SCREENS.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => dispatch({ type: "NAVIGATE", screen: p.id })}
-              style={{
-                padding: "5px 10px",
-                borderRadius: 6,
-                border: `1px solid ${tokens.cardBorder}`,
-                background: tokens.card,
-                color: tokens.textMuted,
-                fontFamily: MONO,
-                fontSize: 10,
-                cursor: "pointer",
-              }}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
-      </div>
 
       <p style={{ textAlign: "center", fontSize: 10.5, color: tokens.textFaint, marginTop: 18, lineHeight: 1.6, fontFamily: bFont }}>
         {lang === "ar" ? "متوافق مع FERPA · حوكمة بيانات مؤسسية" : "FERPA-compliant · Institutional data governance"}

@@ -158,7 +158,7 @@ export default function RegisterPage({ state, dispatch }) {
         {step === 1 ? (lang === "ar" ? "أنشئ حسابك" : "Create your account") : lang === "ar" ? "السياق الأكاديمي" : "Academic context"}
       </h2>
       <p style={{ fontSize: 12, color: tokens.textMuted, margin: "0 0 22px", fontFamily: bFont }}>
-        {step === 1 ? (lang === "ar" ? "الخطوة 1 من 2 — بياناتك" : "Step 1 of 2 — Your details") : lang === "ar" ? "الخطوة 2 من 2 — المؤسسة والمقرر" : "Step 2 of 2 — Institution and course"}
+        {step === 1 ? (lang === "ar" ? "الخطوة 1 من 2 — بياناتك" : "Step 1 of 2 — Your details") : lang === "ar" ? "الخطوة 2 من 2 — مسار حسابك" : "Step 2 of 2 — Your account track"}
       </p>
 
       {error !== "" && (
@@ -243,11 +243,11 @@ export default function RegisterPage({ state, dispatch }) {
           </div>
 
           <div style={{ marginBottom: 12 }}>
-            <label style={label}>{lang === "ar" ? "البريد الجامعي" : "Institutional email"}</label>
+            <label style={label}>{lang === "ar" ? "البريد الإلكتروني" : "Email address"}</label>
             <input
               style={inp}
               type="email"
-              placeholder="s.alrashidi@university.edu"
+              placeholder="s.alrashidi@email.com"
               dir="ltr"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -333,15 +333,22 @@ export default function RegisterPage({ state, dispatch }) {
             )}
           </div>
 
-          <div style={{ marginBottom: 14 }}>
-            <label style={label}>{lang === "ar" ? "المعرف الجامعي" : "Student / Staff ID"}</label>
-            <input style={inp} defaultValue={role === ROLES.INSTRUCTOR ? "FAC-2024-0087" : "202341872"} dir="ltr" />
-          </div>
-
-          {role === ROLES.STUDENT && (
+          {institution && (
             <div style={{ marginBottom: 14 }}>
-              <label style={label}>{lang === "ar" ? "رمز التسجيل" : "Enrollment code"}</label>
-              <input style={inp} placeholder={lang === "ar" ? "يقدّمه مدرّسك" : "Provided by your instructor"} dir="ltr" />
+              <label style={label}>
+                {role === ROLES.INSTRUCTOR
+                  ? lang === "ar"
+                    ? "المعرف الوظيفي (اختياري)"
+                    : "Staff ID (optional)"
+                  : lang === "ar"
+                    ? "المعرف الجامعي (اختياري)"
+                    : "Student ID (optional)"}
+              </label>
+              <input
+                style={inp}
+                placeholder={role === ROLES.INSTRUCTOR ? "FAC-2024-0087" : "202341872"}
+                dir="ltr"
+              />
             </div>
           )}
 
@@ -356,8 +363,8 @@ export default function RegisterPage({ state, dispatch }) {
           >
             <p style={{ fontSize: 11, color: tokens.textMuted, margin: 0, lineHeight: 1.55, fontFamily: bFont }}>
               {lang === "ar"
-                ? "بياناتك الأكاديمية محمية بموجب FERPA ومخزّنة وفق سياسة حوكمة البيانات لمؤسستك."
-                : "Your academic data is protected under FERPA and stored in compliance with your institution data governance policy."}
+                ? "بياناتك الأكاديمية محمية ومشفّرة وفق FERPA وسياسة حوكمة البيانات للمنصة ومؤسستك (إن وجدت)."
+                : "Your academic data is protected and encrypted under FERPA and the data governance policy of the platform and your institution (if any)."}
             </p>
           </div>
 
