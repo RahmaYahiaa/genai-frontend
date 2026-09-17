@@ -5,7 +5,7 @@ import { PillTabs, BackCircle, bFontFor, hFontFor } from "@/components/ModuleUI"
 import { IconWarning } from "@/components/Icons";
 import { SCREENS } from "@/constants/routes";
 import { approvedMaterials } from "@/data/instructorModule";
-import AssignmentsTab from "@/components/AssignmentsTab";
+import AssignmentsTab from "@/components/AssignmentsTabLegacy";
 import CourseMaterialsTab from "@/components/CourseMaterialsTab";
 import CourseAnalyticsTab from "@/components/CourseAnalyticsTab";
 import AuditTrailTab from "@/components/AuditTrailTab";
