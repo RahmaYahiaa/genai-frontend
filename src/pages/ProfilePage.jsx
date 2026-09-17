@@ -3,6 +3,7 @@ import useMediaQuery from "@/hooks/useMediaQuery";
 import { fetchProfile } from "@/services/api";
 import { tk, headingFont, bodyFont } from "@/constants/tokens";
 import { Card, Chip, Bar, AsyncGate, Btn } from "@/components/ui";
+import { signOut } from "@/services/auth";
 
 export default function ProfilePage({ state, dispatch }) {
   const tokens = tk(state.dark);
@@ -10,6 +11,10 @@ export default function ProfilePage({ state, dispatch }) {
   const t = (en, ar) => (lang === "ar" ? ar : en);
   const mobile = useMediaQuery("(max-width: 760px)");
   const { data, loading, error, reload } = useAsync(fetchProfile);
+
+  const viewUser = state.user
+    ? { initials: state.user.initials, name: state.user.name, email: state.user.email, institution: null }
+    : data?.user ?? null;
 
   return (
     <div style={{ padding: mobile ? 16 : 28, maxWidth: 820, margin: "0 auto", fontFamily: bodyFont(lang) }}>
@@ -37,14 +42,14 @@ export default function ProfilePage({ state, dispatch }) {
                     flexShrink: 0,
                   }}
                 >
-                  {data.user.initials}
+                  {viewUser.initials}
                 </div>
                 <div style={{ flex: 1, minWidth: 200 }}>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: tokens.textPrimary }}>{data.user.name[lang]}</div>
-                  <div style={{ fontSize: 12, color: tokens.textMuted, marginTop: 2, fontFamily: "'JetBrains Mono', monospace" }}>{data.user.email}</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: tokens.textPrimary }}>{viewUser.name[lang]}</div>
+                  <div style={{ fontSize: 12, color: tokens.textMuted, marginTop: 2, fontFamily: "'JetBrains Mono', monospace" }}>{viewUser.email}</div>
                 </div>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  {data.user.institution && <Chip tokens={tokens} tone="primary">{data.user.institution}</Chip>}
+                  {viewUser.institution && <Chip tokens={tokens} tone="primary">{viewUser.institution}</Chip>}
                   <Chip tokens={tokens}>{t("Student", "طالب")}</Chip>
                 </div>
               </div>
@@ -100,7 +105,10 @@ export default function ProfilePage({ state, dispatch }) {
                   {t("Actions here reset the local workspace only.", "الإجراءات دي بتصفّر مساحة العمل المحلية فقط.")}
                 </div>
               </div>
-              <Btn tokens={tokens} variant="ghost" onClick={() => dispatch({ type: "RESET" })}>
+              <Btn tokens={tokens} variant="ghost" onClick={() => {
+                signOut();
+                dispatch({ type: "RESET" });
+              }}>
                 {t("Sign out", "تسجيل الخروج")}
               </Btn>
             </Card>

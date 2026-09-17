@@ -1,6 +1,7 @@
 import { tk, MONO } from "@/constants/tokens";
 import useMediaQuery from "@/hooks/useMediaQuery";
 import { getCourse } from "@/data/courses";
+import { signOut } from "@/services/auth";
 import { IconBell, IconGlobe, IconSun, IconMoon, IconSignOut, IconMenu } from "./Icons";
 
 const TOPBAR_H = 44;
@@ -10,13 +11,13 @@ export default function Topbar({ state, dispatch, role, onMenu }) {
   const lang = state.lang;
   const isRtl = lang === "ar";
   const mobile = useMediaQuery("(max-width: 760px)");
-  const course = getCourse("CS301");
+  const course = getCourse(state.courseId ?? "CS301");
 
   const contextLabel =
     role === "instructor"
       ? lang === "ar"
-        ? `لوحة تحكم المدرّس — ${course.id}`
-        : `Instructor Dashboard — ${course.id}`
+        ? `لوحة تحكم المدرّس — ${state.courseId ?? course.id}`
+        : `Instructor Dashboard — ${state.courseId ?? course.id}`
       : lang === "ar"
         ? `${course.id} · الأسبوع ${course.week}`
         : `${course.id} · Week ${course.week}`;
@@ -81,7 +82,10 @@ export default function Topbar({ state, dispatch, role, onMenu }) {
           {state.dark ? <IconSun size={15} color={tokens.textMuted} /> : <IconMoon size={15} color={tokens.textMuted} />}
         </button>
         <button
-          onClick={() => dispatch({ type: "RESET" })}
+          onClick={() => {
+            signOut();
+            dispatch({ type: "RESET" });
+          }}
           title={lang === "ar" ? "تسجيل الخروج" : "Sign out"}
           aria-label={lang === "ar" ? "تسجيل الخروج" : "Sign out"}
           style={iconBtn}

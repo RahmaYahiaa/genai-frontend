@@ -2,9 +2,12 @@ import { useState } from "react";
 import AuthLayout from "@/components/AuthLayout";
 import MasteryLadder from "@/components/MasteryLadder";
 import { tk, headingFont, bodyFont } from "@/constants/tokens";
-import { SCREENS, ROLES } from "@/constants/routes";
+import { SCREENS } from "@/constants/routes";
 import { ROLE_TABS, INSTITUTIONS, PREVIEW_SCREENS } from "@/data/auth";
 import { IconEye, IconEyeOff, IconLock } from "@/components/Icons";
+import { login } from "@/services/auth";
+import { apiErrorText } from "@/services/http";
+import { homeScreenFor } from "@/utils";
 
 const MONO = "'JetBrains Mono', monospace";
 
@@ -15,6 +18,10 @@ export default function LoginPage({ state, dispatch }) {
   const hFont = headingFont(lang);
   const bFont = bodyFont(lang);
   const [showPass, setShowPass] = useState(false);
+  const [email, setEmail] = useState("");
+  const [pass, setPass] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
 
   const inputStyle = {
     width: "100%",
@@ -40,9 +47,23 @@ export default function LoginPage({ state, dispatch }) {
     textAlign: isRtl ? "right" : "left",
   };
 
-  const goAfterSignIn = () => {
-    const target = state.role === ROLES.INSTRUCTOR ? SCREENS.INSTRUCTOR : state.role === ROLES.ADMIN ? SCREENS.ADMIN : SCREENS.DASHBOARD;
-    dispatch({ type: "NAVIGATE", screen: target });
+  const submit = async () => {
+    if (busy) return;
+    setError("");
+    if (!email.trim() || !pass) {
+      setError(lang === "ar" ? "أدخل البريد وكلمة المرور." : "Enter your email and password.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const user = await login(email.trim(), pass, state.role);
+      dispatch({ type: "SET_USER", user });
+      dispatch({ type: "NAVIGATE", screen: homeScreenFor(user.role) });
+    } catch (err) {
+      setError(apiErrorText(err, lang));
+    } finally {
+      setBusy(false);
+    }
   };
 
   const form = (
@@ -54,7 +75,6 @@ export default function LoginPage({ state, dispatch }) {
         {lang === "ar" ? "ادخل إلى منصتك الأكاديمية الذكية." : "Access your academic intelligence platform."}
       </p>
 
-      {/* Role segmented */}
       <div style={{ marginBottom: 18 }}>
         <label style={labelStyle}>{lang === "ar" ? "الدور" : "Role"}</label>
         <div
@@ -94,13 +114,21 @@ export default function LoginPage({ state, dispatch }) {
         </div>
       </div>
 
-      {/* Email */}
       <div style={{ marginBottom: 14 }}>
         <label style={labelStyle}>{lang === "ar" ? "البريد الجامعي" : "Institutional email"}</label>
-        <input style={inputStyle} type="email" placeholder="you@university.edu" dir="ltr" />
+        <input
+          style={inputStyle}
+          type="email"
+          placeholder="you@university.edu"
+          dir="ltr"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") submit();
+          }}
+        />
       </div>
 
-      {/* Password */}
       <div style={{ marginBottom: 16 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
           <label style={{ ...labelStyle, marginBottom: 0 }}>{lang === "ar" ? "كلمة المرور" : "Password"}</label>
@@ -109,7 +137,17 @@ export default function LoginPage({ state, dispatch }) {
           </span>
         </div>
         <div style={{ position: "relative" }}>
-          <input style={{ ...inputStyle, paddingRight: isRtl ? 14 : 40, paddingLeft: isRtl ? 40 : 14 }} type={showPass ? "text" : "password"} placeholder="••••••••••" dir="ltr" />
+          <input
+            style={{ ...inputStyle, paddingRight: isRtl ? 14 : 40, paddingLeft: isRtl ? 40 : 14 }}
+            type={showPass ? "text" : "password"}
+            placeholder="••••••••••"
+            dir="ltr"
+            value={pass}
+            onChange={(e) => setPass(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") submit();
+            }}
+          />
           <button
             onClick={() => setShowPass((v) => !v)}
             aria-label={showPass ? "Hide password" : "Show password"}
@@ -131,9 +169,28 @@ export default function LoginPage({ state, dispatch }) {
         </div>
       </div>
 
-      {/* Sign in */}
+      {error !== "" && (
+        <div
+          style={{
+            marginBottom: 12,
+            padding: "9px 12px",
+            borderRadius: 8,
+            border: `1px solid ${state.dark ? "rgba(255,120,120,0.35)" : "rgba(200,60,60,0.25)"}`,
+            background: state.dark ? "rgba(255,90,90,0.12)" : "rgba(220,60,60,0.07)",
+            color: state.dark ? "#FF9D9D" : "#B42318",
+            fontSize: 12,
+            fontFamily: bFont,
+            lineHeight: 1.5,
+            textAlign: isRtl ? "right" : "left",
+          }}
+        >
+          {error}
+        </div>
+      )}
+
       <button
-        onClick={goAfterSignIn}
+        onClick={submit}
+        disabled={busy}
         style={{
           width: "100%",
           padding: "12px 0",
@@ -145,21 +202,26 @@ export default function LoginPage({ state, dispatch }) {
           fontWeight: 700,
           fontSize: 14,
           letterSpacing: "-0.01em",
-          cursor: "pointer",
+          cursor: busy ? "default" : "pointer",
+          opacity: busy ? 0.7 : 1,
           marginBottom: 16,
         }}
       >
-        {lang === "ar" ? "دخول" : "Sign In"}
+        {busy
+          ? lang === "ar"
+            ? "جارٍ الدخول…"
+            : "Signing in…"
+          : lang === "ar"
+            ? "دخول"
+            : "Sign In"}
       </button>
 
-      {/* Divider */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
         <div style={{ flex: 1, height: 1, background: tokens.cardBorder }} />
         <span style={{ fontSize: 12, color: tokens.textFaint }}>{lang === "ar" ? "أو" : "or"}</span>
         <div style={{ flex: 1, height: 1, background: tokens.cardBorder }} />
       </div>
 
-      {/* SSO */}
       <button
         style={{
           width: "100%",
@@ -182,7 +244,6 @@ export default function LoginPage({ state, dispatch }) {
         {lang === "ar" ? "دخول عبر الجامعة (SSO)" : "Continue with University SSO"}
       </button>
 
-      {/* Register link */}
       <p style={{ textAlign: "center", fontSize: 12, color: tokens.textMuted, margin: "18px 0 0", fontFamily: bFont }}>
         {lang === "ar" ? "جديد على GenAI؟" : "New to GenAI?"}{" "}
         <button
@@ -193,7 +254,6 @@ export default function LoginPage({ state, dispatch }) {
         </button>
       </p>
 
-      {/* Preview screens */}
       <div
         style={{
           marginTop: 22,
