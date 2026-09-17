@@ -1,3 +1,5 @@
+import { demoMode } from "@/services/auth";
+import BatchNote from "@/components/BatchNote";
 import { tk, MONO } from "@/constants/tokens";
 import useMediaQuery from "@/hooks/useMediaQuery";
 import { useInstructorModule } from "@/store/InstructorProvider";
@@ -5,7 +7,7 @@ import { bFontFor, hFontFor } from "@/components/ModuleUI";
 import { SCREENS } from "@/constants/routes";
 import { IconWarning, IconClipboard } from "@/components/Icons";
 import { MISCONCEPTIONS, latestAttempt, approvedMaterials, INSTRUCTOR_COURSE_IDS } from "@/data/instructorModule";
-export default function InstructorHomePage({ state, dispatch }) {
+function DemoInstructorHomePage({ state, dispatch }) {
   const { state: mod } = useInstructorModule();
   const mobile = useMediaQuery("(max-width: 760px)");
   const tokens = tk(state.dark);
@@ -186,4 +188,22 @@ export default function InstructorHomePage({ state, dispatch }) {
           </div>)}
       </div>
     </div>;
+}
+
+export default function InstructorHomePage(props) {
+  const mobile = useMediaQuery("(max-width: 760px)");
+  const tokens = tk(props.state.dark);
+  const lang = props.state.lang;
+  if (!demoMode()) {
+    return (
+      <BatchNote
+        tokens={tokens}
+        lang={lang}
+        mobile={mobile}
+        title={lang === "ar" ? "صفحة المدرّس الرئيسية بتترابط مع دفعة التحليلات" : "Instructor home wiring arrives with the analytics batch"}
+        body={lang === "ar" ? "الشاشة دي لسه بتتغذى من النموذج التجريبي بدون خادم. الربط الحي بيوصل مع دفعة التحليلات (B5)، عشان مفيش بيانات متفبركة توصلك هنا." : "This screen is still fed by the offline prototype. The live wiring lands with the analytics batch (B5), so no fabricated data reaches you here."}
+      />
+    );
+  }
+  return <DemoInstructorHomePage {...props} />;
 }

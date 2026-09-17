@@ -1,3 +1,5 @@
+import { demoMode } from "@/services/auth";
+import BatchNote from "@/components/BatchNote";
 import { useState } from "react";
 import { tk, MONO, masteryColor, masteryLevel } from "@/constants/tokens";
 import useMediaQuery from "@/hooks/useMediaQuery";
@@ -18,7 +20,7 @@ function MasteryBar({ pct, evidence = 1, thin = false, tokens }) {
   );
 }
 
-export default function InstructorStudentsPage({ state, dispatch }) {
+function DemoInstructorStudentsPage({ state, dispatch }) {
   const { state: mod } = useInstructorModule();
   const mobile = useMediaQuery("(max-width: 760px)");
   const tokens = tk(state.dark);
@@ -385,4 +387,22 @@ export default function InstructorStudentsPage({ state, dispatch }) {
         onOpenFile={(id) => openFile(id)} />
     </div>
   );
+}
+
+export default function InstructorStudentsPage(props) {
+  const mobile = useMediaQuery("(max-width: 760px)");
+  const tokens = tk(props.state.dark);
+  const lang = props.state.lang;
+  if (!demoMode()) {
+    return (
+      <BatchNote
+        tokens={tokens}
+        lang={lang}
+        mobile={mobile}
+        title={lang === "ar" ? "ربط شاشة الطلاب بيوصل مع دفعة التحليلات" : "Students wiring arrives with the analytics batch"}
+        body={lang === "ar" ? "الشاشة دي لسه بتتغذى من النموذج التجريبي بدون خادم. الربط الحي بيوصل مع دفعة التحليلات (B5)، عشان مفيش بيانات متفبركة توصلك هنا." : "This screen is still fed by the offline prototype. The live wiring lands with the analytics batch (B5), so no fabricated data reaches you here."}
+      />
+    );
+  }
+  return <DemoInstructorStudentsPage {...props} />;
 }

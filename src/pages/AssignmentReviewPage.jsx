@@ -1,3 +1,5 @@
+import { demoMode } from "@/services/auth";
+import BatchNote from "@/components/BatchNote";
 import { useMemo, useState } from "react";
 import { tk, MONO } from "@/constants/tokens";
 import useMediaQuery from "@/hooks/useMediaQuery";
@@ -11,7 +13,7 @@ import { SCREENS } from "@/constants/routes";
 import RemedialModal from "@/components/RemedialModal";
 import { latestAttempt, misconceptionText, fmtWhen, MISCONCEPTIONS } from "@/data/instructorModule";
 
-export default function AssignmentReviewPage({ state, dispatch }) {
+function DemoAssignmentReviewPage({ state, dispatch }) {
   const { state: mod, decide, requestResubmission, reopenUnit, bulkApprove, setAssignmentStatus, setScoreVisibility } = useInstructorModule();
   const mobile = useMediaQuery("(max-width: 760px)");
   const tokens = tk(state.dark);
@@ -520,4 +522,22 @@ export default function AssignmentReviewPage({ state, dispatch }) {
       <RemedialModal open={remedialEntry !== null} onClose={() => setRemedialEntry(null)} entry={remedialEntry} tokens={tokens} lang={lang} />
     </div>
   );
+}
+
+export default function AssignmentReviewPage(props) {
+  const mobile = useMediaQuery("(max-width: 760px)");
+  const tokens = tk(props.state.dark);
+  const lang = props.state.lang;
+  if (!demoMode()) {
+    return (
+      <BatchNote
+        tokens={tokens}
+        lang={lang}
+        mobile={mobile}
+        title={lang === "ar" ? "طابور المراجعة هيترابط في الدفعة الجاية (B4)" : "Review queue wiring arrives next (B4)"}
+        body={lang === "ar" ? "الشاشة دي لسه بتتغذى من النموذج التجريبي بدون خادم. الربط الحي بيوصل مع دفعة المراجعة (B4)، عشان مفيش بيانات متفبركة توصلك هنا." : "This screen is still fed by the offline prototype. The live wiring lands with the review batch (B4), so no fabricated data reaches you here."}
+      />
+    );
+  }
+  return <DemoAssignmentReviewPage {...props} />;
 }

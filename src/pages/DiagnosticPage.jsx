@@ -1,3 +1,5 @@
+import { demoMode } from "@/services/auth";
+import BatchNote from "@/components/BatchNote";
 import { useState } from "react";
 import useAsync from "@/hooks/useAsync";
 import useMediaQuery from "@/hooks/useMediaQuery";
@@ -8,7 +10,7 @@ import { getCourse } from "@/data/courses";
 import { RECOMMENDED_NEXT } from "@/data/student";
 import { Card, Btn, Chip, Bar, AsyncGate } from "@/components/ui";
 
-export default function DiagnosticPage({ state, dispatch }) {
+function DemoDiagnosticPage({ state, dispatch }) {
   const tokens = tk(state.dark);
   const lang = state.lang;
   const t = (en, ar) => (lang === "ar" ? ar : en);
@@ -148,4 +150,21 @@ export default function DiagnosticPage({ state, dispatch }) {
       </AsyncGate>
     </div>
   );
+}
+export default function DiagnosticPage(props) {
+  const mobile = useMediaQuery("(max-width: 760px)");
+  const tokens = tk(props.state.dark);
+  const lang = props.state.lang;
+  if (!demoMode()) {
+    return (
+      <BatchNote
+        tokens={tokens}
+        lang={lang}
+        mobile={mobile}
+        title={lang === "ar" ? "ربط التشخيص بيوصل مع دفعة مسار المتعلم" : "Diagnostic wiring arrives with the learner batch"}
+        body={lang === "ar" ? "الشاشة دي لسه بتتغذى من النموذج التجريبي بدون خادم. الربط الحي بيوصل مع دفعة مسار المتعلم (B6)، عشان مفيش بيانات متفبركة توصلك هنا." : "This screen is still fed by the offline prototype. The live wiring lands with the learner batch (B6), so no fabricated data reaches you here."}
+      />
+    );
+  }
+  return <DemoDiagnosticPage {...props} />;
 }

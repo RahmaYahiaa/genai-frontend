@@ -1,3 +1,5 @@
+import { demoMode } from "@/services/auth";
+import BatchNote from "@/components/BatchNote";
 import { useState } from "react";
 import useAsync from "@/hooks/useAsync";
 import useMediaQuery from "@/hooks/useMediaQuery";
@@ -8,7 +10,7 @@ import { getCourse } from "@/data/courses";
 import { Card, Btn, Chip, Bar, AsyncGate } from "@/components/ui";
 import MasteryBar from "@/components/MasteryBar";
 
-export default function ReassessmentPage({ state, dispatch }) {
+function DemoReassessmentPage({ state, dispatch }) {
   const tokens = tk(state.dark);
   const lang = state.lang;
   const t = (en, ar) => (lang === "ar" ? ar : en);
@@ -151,4 +153,21 @@ export default function ReassessmentPage({ state, dispatch }) {
       </AsyncGate>
     </div>
   );
+}
+export default function ReassessmentPage(props) {
+  const mobile = useMediaQuery("(max-width: 760px)");
+  const tokens = tk(props.state.dark);
+  const lang = props.state.lang;
+  if (!demoMode()) {
+    return (
+      <BatchNote
+        tokens={tokens}
+        lang={lang}
+        mobile={mobile}
+        title={lang === "ar" ? "ربط إعادة التقييم بيوصل مع دفعة مسار المتعلم" : "Reassessment wiring arrives with the learner batch"}
+        body={lang === "ar" ? "الشاشة دي لسه بتتغذى من النموذج التجريبي بدون خادم. الربط الحي بيوصل مع دفعة مسار المتعلم (B6)، عشان مفيش بيانات متفبركة توصلك هنا." : "This screen is still fed by the offline prototype. The live wiring lands with the learner batch (B6), so no fabricated data reaches you here."}
+      />
+    );
+  }
+  return <DemoReassessmentPage {...props} />;
 }

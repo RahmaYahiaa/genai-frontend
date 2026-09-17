@@ -1,3 +1,5 @@
+import { demoMode } from "@/services/auth";
+import BatchNote from "@/components/BatchNote";
 import useAsync from "@/hooks/useAsync";
 import useMediaQuery from "@/hooks/useMediaQuery";
 import { fetchMastery } from "@/services/api";
@@ -9,7 +11,7 @@ import MasteryBar, { MasteryLabel } from "@/components/MasteryBar";
 
 const LEGEND = ["no-evidence", "beginner", "intermediate", "advanced", "mastered"];
 
-export default function MasteryPage({ state, dispatch }) {
+function DemoMasteryPage({ state, dispatch }) {
   const tokens = tk(state.dark);
   const lang = state.lang;
   const t = (en, ar) => (lang === "ar" ? ar : en);
@@ -116,4 +118,21 @@ function MasteryInner({ courses, tokens, lang, t, dispatch }) {
       </Card>
     </>
   );
+}
+export default function MasteryPage(props) {
+  const mobile = useMediaQuery("(max-width: 760px)");
+  const tokens = tk(props.state.dark);
+  const lang = props.state.lang;
+  if (!demoMode()) {
+    return (
+      <BatchNote
+        tokens={tokens}
+        lang={lang}
+        mobile={mobile}
+        title={lang === "ar" ? "ربط المواضيع والإتقان بيوصل مع دفعة مسار المتعلم" : "Topics & mastery wiring arrives with the learner batch"}
+        body={lang === "ar" ? "الشاشة دي لسه بتتغذى من النموذج التجريبي بدون خادم. الربط الحي بيوصل مع دفعة مسار المتعلم (B6)، عشان مفيش بيانات متفبركة توصلك هنا." : "This screen is still fed by the offline prototype. The live wiring lands with the learner batch (B6), so no fabricated data reaches you here."}
+      />
+    );
+  }
+  return <DemoMasteryPage {...props} />;
 }

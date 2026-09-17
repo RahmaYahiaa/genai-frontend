@@ -1,14 +1,19 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import useAsync from "@/hooks/useAsync";
+import { demoMode } from "@/services/auth";
+import { apiErrorText } from "@/services/http";
+import { listMaterials, uploadMaterialFile, renameMaterial, deleteMaterial, downloadMaterial } from "@/services/courses";
+import { AsyncGate } from "@/components/ui";
 import { tk, MONO } from "@/constants/tokens";
 import useMediaQuery from "@/hooks/useMediaQuery";
 import { useInstructorModule } from "@/store/InstructorProvider";
-import { Card, Btn, ConfirmBtn, inputStyle, bFontFor, hFontFor, toast } from "@/components/ModuleUI";
-import { IconCheck, IconDownload, IconWarning, IconDoc, IconBookOpen, IconUpload } from "@/components/Icons";
+import { Card, Btn, ConfirmBtn, inputStyle, bFontFor, hFontFor, toast, Chip } from "@/components/ModuleUI";
+import { IconCheck, IconDownload, IconWarning, IconDoc, IconBookOpen, IconUpload, IconPencil, IconTrash, IconX } from "@/components/Icons";
 import MaterialUploader from "@/components/MaterialUploader";
 import { fmtBytes, fileKind } from "@/utils/fileMeta";
 import { approvedMaterials, pendingMaterials, fmtWhen } from "@/data/instructorModule";
 
-export default function CourseMaterialsTab({ state, courseId }) {
+function DemoMaterialsTab({ state, courseId }) {
   const { state: mod, approveMaterial, removeMaterial } = useInstructorModule();
   const mobile = useMediaQuery("(max-width: 760px)");
   const tokens = tk(state.dark);
@@ -242,4 +247,162 @@ export default function CourseMaterialsTab({ state, courseId }) {
       </div>
     </div>
   );
+}
+
+const REAL_STATUS_COLORS = {
+  ready: "#1A7F4E",
+  processing: "#B7791F",
+  pending: "#B7791F",
+  failed: "#C0392B",
+  stored_only: "#6B7280",
+};
+
+const REAL_STATUS_LABELS = {
+  ready: { en: "ready", ar: "جاهزة" },
+  processing: { en: "processing", ar: "جارٍ التجهيز" },
+  pending: { en: "pending", ar: "بالانتظار" },
+  failed: { en: "failed", ar: "فشلت" },
+  stored_only: { en: "stored", ar: "مخزّنة" },
+};
+
+function RealMaterialsTab({ state, courseId }) {
+  const tokens = tk(state.dark);
+  const lang = state.lang;
+  const t = (en, ar) => (lang === "ar" ? ar : en);
+  const isRtl = lang === "ar";
+  const hFont = hFontFor(lang);
+  const bFont = bFontFor(lang);
+  const load = useCallback(() => listMaterials(courseId), [courseId]);
+  const { data, loading, error, reload } = useAsync(load);
+  const [editing, setEditing] = useState(null);
+
+  const commitRename = async () => {
+    if (!editing) return;
+    const title = editing.text.trim();
+    setEditing(null);
+    if (!title) return;
+    try {
+      await renameMaterial(courseId, editing.id, title);
+      reload();
+    } catch (err) {
+      toast(apiErrorText(err, lang));
+    }
+  };
+
+  const remove = async (m) => {
+    try {
+      await deleteMaterial(courseId, m.id);
+      toast(lang === "ar" ? `حُذفت «${m.title}».` : `"${m.title}" removed.`);
+      reload();
+    } catch (err) {
+      toast(apiErrorText(err, lang));
+    }
+  };
+
+  const download = async (m) => {
+    try {
+      await downloadMaterial(courseId, m.id, m.originalName ?? m.title);
+    } catch (err) {
+      toast(apiErrorText(err, lang));
+    }
+  };
+
+  const handleUpload = async (queue) => {
+    for (const item of queue) {
+      await uploadMaterialFile(courseId, item.file, item.title.trim() || item.file.name);
+    }
+    reload();
+  };
+
+  const materials = data ?? [];
+
+  return (
+    <AsyncGate tokens={tokens} lang={lang} loading={loading} error={error} reload={reload} label={t("Loading materials…", "جاري تحميل المواد…")}>
+      <Card tokens={tokens} style={{ padding: "18px 20px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 12, flexDirection: isRtl ? "row-reverse" : "row" }}>
+          <div style={{ fontFamily: hFont, fontWeight: 600, fontSize: 15, color: tokens.textPrimary, letterSpacing: "-0.02em" }}>
+            {t("Course materials", "مواد المقرر")}
+          </div>
+          <Chip tokens={tokens} tone={materials.length ? "primary" : "slate"}>
+            {materials.length} {t("materials", "مواد")}
+          </Chip>
+        </div>
+
+        {materials.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
+            {materials.map((m) => {
+              const kind = fileKind(m.originalName ?? m.title, m.mimeType);
+              const isEditing = editing?.id === m.id;
+              const statusColor = REAL_STATUS_COLORS[m.status] ?? "#6B7280";
+              const statusLabel = REAL_STATUS_LABELS[m.status] ?? { en: m.status, ar: m.status };
+              return (
+                <div key={m.id} style={{ display: "flex", gap: 10, alignItems: "center", padding: "10px 12px", background: tokens.inset, border: `1px solid ${tokens.cardBorder}`, borderRadius: 10, flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
+                  <IconDoc size={16} color={kind.color} />
+                  <div style={{ minWidth: 0, flex: "1 1 160px", textAlign: isRtl ? "right" : "left" }}>
+                    {isEditing ? (
+                      <input
+                        value={editing.text}
+                        onChange={(e) => setEditing({ ...editing, text: e.target.value })}
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") commitRename();
+                          if (e.key === "Escape") setEditing(null);
+                        }}
+                        style={{ ...inputStyle(tokens, bFont), fontSize: 12, padding: "6px 10px" }}
+                        className="genai-input"
+                      />
+                    ) : (
+                      <div style={{ fontFamily: bFont, fontSize: 13, fontWeight: 600, color: tokens.textPrimary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {m.title}
+                      </div>
+                    )}
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 3, flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
+                      <span style={{ fontFamily: MONO, fontSize: 9.5, color: kind.color, border: `1px solid ${kind.color}55`, borderRadius: 5, padding: "1px 6px" }}>{kind.tag}</span>
+                      {m.sizeBytes ? <span style={{ fontFamily: MONO, fontSize: 10, color: tokens.textMuted }}>{fmtBytes(m.sizeBytes)}</span> : null}
+                      <span style={{ fontFamily: MONO, fontSize: 10, color: statusColor, border: `1px solid ${statusColor}55`, borderRadius: 5, padding: "1px 6px" }}>
+                        {lang === "ar" ? statusLabel.ar : statusLabel.en}
+                      </span>
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 4, alignItems: "center", flexShrink: 0, flexDirection: isRtl ? "row-reverse" : "row" }}>
+                    {isEditing ? (
+                      <>
+                        <button onClick={commitRename} aria-label={t("Save", "حفظ")} style={{ background: "none", border: "none", cursor: "pointer", padding: 6, borderRadius: 6 }}>
+                          <IconCheck size={14} color="#1A7F4E" />
+                        </button>
+                        <button onClick={() => setEditing(null)} aria-label={t("Cancel", "إلغاء")} style={{ background: "none", border: "none", cursor: "pointer", padding: 6, borderRadius: 6 }}>
+                          <IconX size={14} color={tokens.textMuted} />
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        {m.hasFile && (
+                          <button onClick={() => download(m)} aria-label={t("Download", "تحميل")} style={{ background: "none", border: "none", cursor: "pointer", padding: 6, borderRadius: 6, display: "inline-flex" }}>
+                            <IconDownload size={14} color={tokens.textMuted} />
+                          </button>
+                        )}
+                        <button onClick={() => setEditing({ id: m.id, text: m.title })} aria-label={t("Rename", "إعادة تسمية")} style={{ background: "none", border: "none", cursor: "pointer", padding: 6, borderRadius: 6 }}>
+                          <IconPencil size={14} color={tokens.textMuted} />
+                        </button>
+                        <button onClick={() => remove(m)} aria-label={t("Delete", "حذف")} style={{ background: "none", border: "none", cursor: "pointer", padding: 6, borderRadius: 6 }}>
+                          <IconTrash size={14} color={tokens.gap} />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <MaterialUploader courseId={courseId} tokens={tokens} lang={lang} onUpload={handleUpload} onDone={reload} />
+      </Card>
+    </AsyncGate>
+  );
+}
+
+export default function CourseMaterialsTab(props) {
+  if (!demoMode()) return <RealMaterialsTab {...props} />;
+  return <DemoMaterialsTab {...props} />;
 }
