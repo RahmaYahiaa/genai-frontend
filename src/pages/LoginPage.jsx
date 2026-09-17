@@ -3,9 +3,9 @@ import AuthLayout from "@/components/AuthLayout";
 import MasteryLadder from "@/components/MasteryLadder";
 import { tk, headingFont, bodyFont } from "@/constants/tokens";
 import { SCREENS } from "@/constants/routes";
-import { ROLE_TABS, INSTITUTIONS } from "@/data/auth";
+import { INSTITUTIONS } from "@/data/auth";
 import { IconEye, IconEyeOff } from "@/components/Icons";
-import { login, demoMode } from "@/services/auth";
+import { login } from "@/services/auth";
 import { apiErrorText } from "@/services/http";
 import { homeScreenFor } from "@/utils";
 
@@ -74,47 +74,6 @@ export default function LoginPage({ state, dispatch }) {
       <p style={{ fontSize: 13, color: tokens.textMuted, margin: "0 0 24px", fontFamily: bFont, textAlign: isRtl ? "right" : "left" }}>
         {lang === "ar" ? "ادخل إلى منصتك الأكاديمية الذكية." : "Access your academic intelligence platform."}
       </p>
-
-      {demoMode() && (
-      <div style={{ marginBottom: 18 }}>
-        <label style={labelStyle}>{lang === "ar" ? "الدور" : "Role"}</label>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr 1fr",
-            gap: 4,
-            padding: 4,
-            background: tokens.inset,
-            border: `1px solid ${tokens.cardBorder}`,
-            borderRadius: 10,
-          }}
-        >
-          {ROLE_TABS.map((r) => {
-            const active = state.role === r.id;
-            return (
-              <button
-                key={r.id}
-                onClick={() => dispatch({ type: "SET_ROLE", role: r.id })}
-                style={{
-                  padding: "8px 0",
-                  borderRadius: 7,
-                  border: "none",
-                  background: active ? tokens.card : "transparent",
-                  boxShadow: active ? "0 1px 4px rgba(13,26,46,0.12)" : "none",
-                  color: active ? tokens.primary : tokens.textMuted,
-                  fontFamily: bFont,
-                  fontWeight: active ? 600 : 500,
-                  fontSize: 13,
-                  cursor: "pointer",
-                }}
-              >
-                {lang === "ar" ? r.ar : r.en}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-      )}
 
       <div style={{ marginBottom: 14 }}>
         <label style={labelStyle}>{lang === "ar" ? "البريد الإلكتروني" : "Email address"}</label>
