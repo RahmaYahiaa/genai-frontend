@@ -4,16 +4,19 @@ import { useInstructorModule } from "@/store/InstructorProvider";
 import { Btn, inputStyle, bFontFor, toast } from "@/components/ModuleUI";
 import { IconUpload, IconX, IconDoc } from "@/components/Icons";
 import { fmtBytes, fileKind } from "@/utils/fileMeta";
+import { apiErrorText } from "@/services/http";
 
 const MAX_BYTES = 25 * 1024 * 1024;
 
-export default function MaterialUploader({ courseId, topicId, tokens, lang, style, autoApprove = false }) {
+export default function MaterialUploader({ courseId, topicId, tokens, lang, style, autoApprove = false, onUpload = null, onDone = null }) {
   const { addMaterial } = useInstructorModule();
   const inputRef = useRef(null);
   const [drag, setDrag] = useState(false);
   const [queue, setQueue] = useState([]);
+  const [busy, setBusy] = useState(false);
   const bFont = bFontFor(lang);
   const isRtl = lang === "ar";
+  const serverMode = onUpload !== null;
 
   const addFiles = (list) => {
     const files = Array.from(list ?? []);
@@ -29,27 +32,47 @@ export default function MaterialUploader({ courseId, topicId, tokens, lang, styl
     if (ok.length) setQueue((q) => [...q, ...ok]);
   };
 
-  const upload = () => {
-    if (!queue.length) return;
-    for (const item of queue) {
-      addMaterial(courseId, topicId, item.title.trim() || item.file.name, {
-        fileName: item.file.name,
-        size: item.file.size,
-        mime: item.file.type,
-        url: URL.createObjectURL(item.file)
-      }, autoApprove);
+  const upload = async () => {
+    if (!queue.length || busy) return;
+    if (!serverMode) {
+      for (const item of queue) {
+        addMaterial(courseId, topicId, item.title.trim() || item.file.name, {
+          fileName: item.file.name,
+          size: item.file.size,
+          mime: item.file.type,
+          url: URL.createObjectURL(item.file)
+        }, autoApprove);
+      }
+      toast(
+        autoApprove
+          ? lang === "ar"
+            ? `تم رفع ${queue.length === 1 ? "مادة واحدة" : `${queue.length} مواد`} — مفعّلة فوراً في مقررك الشخصي.`
+            : `Uploaded ${queue.length} material${queue.length === 1 ? "" : "s"} — active immediately in your self-study course.`
+          : lang === "ar"
+          ? `تم رفع ${queue.length === 1 ? "مادة واحدة" : `${queue.length} مواد`} كمسودات بانتظار الاعتماد.`
+          : `Uploaded ${queue.length} material${queue.length === 1 ? "" : "s"} as pending approval.`
+      );
+      setQueue([]);
+      if (inputRef.current) inputRef.current.value = "";
+      if (onDone) onDone();
+      return;
     }
-    toast(
-      autoApprove
-        ? lang === "ar"
-          ? `تم رفع ${queue.length === 1 ? "مادة واحدة" : `${queue.length} مواد`} — مفعّلة فوراً في مقررك الشخصي.`
-          : `Uploaded ${queue.length} material${queue.length === 1 ? "" : "s"} — active immediately in your self-study course.`
-        : lang === "ar"
-        ? `تم رفع ${queue.length === 1 ? "مادة واحدة" : `${queue.length} مواد`} كمسودات بانتظار الاعتماد.`
-        : `Uploaded ${queue.length} material${queue.length === 1 ? "" : "s"} as pending approval.`
-    );
-    setQueue([]);
-    if (inputRef.current) inputRef.current.value = "";
+    setBusy(true);
+    try {
+      await onUpload(queue);
+      toast(
+        lang === "ar"
+          ? `تم رفع ${queue.length === 1 ? "ملف واحد" : `${queue.length} ملفات`} إلى السيرفر — جارٍ تجهيزها لقاعدة المعرفة.`
+          : `Uploaded ${queue.length} file${queue.length === 1 ? "" : "s"} to the server — processing for the knowledge base.`
+      );
+      setQueue([]);
+      if (inputRef.current) inputRef.current.value = "";
+      if (onDone) onDone();
+    } catch (err) {
+      toast(apiErrorText(err, lang));
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -105,7 +128,7 @@ export default function MaterialUploader({ courseId, topicId, tokens, lang, styl
                   <input
                     value={item.title}
                     onChange={(e) => setQueue((q) => q.map((x) => (x.key === item.key ? { ...x, title: e.target.value } : x)))}
-                    placeholder={autoApprove ? (lang === "ar" ? "عنوان المادة" : "Material title") : (lang === "ar" ? "عنوان المادة كما سيظهر للطلاب" : "Material title as students will see it")}
+                    placeholder={autoApprove || serverMode ? (lang === "ar" ? "عنوان المادة" : "Material title") : (lang === "ar" ? "عنوان المادة كما سيظهر للطلاب" : "Material title as students will see it")}
                     style={{ ...inputStyle(tokens, bFont), marginTop: 7, fontSize: 12 }}
                     className="genai-input"
                   />
@@ -119,11 +142,23 @@ export default function MaterialUploader({ courseId, topicId, tokens, lang, styl
           })}
           <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
             <span style={{ fontFamily: MONO, fontSize: 10, color: tokens.textFaint }}>
-              {lang === "ar" ? "نسخة أولية: الملفات تعيش في جلسة المتصفح هذه — لا خادم بعد." : "Prototype: files live in this browser session — no backend yet."}
+              {serverMode
+                ? lang === "ar"
+                  ? "الملفات بتترفع للسيرفر وبتتعالج لقاعدة المعرفة والتشخيص."
+                  : "Files upload to the server and are processed for the knowledge base and diagnostics."
+                : lang === "ar"
+                ? "نسخة أولية: الملفات تعيش في جلسة المتصفح هذه — لا خادم بعد."
+                : "Prototype: files live in this browser session — no backend yet."}
             </span>
-            <Btn tokens={tokens} lang={lang} variant="solid" disabled={!queue.length} onClick={upload}>
+            <Btn tokens={tokens} lang={lang} variant="solid" disabled={!queue.length || busy} onClick={upload}>
               <IconUpload size={13} color="#fff" />
-              {lang === "ar" ? `رفع ${queue.length === 1 ? "ملف واحد" : `${queue.length} ملفات`}` : `Upload ${queue.length} file${queue.length === 1 ? "" : "s"}`}
+              {busy
+                ? lang === "ar"
+                  ? "جارٍ الرفع…"
+                  : "Uploading…"
+                : lang === "ar"
+                ? `رفع ${queue.length === 1 ? "ملف واحد" : `${queue.length} ملفات`}`
+                : `Upload ${queue.length} file${queue.length === 1 ? "" : "s"}`}
             </Btn>
           </div>
         </div>

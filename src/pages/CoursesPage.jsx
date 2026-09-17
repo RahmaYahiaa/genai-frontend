@@ -1,7 +1,10 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import useAsync from "@/hooks/useAsync";
 import useMediaQuery from "@/hooks/useMediaQuery";
 import { fetchCourses } from "@/services/api";
+import { listCourses, createPersonalCourse } from "@/services/courses";
+import { demoMode } from "@/services/auth";
+import { apiErrorText } from "@/services/http";
 import { tk, headingFont, bodyFont } from "@/constants/tokens";
 import { SCREENS } from "@/constants/routes";
 import { Card, Chip, Bar, AsyncGate, Btn } from "@/components/ui";
@@ -14,23 +17,48 @@ export default function CoursesPage({ state, dispatch }) {
   const lang = state.lang;
   const t = (en, ar) => (lang === "ar" ? ar : en);
   const mobile = useMediaQuery("(max-width: 760px)");
-  const { data, loading, error, reload } = useAsync(fetchCourses);
+  const real = !demoMode();
+  const load = useCallback(
+    () => (real ? listCourses() : fetchCourses().then((items) => ({ items, meta: null }))),
+    [real],
+  );
+  const { data, loading, error, reload } = useAsync(load);
   const { state: mod, addPersonalCourse } = useInstructorModule();
   const [createOpen, setCreateOpen] = useState(false);
   const [newTitle, setNewTitle] = useState("");
+  const [busy, setBusy] = useState(false);
   const bFont = bFontFor(lang);
 
   const personal = mod.courses.filter((c) => c.isPersonal);
-  const merged = [...(data ?? []).filter((c) => !personal.some((p) => p.id === c.id)), ...personal];
+  const merged = real
+    ? data?.items ?? []
+    : [...(data?.items ?? []).filter((c) => !personal.some((p) => p.id === c.id)), ...personal];
 
-  const createCourse = () => {
+  const canCreate = !real || state.user?.accountType === "individual";
+
+  const createCourse = async () => {
     const title = newTitle.trim();
-    if (!title) return;
-    const id = addPersonalCourse(title);
-    setCreateOpen(false);
-    setNewTitle("");
-    toast(t("Self-study course created — add your topics and materials.", "اتعمل مقرر الدراسة الذاتية — ضيف مواضيعك وموادك."));
-    dispatch({ type: "NAVIGATE", screen: SCREENS.STUDENT_COURSE, courseId: id });
+    if (!title || busy) return;
+    if (!real) {
+      const id = addPersonalCourse(title);
+      setCreateOpen(false);
+      setNewTitle("");
+      toast(t("Self-study course created — add your topics and materials.", "اتعمل مقرر الدراسة الذاتية — ضيف مواضيعك وموادك."));
+      dispatch({ type: "NAVIGATE", screen: SCREENS.STUDENT_COURSE, courseId: id });
+      return;
+    }
+    setBusy(true);
+    try {
+      const course = await createPersonalCourse(title);
+      setCreateOpen(false);
+      setNewTitle("");
+      toast(t("Self-study course created — add your topics and materials.", "اتعمل مقرر الدراسة الذاتية — ضيف مواضيعك وموادك."));
+      dispatch({ type: "NAVIGATE", screen: SCREENS.STUDENT_COURSE, courseId: course.id });
+    } catch (err) {
+      toast(apiErrorText(err, lang));
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -44,10 +72,12 @@ export default function CoursesPage({ state, dispatch }) {
             {t("Everything you're enrolled in, with live mastery evidence.", "كل المقررات المسجلة فيها، مع أدلة الإتقان الحية.")}
           </p>
         </div>
-        <Btn tokens={tokens} variant="soft" onClick={() => setCreateOpen(true)} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7, flexShrink: 0 }}>
-          <IconPlus size={13} color={tokens.primary} />
-          {t("New self-study course", "مقرر دراسة ذاتية جديد")}
-        </Btn>
+        {canCreate && (
+          <Btn tokens={tokens} variant="soft" onClick={() => setCreateOpen(true)} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7, flexShrink: 0 }}>
+            <IconPlus size={13} color={tokens.primary} />
+            {t("New self-study course", "مقرر دراسة ذاتية جديد")}
+          </Btn>
+        )}
       </div>
 
       <AsyncGate tokens={tokens} lang={lang} loading={loading} error={error} reload={reload} label={t("Loading courses…", "جاري تحميل المقررات…")}>
@@ -55,36 +85,47 @@ export default function CoursesPage({ state, dispatch }) {
           {merged.map((course) => {
             const covered = course.topics.filter((x) => x.evidence > 0).length;
             const isPersonal = Boolean(course.isPersonal);
+            const hasMastery = typeof course.overall === "number";
             return (
               <Card key={course.id} tokens={tokens}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, gap: 8 }}>
-                  <Chip tokens={tokens} tone="primary">{course.id}</Chip>
+                  <Chip tokens={tokens} tone="primary">{course.code ?? course.id.slice(0, 8)}</Chip>
                   {isPersonal ? (
                     <Chip tokens={tokens}>{t("Self-study", "دراسة ذاتية")}</Chip>
-                  ) : (
+                  ) : hasMastery ? (
                     <Chip tokens={tokens}>{t(`Week ${course.week}`, `الأسبوع ${course.week}`)}</Chip>
+                  ) : (
+                    <Chip tokens={tokens}>{t("University", "جامعي")}</Chip>
                   )}
                 </div>
                 <div style={{ fontWeight: 700, fontSize: 15, color: tokens.textPrimary, marginBottom: 12 }}>
                   {course.title[lang]}
                 </div>
-                <Bar tokens={tokens} value={course.overall} color={tokens.mastered} height={8} />
-                <div style={{ display: "flex", justifyContent: "space-between", margin: "8px 0 16px", fontSize: 11.5, color: tokens.textMuted }}>
-                  <span>{t("Overall mastery", "الإتقان الكلي")}</span>
-                  <span style={{ fontWeight: 700, color: tokens.mastered }}>{course.overall}%</span>
+                {hasMastery && <Bar tokens={tokens} value={course.overall} color={tokens.mastered} height={8} />}
+                <div style={{ display: "flex", justifyContent: "space-between", margin: hasMastery ? "8px 0 16px" : "0 0 16px", fontSize: 11.5, color: tokens.textMuted }}>
+                  {hasMastery ? (
+                    <>
+                      <span>{t("Overall mastery", "الإتقان الكلي")}</span>
+                      <span style={{ fontWeight: 700, color: tokens.mastered }}>{course.overall}%</span>
+                    </>
+                  ) : (
+                    <span>{course.description ?? t("No description yet.", "مفيش وصف لسه.")}</span>
+                  )}
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
                   <span style={{ fontSize: 11.5, color: tokens.textFaint }}>
                     {isPersonal
                       ? `${course.topics.length} ${t("topics · your materials", "مواضيع · موادك")}`
-                      : `${covered}/${course.topics.length} ${t("topics with evidence", "مواضيع بأدلة")}`}
+                      : hasMastery
+                        ? `${covered}/${course.topics.length} ${t("topics with evidence", "مواضيع بأدلة")}`
+                        : `${course.topics.length} ${t("topics", "مواضيع")}`}
                   </span>
                   {isPersonal ? (
                     <Btn tokens={tokens} variant="soft" onClick={() => dispatch({ type: "NAVIGATE", screen: SCREENS.STUDENT_COURSE, courseId: course.id })}>
                       {t("Manage", "إدارة")}
                     </Btn>
                   ) : (
-                    <Btn tokens={tokens} variant="soft" onClick={() => dispatch({ type: "NAVIGATE", screen: SCREENS.MASTERY })}>
+                    <Btn tokens={tokens} variant="soft" onClick={() => dispatch({ type: "NAVIGATE", screen: real ? SCREENS.STUDENT_COURSE : SCREENS.MASTERY, courseId: real ? course.id : undefined })}>
                       {t("View topics", "عرض المواضيع")}
                     </Btn>
                   )}
@@ -116,8 +157,8 @@ export default function CoursesPage({ state, dispatch }) {
           <Btn tokens={tokens} variant="ghost" onClick={() => setCreateOpen(false)}>
             {t("Cancel", "إلغاء")}
           </Btn>
-          <Btn tokens={tokens} disabled={!newTitle.trim()} onClick={createCourse}>
-            {t("Create course", "إنشاء المقرر")}
+          <Btn tokens={tokens} disabled={!newTitle.trim() || busy} onClick={createCourse}>
+            {busy ? t("Creating…", "جارٍ الإنشاء…") : t("Create course", "إنشاء المقرر")}
           </Btn>
         </div>
       </Modal>
