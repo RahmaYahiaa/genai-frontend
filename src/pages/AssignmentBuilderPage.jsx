@@ -21,6 +21,7 @@ import {
   closeAssignment,
   reopenAssignment,
   setGradeVisibility,
+  setFeedbackVisibility,
   renameAssignment,
 } from "@/services/assignments";
 import { AsyncGate } from "@/components/ui";
@@ -187,17 +188,30 @@ function RealBuilderView({ state, dispatch }) {
                       </Chip>
                     </div>
                     <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 8, flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
-                      <span style={{ fontSize: 12, color: tokens.textMuted }}>{t("Show grade to student", "إظهار الدرجة للطالب")}</span>
+                      <span style={{ fontSize: 12, color: tokens.textMuted }}>{t("Show grade to students", "إظهار الدرجة للطلاب")}</span>
                       <Toggle
                         tokens={tokens}
                         on={assignment.showGradeToStudent}
                         disabled={busyAction === "visibility"}
                         onChange={() => run("visibility", () => setGradeVisibility(assignment.id, !assignment.showGradeToStudent))}
                       />
+                      <span style={{ fontSize: 12, color: tokens.textMuted, marginInlineStart: 8 }}>{t("Show feedback to students", "إظهار الفيدباك للطلاب")}</span>
+                      <Toggle
+                        tokens={tokens}
+                        on={assignment.showFeedbackToStudent}
+                        disabled={busyAction === "feedbackVisibility"}
+                        onChange={() => run("feedbackVisibility", () => setFeedbackVisibility(assignment.id, !assignment.showFeedbackToStudent))}
+                      />
                       <span style={{ fontFamily: MONO, fontSize: 10.5, color: tokens.textFaint }}>
                         {questions.length} {t("questions", "أسئلة")} · {questions.reduce((sum, q) => sum + q.maxScore, 0)} {t("pts", "درجة")}
                       </span>
                     </div>
+                    <p style={{ fontSize: 11, color: tokens.textFaint, margin: "6px 0 0", lineHeight: 1.5 }}>
+                      {t(
+                        "Feedback stays hidden by default: students only receive human-written notes (like a resubmission reason) until you switch this on.",
+                        "الفيدباك مخفي افتراضياً: الطالب بيوصله فقط الكلام المكتوب ببشرية (زي سبب طلب إعادة التسليم) لحد ما تشغّلي المفتاح ده.",
+                      )}
+                    </p>
                   </div>
                 </div>
 
@@ -292,7 +306,8 @@ function RealBuilderView({ state, dispatch }) {
                     </Card>
                   ))}
                 </div>
-                                {editor ? (
+
+                {editor ? (
                   <Card tokens={tokens} style={{ padding: "16px 18px", marginTop: 14 }}>
                     <div style={{ fontFamily: hFont, fontWeight: 600, fontSize: 14, color: tokens.textPrimary, marginBottom: 12 }}>
                       {editor.mode === "add" ? t("New question", "سؤال جديد") : t("Edit question", "تعديل سؤال")}

@@ -233,7 +233,7 @@ export default function AssignmentBuilderPage({ state, dispatch }) {
                         value={opt}
                         onChange={(e) => patchQ(q.key, { options: q.options.map((o, j) => (j === oi ? e.target.value : o)) })}
                         placeholder={lang === "ar" ? `نص الخيار ${oi + 1}` : `Option ${oi + 1} text`}
-                                                style={{ ...inputStyle(tokens, bFont), flex: 1, minWidth: 0 }}
+                        style={{ ...inputStyle(tokens, bFont), flex: 1, minWidth: 0 }}
                         className="genai-input"
                       />
                       {q.options.length > 2 && (

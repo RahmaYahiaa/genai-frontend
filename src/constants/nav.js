@@ -40,9 +40,12 @@ export const ADMIN_NAV = [
   { id: SCREENS.PROFILE, en: "Settings", ar: "الإعدادات", Icon: IconProfile },
 ];
 
-export function navForRole(role) {
+export function navForRole(role, accountType) {
   if (role === "instructor") return INSTRUCTOR_NAV;
   if (role === "admin") return ADMIN_NAV;
+  if (accountType === "individual") {
+    return STUDENT_NAV.filter((item) => item.id !== SCREENS.STUDENT_ASSIGNMENTS);
+  }
   return STUDENT_NAV;
 }
 

@@ -53,6 +53,7 @@ export function mapAssignment(assignment) {
     title: { en: assignment.title, ar: assignment.title },
     status: assignment.status,
     showGradeToStudent: Boolean(assignment.showGradeToStudent),
+    showFeedbackToStudent: Boolean(assignment.showFeedbackToStudent),
     createdAt: assignment.createdAt ?? null,
     updatedAt: assignment.updatedAt ?? null,
     questions: Array.isArray(assignment.questions) ? assignment.questions.map(mapQuestion) : null,
@@ -140,4 +141,8 @@ export async function reopenAssignment(assignmentId) {
 
 export async function setGradeVisibility(assignmentId, showGradeToStudent) {
   return mapAssignment(await api(`/assignments/${assignmentId}/grade-visibility`, { method: "PATCH", body: { showGradeToStudent } }));
+}
+
+export async function setFeedbackVisibility(assignmentId, showFeedbackToStudent) {
+  return mapAssignment(await api(`/assignments/${assignmentId}/feedback-visibility`, { method: "PATCH", body: { showFeedbackToStudent } }));
 }

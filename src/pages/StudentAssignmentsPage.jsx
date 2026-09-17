@@ -38,6 +38,33 @@ function RealStudentAssignments({ state, dispatch }) {
   const { data, loading, error, reload } = useAsync(load);
 
   const groups = data ?? [];
+  const individual = state.user?.accountType === "individual";
+
+  if (individual) {
+    return (
+      <div className="genai-pad" style={{ padding: mobile ? "20px 16px" : "28px 32px", direction: isRtl ? "rtl" : "ltr", maxWidth: 900, margin: "0 auto" }}>
+        <div style={{ marginBottom: 20, textAlign: isRtl ? "right" : "left" }}>
+          <h1 style={{ fontFamily: hFont, fontWeight: 700, fontSize: mobile ? 19 : 22, color: tokens.textPrimary, letterSpacing: "-0.025em", margin: "0 0 3px" }}>
+            {t("Assignments", "التكليفات")}
+          </h1>
+        </div>
+        <Card tokens={tokens} style={{ padding: "34px 24px", textAlign: "center" }}>
+          <div style={{ display: "inline-flex", width: 44, height: 44, borderRadius: "50%", background: tokens.inset, border: `1px solid ${tokens.cardBorder}`, alignItems: "center", justifyContent: "center", marginBottom: 12 }}>
+            <IconLock size={22} color={tokens.textFaint} />
+          </div>
+          <div style={{ fontFamily: hFont, fontWeight: 600, fontSize: 15, color: tokens.textPrimary, marginBottom: 4 }}>
+            {t("No assignments on personal courses", "لا تكليفات في المقررات الشخصية")}
+          </div>
+          <div style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textMuted, lineHeight: 1.6 }}>
+            {t(
+              "The assignment and grading module is institution-only: a personal course has no instructor, so there is no approval gate. Your self-directed loop continues as usual.",
+              "وحدة التكليفات والتصحيح مؤسسة فقط: المقرر الشخصي لا مدرّس له، فلا بوابة اعتماد. تعلّمك الذاتي يستمر كالمعتاد.",
+            )}
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="genai-pad" style={{ padding: mobile ? "20px 16px" : "28px 32px", direction: isRtl ? "rtl" : "ltr", maxWidth: 900, margin: "0 auto" }}>

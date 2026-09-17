@@ -123,10 +123,18 @@ function RealAssignmentsTab({ state, dispatch, courseId }) {
                           <IconPencil size={13} color={tokens.textFaint} />
                         </button>
                       </div>
-                      <div style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textMuted }}>
-                        {assignment.showGradeToStudent
-                          ? t("Grades visible to students", "الدرجيات ظاهرة للطلاب")
-                          : t("Grades hidden from students", "الدرجيات مخفية عن الطلاب")}
+                      <div style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textMuted, display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
+                        <span>
+                          {assignment.showGradeToStudent
+                            ? t("Grade visible to students", "الدرجة ظاهرة للطلاب")
+                            : t("Grade hidden from students", "الدرجة مخفية عن الطلاب")}
+                        </span>
+                        <span>·</span>
+                        <span>
+                          {assignment.showFeedbackToStudent
+                            ? t("feedback visible", "الفيدباك ظاهر")
+                            : t("feedback hidden", "الفيدباك مخفي")}
+                        </span>
                       </div>
                     </div>
                     <div style={{ display: "flex", gap: 8, flexShrink: 0, flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row", ...(mobile ? { width: "100%" } : {}) }}>

@@ -15,7 +15,7 @@ export default function Sidebar({ state, dispatch, role, onNavigate }) {
   const lang = state.lang;
   const isRtl = lang === "ar";
   const hFont = headingFont(lang);
-  const nav = navForRole(role);
+  const nav = navForRole(role, state.user?.accountType);
   const navBottom = navBottomForRole(role);
   const activeScreen = state.screen;
 
