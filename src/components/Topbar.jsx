@@ -130,7 +130,10 @@ export default function Topbar({ state, dispatch, role, onMenu }) {
           )}
         </button>
         <button
-          onClick={() => dispatch({ type: "RESET" })}
+          onClick={() => {
+            signOut();
+            dispatch({ type: "RESET" });
+          }}
           title={lang === "ar" ? "تسجيل الخروج" : "Sign out"}
           aria-label={lang === "ar" ? "تسجيل الخروج" : "Sign out"}
           style={iconBtn}
