@@ -8,13 +8,12 @@ import { apiErrorText } from "@/services/http";
 import {
   STATUS_LABELS,
   listAssignmentsForCourse,
-  createAssignment,
   publishAssignment,
   closeAssignment,
   reopenAssignment,
 } from "@/services/assignments";
 import { AsyncGate } from "@/components/ui";
-import { Card, Btn, Chip, bFontFor, hFontFor, toast, Modal, inputStyle } from "@/components/ModuleUI";
+import { Card, Btn, Chip, bFontFor, hFontFor, toast } from "@/components/ModuleUI";
 import { IconPlus, IconClipboard, IconPencil } from "@/components/Icons";
 import AssignmentsTabLegacy from "@/components/AssignmentsTabLegacy";
 
@@ -29,8 +28,6 @@ function RealAssignmentsTab({ state, dispatch, courseId }) {
 
   const load = useCallback(() => listAssignmentsForCourse(courseId), [courseId]);
   const { data, loading, error, reload } = useAsync(load);
-  const [createOpen, setCreateOpen] = useState(false);
-  const [title, setTitle] = useState("");
   const [busy, setBusy] = useState(null);
 
   const openBuilder = (assignmentId) =>
@@ -50,17 +47,6 @@ function RealAssignmentsTab({ state, dispatch, courseId }) {
     }
   };
 
-  const create = async () => {
-    const clean = title.trim();
-    if (!clean || busy) return;
-    await run("create", async () => {
-      const assignment = await createAssignment(courseId, clean);
-      setCreateOpen(false);
-      setTitle("");
-      openBuilder(assignment.id);
-    });
-  };
-
   const assignments = data?.items ?? [];
 
   return (
@@ -74,7 +60,7 @@ function RealAssignmentsTab({ state, dispatch, courseId }) {
             {t("Every assignment in this course. Open stays open until you close it.", "كل تكليف في هذا المقرر. المفتوح يبقى مفتوحاً حتى تغلقه بنفسك.")}
           </p>
         </div>
-        <Btn tokens={tokens} lang={lang} onClick={() => setCreateOpen(true)} style={mobile ? { width: "100%" } : undefined}>
+        <Btn tokens={tokens} lang={lang} onClick={() => openBuilder(undefined)} style={mobile ? { width: "100%" } : undefined}>
           <IconPlus size={13} color="#fff" />
           {t("New assignment", "تكليف جديد")}
         </Btn>
@@ -93,7 +79,7 @@ function RealAssignmentsTab({ state, dispatch, courseId }) {
               <div style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textMuted, lineHeight: 1.6, maxWidth: 380, margin: "0 auto 16px" }}>
                 {t("Create the first assignment to open submission and AI-assisted evaluation.", "أنشئ أول تكليف ليبدأ التسليم والتقييم المساعد بالذكاء الاصطناعي.")}
               </div>
-              <Btn tokens={tokens} lang={lang} onClick={() => setCreateOpen(true)}>
+              <Btn tokens={tokens} lang={lang} onClick={() => openBuilder(undefined)}>
                 <IconPlus size={13} color="#fff" />
                 {t("New assignment", "تكليف جديد")}
               </Btn>
@@ -169,26 +155,7 @@ function RealAssignmentsTab({ state, dispatch, courseId }) {
         )}
       </AsyncGate>
 
-      <Modal open={createOpen} onClose={() => setCreateOpen(false)} tokens={tokens} lang={lang} width={460}
-        title={t("New assignment", "تكليف جديد")}>
-        <input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder={t("e.g. Week 4 problem set", "مثال: مهام الأسبوع الرابع")}
-          autoFocus
-          style={inputStyle(tokens, bFont)}
-          className="genai-input"
-          onKeyDown={(e) => { if (e.key === "Enter") create(); }}
-        />
-        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 16 }}>
-          <Btn tokens={tokens} variant="ghost" onClick={() => setCreateOpen(false)}>
-            {t("Cancel", "إلغاء")}
-          </Btn>
-          <Btn tokens={tokens} disabled={!title.trim() || Boolean(busy)} onClick={create}>
-            {t("Create & open builder", "إنشاء وفتح المحرر")}
-          </Btn>
-        </div>
-      </Modal>
+
     </>
   );
 }

@@ -4,9 +4,10 @@ import useAsync from "@/hooks/useAsync";
 import { tk, MONO } from "@/constants/tokens";
 import useMediaQuery from "@/hooks/useMediaQuery";
 import { useInstructorModule } from "@/store/InstructorProvider";
-import { getInstructorHome } from "@/services/analytics";
+import { getInstructorHome, getCourseAnalytics, getCoverageGaps } from "@/services/analytics";
+import { listEnrollments } from "@/services/courses";
 import { AsyncGate } from "@/components/ui";
-import { bFontFor, hFontFor, Card, Btn, Chip } from "@/components/ModuleUI";
+import { bFontFor, hFontFor } from "@/components/ModuleUI";
 import { SCREENS } from "@/constants/routes";
 import { IconWarning, IconClipboard } from "@/components/Icons";
 import { MISCONCEPTIONS, latestAttempt, approvedMaterials, INSTRUCTOR_COURSE_IDS } from "@/data/instructorModule";
@@ -201,58 +202,154 @@ function RealInstructorHome({ state, dispatch }) {
   const isRtl = lang === "ar";
   const hFont = hFontFor(lang);
   const bFont = bFontFor(lang);
-  const load = useCallback(() => getInstructorHome(), []);
+
+  const load = useCallback(async () => {
+    const home = await getInstructorHome();
+    const list = home?.courses ?? [];
+    const entries = await Promise.all(
+      list.map(async (course) => {
+        const [roster, gaps, analytics] = await Promise.all([
+          listEnrollments(course.courseId, { page: 1, limit: 1 }).catch(() => ({ total: 0 })),
+          getCoverageGaps(course.courseId).catch(() => null),
+          getCourseAnalytics(course.courseId).catch(() => null),
+        ]);
+        const materials = analytics?.totals?.materials ?? {};
+        return [
+          course.courseId,
+          {
+            enrolled: roster?.total ?? 0,
+            gaps: gaps?.items?.length ?? 0,
+            processing: Math.max((materials.totalCount ?? 0) - (materials.readyCount ?? 0), 0),
+          },
+        ];
+      }),
+    );
+    return { courses: list, byId: Object.fromEntries(entries) };
+  }, []);
   const { data, loading, error, reload } = useAsync(load);
-  const courses = data?.courses ?? [];
+
+  const courses = [...(data?.courses ?? [])].sort(
+    (a, b) => (b.pendingReviewCount - a.pendingReviewCount) || (b.fastTrackCount - a.fastTrackCount),
+  );
+  const byId = data?.byId ?? {};
   const pendingTotal = courses.reduce((sum, course) => sum + (course.pendingReviewCount ?? 0), 0);
+  const quickTotal = courses.reduce((sum, course) => sum + (course.fastTrackCount ?? 0), 0);
+  const mostUrgent = courses[0] ?? null;
+  const openWorkspace = (courseId) => dispatch({ type: "NAVIGATE", screen: SCREENS.COURSE_WORKSPACE, courseId, tab: "assignments" });
 
   return (
-    <div className="genai-pad" style={{ padding: mobile ? "20px 16px" : "26px 32px", direction: isRtl ? "rtl" : "ltr", maxWidth: 980, margin: "0 auto" }}>
-      <div style={{ marginBottom: 14, textAlign: isRtl ? "right" : "left" }}>
-        <h1 style={{ fontFamily: hFont, fontWeight: 700, fontSize: mobile ? 19 : 22, color: tokens.textPrimary, letterSpacing: "-0.025em", margin: "0 0 4px" }}>
-          {t("Instructor home", "صفحة المدرّس")}
+    <div className="genai-pad" style={{ padding: mobile ? 16 : "28px 32px", maxWidth: 1080, margin: "0 auto", direction: isRtl ? "rtl" : "ltr" }}>
+      <div style={{ marginBottom: 20, textAlign: isRtl ? "right" : "left" }}>
+        <h1 style={{ fontFamily: hFont, fontWeight: 700, fontSize: mobile ? 19 : 22, color: tokens.textPrimary, letterSpacing: "-0.025em", margin: "0 0 3px" }}>
+          {t("Instructor Workspace", "مساحة المدرّس")}
         </h1>
-        <p style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textMuted, margin: 0, lineHeight: 1.6 }}>
-          {t("Live counts from the precomputed analytics snapshots of your courses.", "أعداد حية من لقطات التحليلات المحسوبة مسبقاً لمقرراتك.")}
+        <p style={{ fontSize: 13, color: tokens.textMuted, margin: 0, fontFamily: bFont }}>
+          {t("All your courses in one view, ordered by urgency.", "كل مقرراتك في عرض واحد، مرتّبة حسب الإلحاح.")}
         </p>
       </div>
+
       <AsyncGate tokens={tokens} lang={lang} loading={loading} error={error} reload={reload} label={t("Loading your courses…", "جاري تحميل مقرراتك…")}>
-        {data && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <Chip tokens={tokens} tone="slate">{t("Courses", "مقررات")}: {courses.length}</Chip>
-              <Chip tokens={tokens} tone={pendingTotal > 0 ? "violet" : "slate"}>{t("Pending review", "معلّقة للمراجعة")}: {pendingTotal}</Chip>
+        {data && pendingTotal === 0 && (
+          <div style={{ background: tokens.card, border: `1px solid ${tokens.cardBorder}`, borderRadius: 12, padding: "34px 24px", marginBottom: 20, textAlign: "center" }}>
+            <div style={{ display: "inline-flex", width: 44, height: 44, borderRadius: "50%", background: tokens.primaryLight, border: `1px solid ${tokens.citationBorder}`, alignItems: "center", justifyContent: "center", marginBottom: 12 }}>
+              <IconClipboard size={18} color={tokens.primary} />
             </div>
-            {courses.length === 0 ? (
-              <Card tokens={tokens} style={{ padding: "16px 18px" }}>
-                <p style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textMuted, margin: 0, lineHeight: 1.7 }}>
-                  {t("You are not staffed on any course yet — create one from My Courses.", "لسه مش مشارك في أي مقرر — أنشئ واحد من «مقرراتي».")}
-                </p>
-              </Card>
-            ) : (
-              courses.map((course) => (
-                <Card tokens={tokens} key={course.courseId} style={{ padding: "14px 16px" }}>
-                  <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
-                    <div style={{ flex: 1, minWidth: 0, textAlign: isRtl ? "right" : "left" }}>
-                      <div style={{ fontFamily: bFont, fontSize: 13.5, fontWeight: 700, color: tokens.textPrimary }}>{course.title}</div>
-                      {course.code && <span style={{ fontFamily: MONO, fontSize: 10, color: tokens.textFaint }}>{course.code}</span>}
-                    </div>
-                    <Chip tokens={tokens} tone={course.pendingReviewCount > 0 ? "violet" : "slate"}>
-                      {t("Pending", "معلّق")}: {course.pendingReviewCount}
-                    </Chip>
-                    <Chip tokens={tokens} tone="primary">{t("Fast track", "سريع")}: {course.fastTrackCount}</Chip>
-                    <Chip tokens={tokens} tone="slate">{t("Finalized", "معتمد")}: {course.finalizedCount}</Chip>
-                    <Btn tokens={tokens} lang={lang} variant="ghost" onClick={() => dispatch({ type: "NAVIGATE", screen: SCREENS.COURSE_WORKSPACE, courseId: course.courseId, tab: "assignments" })}>
-                      {t("Open", "فتح")}
-                    </Btn>
-                  </div>
-                </Card>
-              ))
-            )}
-            <p style={{ fontFamily: bFont, fontSize: 11, color: tokens.textFaint, margin: 0, textAlign: isRtl ? "right" : "left" }}>
-              {t("Snapshots recompute automatically after every finalized submission.", "اللقطات بتتحسب من جديد تلقائياً بعد كل تسليم معتمد.")}
-            </p>
+            <div style={{ fontFamily: hFont, fontWeight: 600, fontSize: 16, color: tokens.textPrimary, letterSpacing: "-0.02em", marginBottom: 4 }}>
+              {t("No submissions need review right now", "لا تسليمات تحتاج مراجعة الآن")}
+            </div>
+            <div style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textMuted }}>
+              {courses.length === 0
+                ? t("You are not staffed on any course yet — create one from My Courses.", "لسه مش مشارك في أي مقرر — أنشئ واحد من «مقرراتي».")
+                : t("Everything is handled — new submissions will surface here as they arrive.", "كل شيء معالَج — التسليمات الجديدة هتظهر هنا أول ما توصل.")}
+            </div>
           </div>
+        )}
+        {data && pendingTotal > 0 && mostUrgent && (
+          <div style={{ background: tokens.primaryLight, border: `1px solid ${tokens.primary}33`, borderRadius: 12, padding: "20px 24px", marginBottom: 20, display: "flex", alignItems: mobile ? "stretch" : "center", justifyContent: "space-between", gap: 18, flexWrap: "wrap", flexDirection: mobile ? "column" : isRtl ? "row-reverse" : "row" }}>
+            <div style={{ textAlign: isRtl ? "right" : "left" }}>
+              <div style={{ fontFamily: MONO, fontSize: 10, color: tokens.textMuted, letterSpacing: "0.1em", marginBottom: 8 }}>
+                {t("NEEDS YOUR ATTENTION", "يحتاج انتباهك")}
+              </div>
+              <div style={{ fontFamily: hFont, fontWeight: 700, fontSize: mobile ? 20 : 24, color: tokens.textPrimary, letterSpacing: "-0.03em", marginBottom: 4 }}>
+                {pendingTotal} {t("pending submissions", "تسليماً بانتظار المراجعة")}
+              </div>
+              <div style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textSecondary }}>
+                {quickTotal} {t("ready for quick approval", "جاهز للاعتماد السريع")}
+              </div>
+            </div>
+            <button
+              onClick={() => openWorkspace(mostUrgent.courseId)}
+              className="genai-cta"
+              style={{ padding: "11px 18px", borderRadius: 9, border: "none", background: tokens.primaryBtn, color: "#fff", fontFamily: hFont, fontWeight: 600, fontSize: 13, cursor: "pointer", boxShadow: tokens.primaryShadow, flexShrink: 0, ...(mobile ? { width: "100%" } : {}) }}
+            >
+              {t(`Open ${mostUrgent.code ?? mostUrgent.courseId} workspace`, `افتح مساحة ${mostUrgent.code ?? mostUrgent.courseId}`)}
+            </button>
+          </div>
+        )}
+
+        {data && (
+          <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "repeat(auto-fill, minmax(300px, 1fr))", gap: mobile ? 12 : 16 }}>
+            {courses.map((course) => {
+              const detail = byId[course.courseId] ?? { enrolled: 0, gaps: 0, processing: 0 };
+              return (
+                <div key={course.courseId} style={{ background: tokens.card, border: `1px solid ${tokens.cardBorder}`, borderRadius: 12, padding: "18px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexDirection: isRtl ? "row-reverse" : "row" }}>
+                    <span style={{ fontFamily: MONO, fontSize: 11, fontWeight: 700, color: tokens.primary, background: tokens.primaryLight, border: `1px solid ${tokens.citationBorder}`, borderRadius: 6, padding: "3px 9px" }}>
+                      {course.code ?? course.courseId}
+                    </span>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: bFont, fontSize: 12, fontWeight: 600, color: tokens.primary }}>
+                      <IconClipboard size={13} color={tokens.primary} />
+                      {course.pendingReviewCount} {t("pending", "بانتظار المراجعة")}
+                    </span>
+                  </div>
+
+                  <div style={{ textAlign: isRtl ? "right" : "left" }}>
+                    <div style={{ fontFamily: hFont, fontWeight: 600, fontSize: 15, color: tokens.textPrimary, letterSpacing: "-0.02em", marginBottom: 3 }}>
+                      {course.title}
+                    </div>
+                    <div style={{ fontFamily: bFont, fontSize: 12, color: tokens.textMuted }}>
+                      {detail.enrolled} {t("students", "طالباً")} · {course.fastTrackCount} {t("quick-ready", "جاهز سريعاً")}
+                    </div>
+                  </div>
+
+                  <div style={{ display: "flex", flexDirection: "column", gap: 7, textAlign: isRtl ? "right" : "left" }}>
+                    {detail.gaps > 0 ? (
+                      <div style={{ display: "flex", alignItems: "center", gap: 7, fontFamily: bFont, fontSize: 12, color: tokens.gap, flexDirection: isRtl ? "row-reverse" : "row" }}>
+                        <IconWarning size={13} color={tokens.gap} />
+                        {detail.gaps} {t("topics with no assignment coverage", "موضوع بلا تغطية في التكليفات")}
+                      </div>
+                    ) : (
+                      <div style={{ fontFamily: bFont, fontSize: 12, color: tokens.textFaint }}>
+                        {t("All topics covered by assignments", "كل المواضيع مغطاة بتكليفات")}
+                      </div>
+                    )}
+                    {detail.processing > 0 ? (
+                      <div style={{ display: "flex", alignItems: "center", gap: 7, fontFamily: bFont, fontSize: 12, color: tokens.gap, flexDirection: isRtl ? "row-reverse" : "row" }}>
+                        <IconWarning size={13} color={tokens.gap} />
+                        {detail.processing} {t("materials still processing", "مواد لسه بتتم معالجتها")}
+                      </div>
+                    ) : (
+                      <div style={{ fontFamily: bFont, fontSize: 12, color: tokens.textFaint }}>
+                        {t("All materials ready", "كل المواد جاهزة")}
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={() => openWorkspace(course.courseId)}
+                    style={{ marginTop: "auto", width: "100%", padding: "9px 0", borderRadius: 8, border: `1px solid ${tokens.primary}44`, background: tokens.primaryLight, color: tokens.primary, fontFamily: bFont, fontWeight: 600, fontSize: 12.5, cursor: "pointer" }}
+                  >
+                    {t("Open workspace", "افتح مساحة العمل")}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        {data && (
+          <p style={{ fontFamily: bFont, fontSize: 11, color: tokens.textFaint, margin: "14px 0 0", textAlign: isRtl ? "right" : "left" }}>
+            {t("Snapshots recompute automatically after every finalized submission.", "اللقطات بتتحسب من جديد تلقائياً بعد كل تسليم معتمد.")}
+          </p>
         )}
       </AsyncGate>
     </div>

@@ -394,60 +394,8 @@ function DemoInstructorStudentsPage({ state, dispatch }) {
   );
 }
 
-function StudentDrillModal({ courseId, student, tokens, lang, onClose }) {
-  const t = (en, ar) => (lang === "ar" ? ar : en);
-  const isRtl = lang === "ar";
-  const bFont = bFontFor(lang);
-  const load = useCallback(async () => {
-    const { items } = await listAssignmentsForCourse(courseId, {});
-    const active = items.filter((assignment) => assignment.status !== "DRAFT");
-    const reviews = await Promise.all(
-      active.map((assignment) => getReview(assignment.id, { limit: 100 }).then((review) => ({ assignment, review }))),
-    );
-    return reviews
-      .map(({ assignment, review }) => {
-        const row = [...(review?.fastTrack ?? []), ...(review?.needsReview ?? [])].find((item) => item.studentId === student.id);
-        if (!row) return null;
-        return {
-          assignmentId: assignment.id,
-          title: assignment.title?.[lang] ?? assignment.title?.en ?? "",
-          status: row.submission.status,
-          aiTotalScore: row.aiTotalScore,
-          maxTotalScore: row.maxTotalScore,
-          decided: row.decided,
-        };
-      })
-      .filter(Boolean);
-  }, [courseId, student.id, lang]);
-  const { data, loading, error, reload } = useAsync(load);
-
-  return (
-    <Modal open onClose={onClose} tokens={tokens} lang={lang} width={620} title={student.name} subtitle={student.email}>
-      <AsyncGate tokens={tokens} lang={lang} loading={loading} error={error} reload={reload} label={t("Loading submissions…", "جاري تحميل التسليمات…")}>
-        {(data ?? []).length === 0 ? (
-          <p style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textMuted, margin: 0, textAlign: isRtl ? "right" : "left" }}>
-            {t("This student has no submissions in this course yet.", "الطالب ده مفيش ليه تسليمات في المقرر ده لسه.")}
-          </p>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {data.map((row) => (
-              <div key={row.assignmentId} style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", background: tokens.inset, border: `1px solid ${tokens.cardBorder}`, borderRadius: 8, padding: "8px 10px", flexDirection: isRtl ? "row-reverse" : "row" }}>
-                <span style={{ fontFamily: bFont, fontSize: 12.5, fontWeight: 600, color: tokens.textPrimary, flex: 1, textAlign: isRtl ? "right" : "left" }}>{row.title}</span>
-                <Chip tokens={tokens} tone={row.status === "FINALIZED" ? "slate" : "primary"}>
-                  {lang === "ar" ? SUBMISSION_STATUS_LABELS[row.status]?.ar ?? row.status : SUBMISSION_STATUS_LABELS[row.status]?.en ?? row.status}
-                </Chip>
-                {row.decided && (
-                  <span style={{ fontFamily: MONO, fontSize: 11, color: tokens.textSecondary, flexShrink: 0 }}>
-                    {row.aiTotalScore}/{row.maxTotalScore}
-                  </span>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </AsyncGate>
-    </Modal>
-  );
+function initialsOf(name) {
+  return name.split(" ").map((word) => word[0]).slice(0, 2).join("");
 }
 
 function RealInstructorStudents({ state }) {
@@ -460,12 +408,16 @@ function RealInstructorStudents({ state }) {
   const bFont = bFontFor(lang);
   const [courseId, setCourseId] = useState("");
   const [query, setQuery] = useState("");
-  const [drill, setDrill] = useState(null);
+  const [fWork, setFWork] = useState("all");
+  const [fBand, setFBand] = useState("all");
+  const [openStudentId, setOpenStudentId] = useState(null);
+  const [exportOpen, setExportOpen] = useState(false);
 
   const loadCourses = useCallback(() => listCourses(), []);
   const coursesAsync = useAsync(loadCourses);
   const courses = coursesAsync.data?.items ?? [];
   const effectiveCourseId = courseId || courses[0]?.id || null;
+  const selectedCourse = courses.find((course) => course.id === effectiveCourseId) ?? null;
 
   const loadRoster = useCallback(
     () => (effectiveCourseId ? listEnrollments(effectiveCourseId, { page: 1, limit: 100 }) : Promise.resolve(null)),
@@ -473,100 +425,340 @@ function RealInstructorStudents({ state }) {
   );
   const rosterAsync = useAsync(loadRoster);
 
-  const students = (rosterAsync.data?.items ?? []).map((enrollment) => ({
-    id: enrollment.student?.id ?? enrollment.id,
-    name: enrollment.student ? `${enrollment.student.firstName} ${enrollment.student.lastName}`.trim() : "—",
-    email: enrollment.student?.email ?? "",
-    enrolledAt: enrollment.enrolledAt ?? null,
-  }));
-  const needle = query.trim().toLowerCase();
-  const filtered = needle
-    ? students.filter((student) => `${student.name} ${student.email}`.toLowerCase().includes(needle))
-    : students;
+  const loadStats = useCallback(async () => {
+    if (!effectiveCourseId) return null;
+    const { items } = await listAssignmentsForCourse(effectiveCourseId, {});
+    const active = items.filter((assignment) => assignment.status !== "DRAFT");
+    const reviews = await Promise.all(
+      active.map((assignment) => getReview(assignment.id, { limit: 100 }).then((review) => ({ assignment, review }))),
+    );
+    const byStudent = {};
+    for (const { assignment, review } of reviews) {
+      for (const row of [...(review?.fastTrack ?? []), ...(review?.needsReview ?? [])]) {
+        const entry = byStudent[row.studentId] ?? { subs: 0, pending: 0, decided: 0, finalSum: 0, finalCount: 0, rows: [] };
+        entry.subs += 1;
+        if (row.decided) {
+          entry.decided += 1;
+          if (row.submission?.finalScoreTotal != null && row.maxTotalScore > 0) {
+            entry.finalSum += (row.submission.finalScoreTotal / row.maxTotalScore) * 100;
+            entry.finalCount += 1;
+          }
+        } else {
+          entry.pending += 1;
+        }
+        entry.rows.push({
+          assignmentId: assignment.id,
+          title: assignment.title,
+          status: row.submission.status,
+          aiTotalScore: row.aiTotalScore,
+          maxTotalScore: row.maxTotalScore,
+          finalScoreTotal: row.submission.finalScoreTotal,
+          decided: row.decided,
+          at: row.submission?.submittedAt ?? row.submission?.updatedAt ?? null,
+        });
+        byStudent[row.studentId] = entry;
+      }
+    }
+    for (const entry of Object.values(byStudent)) {
+      entry.rows.sort((a, b) => new Date(b.at ?? 0) - new Date(a.at ?? 0));
+    }
+    return byStudent;
+  }, [effectiveCourseId]);
+  const statsAsync = useAsync(loadStats);
 
-  function exportCsv() {
-    const head = ["name", "email", "enrolledAt"].join(",");
-    const lines = filtered.map((student) => [student.name, student.email, student.enrolledAt ?? ""]
+  const students = (rosterAsync.data?.items ?? []).map((enrollment) => {
+    const id = enrollment.student?.id ?? enrollment.id;
+    const stats = statsAsync.data?.[id] ?? { subs: 0, pending: 0, decided: 0, finalSum: 0, finalCount: 0, rows: [] };
+    return {
+      id,
+      name: enrollment.student ? `${enrollment.student.firstName} ${enrollment.student.lastName}`.trim() : "—",
+      email: enrollment.student?.email ?? "",
+      enrolledAt: enrollment.enrolledAt ?? null,
+      stats,
+      avg: stats.finalCount > 0 ? Math.round(stats.finalSum / stats.finalCount) : null,
+    };
+  });
+  const courseLabel = (course) => {
+    if (!course) return "";
+    if (typeof course.title === "string") return course.title;
+    return course.title?.[lang] ?? course.title?.en ?? "";
+  };
+  const needle = query.trim().toLowerCase();
+  const filtered = students
+    .filter((student) => !needle || `${student.name} ${student.email}`.toLowerCase().includes(needle))
+    .filter((student) => {
+      if (fWork === "all") return true;
+      if (fWork === "pending") return student.stats.pending > 0;
+      if (fWork === "decided") return student.stats.decided > 0;
+      return student.stats.subs === 0;
+    })
+    .filter((student) => {
+      if (fBand === "all") return true;
+      if (student.avg === null) return false;
+      if (fBand === "low") return student.avg < 40;
+      if (fBand === "mid") return student.avg >= 40 && student.avg < 60;
+      return student.avg >= 60;
+    });
+  const openStudent = students.find((student) => student.id === openStudentId) ?? null;
+
+  const fmtDate = (iso) => (iso
+    ? new Date(iso).toLocaleDateString(lang === "ar" ? "ar-EG" : "en-GB", { day: "2-digit", month: "short", year: "numeric" })
+    : "—");
+
+  const exportText = () => {
+    const head = ["name", "email", "enrolledAt", "submissions", "pending", "decided", "avgFinalPct"].join(",");
+    const lines = filtered.map((student) => [student.name, student.email, student.enrolledAt ?? "", student.stats.subs, student.stats.pending, student.stats.decided, student.avg ?? ""]
       .map((value) => `"${String(value).replace(/"/g, '""')}"`)
       .join(","));
-    const blob = new Blob([[head, ...lines].join("\n")], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "students.csv";
-    link.click();
-    URL.revokeObjectURL(url);
+    return [head, ...lines].join("\n");
+  };
+
+  function downloadExport() {
+    try {
+      const blob = new Blob([exportText()], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "students.csv";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      toast(t("Roster download started.", "بدأ تنزيل الكشف."));
+    } catch {
+      toast(t("Download blocked here — copy the text instead.", "التنزيل محجوب هنا — انسخ النص بدلاً منه."));
+    }
+  }
+
+  async function copyExport() {
+    try {
+      await navigator.clipboard.writeText(exportText());
+      toast(t("Roster copied.", "اتنسخ الكشف."));
+    } catch {
+      toast(t("Select the text and copy manually (Ctrl+C).", "حدّد النص وانسخه يدوياً (Ctrl+C)."));
+    }
+  }
+
+  const avatar = (name, big = false) => (
+    <span style={{ width: big ? 34 : 26, height: big ? 34 : 26, borderRadius: "50%", background: tokens.primaryLight, border: `1px solid ${tokens.citationBorder}`, color: tokens.primary, fontFamily: big ? hFont : MONO, fontSize: big ? 12 : 9.5, fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+      {initialsOf(name)}
+    </span>
+  );
+
+  if (openStudent) {
+    const s = openStudent;
+    return (
+      <div className="genai-pad" style={{ padding: mobile ? "20px 16px" : "26px 32px", direction: isRtl ? "rtl" : "ltr", maxWidth: 1180, margin: "0 auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, marginBottom: 20, flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
+          <div style={{ display: "flex", gap: 14, alignItems: "flex-start", flexDirection: isRtl ? "row-reverse" : "row" }}>
+            <BackCircle tokens={tokens} rtl={isRtl} onClick={() => setOpenStudentId(null)} />
+            <div style={{ textAlign: isRtl ? "right" : "left" }}>
+              <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 4, flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
+                {avatar(s.name, true)}
+                <h1 style={{ fontFamily: hFont, fontWeight: 700, fontSize: mobile ? 19 : 22, color: tokens.textPrimary, letterSpacing: "-0.025em", margin: 0 }}>{s.name}</h1>
+                {s.avg !== null && <Chip tokens={tokens} tone="primary">{t("Avg final", "متوسط النهائي")}: {s.avg}%</Chip>}
+              </div>
+              <p style={{ fontFamily: MONO, fontSize: 11.5, color: tokens.textMuted, margin: 0 }}>
+                {s.email} · {courseLabel(selectedCourse)} · {t("student file", "ملف الطالب")}{s.enrolledAt ? ` · ${fmtDate(s.enrolledAt)}` : ""}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="genai-tiles-4" style={{ display: "grid", gridTemplateColumns: mobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: 14, marginBottom: 18 }}>
+          {[
+            { l: t("SUBMISSIONS", "تسليمات"), v: `${s.stats.subs}`, c: tokens.textPrimary },
+            { l: t("PENDING NOW", "معلّق الآن"), v: `${s.stats.pending}`, c: s.stats.pending > 0 ? tokens.primary : tokens.textPrimary },
+            { l: t("DECIDED", "معتمد"), v: `${s.stats.decided}`, c: tokens.textPrimary },
+            { l: t("AVG FINAL", "متوسط النهائي"), v: s.avg === null ? "—" : `${s.avg}%`, c: s.avg === null ? tokens.textFaint : masteryColor(masteryLevel(s.avg, true), tokens) },
+          ].map((tile) => (
+            <div key={tile.l} style={{ background: tokens.card, border: `1px solid ${tokens.cardBorder}`, borderRadius: 12, padding: "14px 16px" }}>
+              <div style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: "0.09em", color: tokens.textMuted, marginBottom: 6 }}>{tile.l}</div>
+              <div style={{ fontFamily: hFont, fontWeight: 700, fontSize: 22, color: tile.c, letterSpacing: "-0.03em" }}>{tile.v}</div>
+            </div>
+          ))}
+        </div>
+
+        <Card tokens={tokens} style={{ padding: "6px 20px", marginBottom: 14 }}>
+          <div style={{ fontFamily: hFont, fontWeight: 600, fontSize: 15, color: tokens.textPrimary, letterSpacing: "-0.02em", padding: "14px 0 10px" }}>
+            {t("Submission history in this course", "سجل التسليمات في المقرر ده")}
+          </div>
+          {s.stats.rows.length === 0 ? (
+            <div style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textFaint, padding: "0 0 16px" }}>
+              {t("No submissions in this course yet.", "مفيش تسليمات في المقرر ده لسه.")}
+            </div>
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", minWidth: mobile ? 560 : undefined, marginBottom: 10 }}>
+                <thead>
+                  <tr>
+                    <Th tokens={tokens}>{t("ASSIGNMENT", "التكليف")}</Th>
+                    <Th tokens={tokens}>{t("STATUS", "الحالة")}</Th>
+                    <Th tokens={tokens} align="right">{t("AI SCORE", "درجة الذكاء")}</Th>
+                    <Th tokens={tokens} align="right">{t("FINAL", "النهائية")}</Th>
+                    <Th tokens={tokens}>{t("DATE", "التاريخ")}</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {s.stats.rows.map((row, i) => (
+                    <tr key={row.assignmentId} style={{ borderBottom: i < s.stats.rows.length - 1 ? `1px solid ${tokens.cardBorder}` : "none" }}>
+                      <td style={{ padding: "11px 10px", fontFamily: bFont, fontSize: 12.5, color: tokens.textPrimary }}>
+                        {row.title?.[lang] ?? row.title?.en ?? ""}
+                      </td>
+                      <td style={{ padding: "11px 10px" }}>
+                        <Chip tokens={tokens} tone={row.decided ? "primary" : row.status === "RESUBMISSION_REQUESTED" ? "violet" : "peri"}>
+                          {lang === "ar" ? SUBMISSION_STATUS_LABELS[row.status]?.ar ?? row.status : SUBMISSION_STATUS_LABELS[row.status]?.en ?? row.status}
+                        </Chip>
+                      </td>
+                      <td style={{ padding: "11px 10px", textAlign: "right", fontFamily: MONO, fontSize: 11.5, color: tokens.textSecondary }}>
+                        {row.aiTotalScore}/{row.maxTotalScore}
+                      </td>
+                      <td style={{ padding: "11px 10px", textAlign: "right" }}>
+                        {row.decided && row.finalScoreTotal != null
+                          ? <span style={{ fontFamily: MONO, fontSize: 11.5, fontWeight: 700, color: tokens.mastered }}>{row.finalScoreTotal}/{row.maxTotalScore}</span>
+                          : <span style={{ fontFamily: MONO, fontSize: 11, color: tokens.textFaint }}>—</span>}
+                      </td>
+                      <td style={{ padding: "11px 10px", fontFamily: MONO, fontSize: 10.5, color: tokens.textMuted, whiteSpace: "nowrap" }}>{fmtDate(row.at)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Card>
+        <p style={{ fontFamily: bFont, fontSize: 11.5, color: tokens.textFaint, margin: 0, lineHeight: 1.6, textAlign: isRtl ? "right" : "left" }}>
+          {t("Topic-level mastery and remedial history are computed from the learner's own sessions and are not part of the instructor roster yet.", "إتقان المواضيع وسجل المحتوى العلاجي بيتحسب من جلسات المتعلم نفسه ومش جزء من كشف المدرّس لسه.")}
+        </p>
+      </div>
+    );
   }
 
   return (
-    <div className="genai-pad" style={{ padding: mobile ? "20px 16px" : "26px 32px", direction: isRtl ? "rtl" : "ltr", maxWidth: 980, margin: "0 auto" }}>
-      <div style={{ marginBottom: 14, textAlign: isRtl ? "right" : "left" }}>
-        <h1 style={{ fontFamily: hFont, fontWeight: 700, fontSize: mobile ? 19 : 22, color: tokens.textPrimary, letterSpacing: "-0.025em", margin: "0 0 4px" }}>
-          {t("Students", "الطلاب")}
-        </h1>
-        <p style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textMuted, margin: 0, lineHeight: 1.6 }}>
-          {t("Real enrollment roster per course — search, drill in and export.", "كشف القيد الحقيقي لكل مقرر — دور، ادخل في تفاصيل الطالب، وصدّر.")}
-        </p>
+    <div className="genai-pad" style={{ padding: mobile ? "20px 16px" : "26px 32px", direction: isRtl ? "rtl" : "ltr", maxWidth: 1180, margin: "0 auto" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, marginBottom: 18, flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
+        <div style={{ textAlign: isRtl ? "right" : "left" }}>
+          <h1 style={{ fontFamily: hFont, fontWeight: 700, fontSize: mobile ? 19 : 22, color: tokens.textPrimary, letterSpacing: "-0.025em", margin: "0 0 3px", display: "flex", gap: 10, alignItems: "center", flexDirection: isRtl ? "row-reverse" : "row" }}>
+            <IconUsers size={18} color={tokens.primary} />
+            {t("Students", "الطلاب")}
+          </h1>
+          <p style={{ fontSize: 13, color: tokens.textMuted, margin: 0, fontFamily: bFont }}>
+            {courseLabel(selectedCourse) || "—"} · {students.length} {t("students on record", "طالباً في السجل")} · {t("read-only — enrolment is registrar-owned", "عرض للقراءة فقط — القيد مسؤولية الإدارة")}
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
+          <select value={effectiveCourseId ?? ""} onChange={(event) => { setCourseId(event.target.value); setOpenStudentId(null); }} style={{ ...inputStyle(tokens, bFont), cursor: "pointer", width: mobile ? "100%" : 240 }} className="genai-input">
+            {courses.map((course) => (
+              <option key={course.id} value={course.id}>{courseLabel(course)}</option>
+            ))}
+          </select>
+          <Btn tokens={tokens} lang={lang} variant="ghost" onClick={() => setExportOpen(true)} disabled={filtered.length === 0}>
+            <IconDownload size={13} color={tokens.textMuted} />
+            {t("Export roster", "تصدير السجل")}
+          </Btn>
+        </div>
       </div>
 
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
-        <select value={effectiveCourseId ?? ""} onChange={(event) => setCourseId(event.target.value)} style={{ ...inputStyle(tokens, bFont), minWidth: 180, flex: 1 }}>
-          {courses.map((course) => (
-            <option key={course.id} value={course.id}>{course.title?.en ?? course.title}</option>
-          ))}
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16, flexDirection: isRtl ? "row-reverse" : "row" }}>
+        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t("Search name or email…", "دور بالاسم أو الإيميل…")} style={{ ...inputStyle(tokens, bFont), width: mobile ? "100%" : 220 }} className="genai-input" />
+        <select value={fWork} onChange={(event) => setFWork(event.target.value)} style={{ ...inputStyle(tokens, bFont), cursor: "pointer", width: mobile ? "calc(50% - 5px)" : 170 }} className="genai-input">
+          <option value="all">{t("Any open work", "كل الحالات")}</option>
+          <option value="pending">{t("Has pending submission", "لديه تسليم معلّق")}</option>
+          <option value="decided">{t("Has decided work", "لديه قرارات معتمدة")}</option>
+          <option value="none">{t("No submissions", "لا تسليمات")}</option>
         </select>
-        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t("Search name or email…", "دور بالاسم أو الإيميل…")} style={{ ...inputStyle(tokens, bFont), flex: 1, minWidth: 160 }} />
-        <Btn tokens={tokens} lang={lang} variant="ghost" onClick={exportCsv} disabled={filtered.length === 0}>
-          {t("Export CSV", "تصدير CSV")}
-        </Btn>
+        <select value={fBand} onChange={(event) => setFBand(event.target.value)} style={{ ...inputStyle(tokens, bFont), cursor: "pointer", width: mobile ? "calc(50% - 5px)" : 160 }} className="genai-input">
+          <option value="all">{t("All grade bands", "كل المستويات")}</option>
+          <option value="low">{t("Below 40%", "أقل من 40%")}</option>
+          <option value="mid">{t("40–60%", "40–60%")}</option>
+          <option value="high">{t("Above 60%", "فوق 60%")}</option>
+        </select>
       </div>
 
       <AsyncGate
         tokens={tokens}
         lang={lang}
-        loading={coursesAsync.loading || rosterAsync.loading}
-        error={coursesAsync.error ?? rosterAsync.error}
+        loading={coursesAsync.loading || rosterAsync.loading || statsAsync.loading}
+        error={coursesAsync.error ?? rosterAsync.error ?? statsAsync.error}
         reload={() => {
           coursesAsync.reload();
           rosterAsync.reload();
+          statsAsync.reload();
         }}
         label={t("Loading roster…", "جاري تحميل الكشف…")}
       >
-        {filtered.length === 0 ? (
-          <Card tokens={tokens} style={{ padding: "16px 18px" }}>
-            <p style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textMuted, margin: 0, lineHeight: 1.7, textAlign: isRtl ? "right" : "left" }}>
-              {students.length === 0
-                ? t("No enrolled students in this course yet.", "مفيش طلاب مقيدين في المقرر ده لسه.")
-                : t("No student matches your search.", "مفيش طالب مطابق لبحثك.")}
-            </p>
-          </Card>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {filtered.map((student) => (
-              <Card tokens={tokens} key={student.id} style={{ padding: "12px 14px" }}>
-                <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
-                  <div style={{ flex: 1, minWidth: 0, textAlign: isRtl ? "right" : "left" }}>
-                    <div style={{ fontFamily: bFont, fontSize: 13, fontWeight: 600, color: tokens.textPrimary }}>{student.name}</div>
-                    <div style={{ fontFamily: MONO, fontSize: 10.5, color: tokens.textMuted }}>{student.email}</div>
-                  </div>
-                  {student.enrolledAt && (
-                    <span style={{ fontFamily: MONO, fontSize: 10, color: tokens.textFaint }}>
-                      {new Date(student.enrolledAt).toLocaleDateString(lang === "ar" ? "ar-EG" : "en-GB")}
-                    </span>
-                  )}
-                  <Btn tokens={tokens} lang={lang} variant="ghost" onClick={() => setDrill(student)}>
-                    {t("Submissions", "التسليمات")}
-                  </Btn>
-                </div>
-              </Card>
-            ))}
+        <Card tokens={tokens} style={{ padding: "6px 20px" }}>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: mobile ? 700 : undefined }}>
+              <thead>
+                <tr>
+                  <Th tokens={tokens}>{t("STUDENT", "الطالب")}</Th>
+                  <Th tokens={tokens} align="right">{t("SUBMISSIONS", "تسليمات")}</Th>
+                  <Th tokens={tokens} align="right">{t("PENDING", "معلّق")}</Th>
+                  <Th tokens={tokens} align="right">{t("DECIDED", "معتمد")}</Th>
+                  <Th tokens={tokens}>{t("AVG FINAL", "متوسط النهائي")}</Th>
+                  <Th tokens={tokens} align="right">{t("ACTION", "إجراء")}</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((student, i) => (
+                  <tr key={student.id} style={{ borderBottom: i < filtered.length - 1 ? `1px solid ${tokens.cardBorder}` : "none" }}>
+                    <td style={{ padding: "11px 10px" }}>
+                      <div style={{ display: "flex", gap: 9, alignItems: "center", flexDirection: isRtl ? "row-reverse" : "row" }}>
+                        {avatar(student.name)}
+                        <span>
+                          <span style={{ display: "block", fontFamily: bFont, fontSize: 12.5, fontWeight: 600, color: tokens.textPrimary }}>{student.name}</span>
+                          <span style={{ display: "block", fontFamily: MONO, fontSize: 10, color: tokens.textMuted }}>{student.email}</span>
+                        </span>
+                      </div>
+                    </td>
+                    <td style={{ padding: "11px 10px", textAlign: "right", fontFamily: MONO, fontSize: 12, color: tokens.textSecondary }}>{student.stats.subs}</td>
+                    <td style={{ padding: "11px 10px", textAlign: "right" }}>
+                      <span style={{ fontFamily: MONO, fontSize: 12, fontWeight: 700, color: student.stats.pending > 0 ? tokens.primary : tokens.textFaint }}>{student.stats.pending}</span>
+                    </td>
+                    <td style={{ padding: "11px 10px", textAlign: "right", fontFamily: MONO, fontSize: 12, color: tokens.textSecondary }}>{student.stats.decided}</td>
+                    <td style={{ padding: "11px 10px", minWidth: 130 }}>
+                      {student.avg === null ? (
+                        <span style={{ fontFamily: MONO, fontSize: 11, color: tokens.textFaint }}>—</span>
+                      ) : (
+                        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                          <div style={{ flex: 1 }}><MasteryBar pct={student.avg} evidence={1} thin tokens={tokens} /></div>
+                          <span style={{ fontFamily: MONO, fontSize: 11.5, fontWeight: 700, color: masteryColor(masteryLevel(student.avg, true), tokens) }}>{student.avg}%</span>
+                        </div>
+                      )}
+                    </td>
+                    <td style={{ padding: "11px 10px", textAlign: "right" }}>
+                      <Btn tokens={tokens} lang={lang} variant="soft" style={{ padding: "6px 12px", fontSize: 11.5 }} onClick={() => setOpenStudentId(student.id)}>
+                        {t("Open file", "فتح الملف")}
+                      </Btn>
+                    </td>
+                  </tr>
+                ))}
+                {filtered.length === 0 && (
+                  <tr><td colSpan={6} style={{ padding: "22px 10px", fontFamily: bFont, fontSize: 12.5, color: tokens.textFaint, textAlign: "center" }}>
+                    {students.length === 0
+                      ? t("No enrolled students in this course yet.", "مفيش طلاب مقيدين في المقرر ده لسه.")
+                      : t("No students match the current filters.", "لا طلاب مطابقين للفلاتر الحالية.")}
+                  </td></tr>
+                )}
+              </tbody>
+            </table>
           </div>
-        )}
+        </Card>
       </AsyncGate>
 
-      {drill && effectiveCourseId && (
-        <StudentDrillModal courseId={effectiveCourseId} student={drill} tokens={tokens} lang={lang} onClose={() => setDrill(null)} />
-      )}
+      <Modal open={exportOpen} onClose={() => setExportOpen(false)} tokens={tokens} lang={lang} width={600}
+        title={t("Export student roster", "تصدير سجل الطلاب")}
+        subtitle={t(`CSV of the current filters — ${filtered.length} students`, `CSV بالفلاتر الحالية — ${filtered.length} طالب`)}>
+        <pre style={{ fontFamily: MONO, fontSize: 11, lineHeight: 1.65, color: tokens.textSecondary, background: tokens.inset, border: `1px solid ${tokens.cardBorder}`, borderRadius: 10, padding: "14px 16px", margin: 0, maxHeight: 300, overflow: "auto", whiteSpace: "pre-wrap", textAlign: "left", direction: "ltr", userSelect: "text" }}>{exportText()}</pre>
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 14, flexWrap: "wrap" }}>
+          <Btn tokens={tokens} lang={lang} variant="soft" onClick={() => void copyExport()}>
+            <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}><IconCheck size={13} />{t("Copy", "نسخ")}</span>
+          </Btn>
+          <Btn tokens={tokens} lang={lang} variant="solid" onClick={downloadExport}>
+            <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}><IconDownload size={13} />{t("Download .csv", "تنزيل .csv")}</span>
+          </Btn>
+        </div>
+      </Modal>
     </div>
   );
 }

@@ -1,6 +1,11 @@
 import { demoMode } from "@/services/auth";
-import BatchNote from "@/components/BatchNote";
-import { useState } from "react";
+import { useCallback, useState } from "react";
+import { listCourses } from "@/services/courses";
+import { listReassessments, createReassessment, getReassessment, submitReassessmentAnswer, getLearningGain, CHANGE_LABELS } from "@/services/learning";
+import { apiErrorText } from "@/services/http";
+import { CourseSelect, TopicSelect, QuestionFlow, LearnerSessionTabs } from "@/components/SessionSolver";
+import { AlertStrip, inputStyle } from "@/components/ModuleUI";
+import { MasteryLabel } from "@/components/MasteryBar";
 import useAsync from "@/hooks/useAsync";
 import useMediaQuery from "@/hooks/useMediaQuery";
 import { fetchReassessmentQuestions } from "@/services/api";
@@ -154,20 +159,216 @@ function DemoReassessmentPage({ state, dispatch }) {
     </div>
   );
 }
-export default function ReassessmentPage(props) {
+function RealReassessmentPage({ state }) {
   const mobile = useMediaQuery("(max-width: 760px)");
-  const tokens = tk(props.state.dark);
-  const lang = props.state.lang;
-  if (!demoMode()) {
-    return (
-      <BatchNote
+  const tokens = tk(state.dark);
+  const lang = state.lang;
+  const t = (en, ar) => (lang === "ar" ? ar : en);
+  const isRtl = lang === "ar";
+  const hFont = headingFont(lang);
+  const bFont = bodyFont(lang);
+  const [courseId, setCourseId] = useState("");
+  const loadCourses = useCallback(() => listCourses(), []);
+  const coursesAsync = useAsync(loadCourses);
+  const courses = coursesAsync.data?.items ?? [];
+  const effectiveCourseId = courseId || courses[0]?.id || null;
+  const course = courses.find((item) => item.id === effectiveCourseId);
+  const topics = course?.topics ?? [];
+  const topicTitle = (id) => topics.find((topic) => topic.id === id)?.label?.en ?? id;
+  const [sessionId, setSessionId] = useState("");
+  const [topicId, setTopicId] = useState("");
+  const [count, setCount] = useState(2);
+  const [tab, setTab] = useState("new");
+  const [busy, setBusy] = useState(false);
+  const [busyQuestion, setBusyQuestion] = useState(null);
+  const [notice, setNotice] = useState(null);
+
+  const loadList = useCallback(
+    () => (effectiveCourseId ? listReassessments(effectiveCourseId) : Promise.resolve(null)),
+    [effectiveCourseId],
+  );
+  const listAsync = useAsync(loadList);
+  const sessions = listAsync.data ?? [];
+
+  const loadGain = useCallback(
+    () => (effectiveCourseId ? getLearningGain(effectiveCourseId) : Promise.resolve(null)),
+    [effectiveCourseId],
+  );
+  const gainAsync = useAsync(loadGain);
+  const gains = gainAsync.data?.topicGains ?? gainAsync.data?.items ?? (Array.isArray(gainAsync.data) ? gainAsync.data : []);
+
+  const loadSession = useCallback(
+    () => (effectiveCourseId && sessionId ? getReassessment(effectiveCourseId, sessionId).catch(() => null) : Promise.resolve(null)),
+    [effectiveCourseId, sessionId],
+  );
+  const sessionAsync = useAsync(loadSession);
+  const session = sessionAsync.data;
+  const answeredIds = (session?.answers ?? []).map((answer) => answer.questionId);
+  const evaluations = {};
+  for (const answer of session?.answers ?? []) evaluations[answer.questionId] = answer.evaluation;
+  const complete = session?.status === "completed" || (Boolean(session) && answeredIds.length >= (session?.questionCount ?? 0) && (session?.questionCount ?? 0) > 0);
+
+  async function start() {
+    setBusy(true);
+    setNotice(null);
+    try {
+      const created = await createReassessment(effectiveCourseId, { topicId, questionsCount: count });
+      setSessionId(created.id);
+      listAsync.reload();
+    } catch (err) {
+      setNotice(apiErrorText(err, lang));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function answer(questionId, content) {
+    setBusyQuestion(questionId);
+    setNotice(null);
+    try {
+      await submitReassessmentAnswer(effectiveCourseId, sessionId, { questionId, content });
+      sessionAsync.reload();
+      listAsync.reload();
+      gainAsync.reload();
+    } catch (err) {
+      setNotice(apiErrorText(err, lang));
+    } finally {
+      setBusyQuestion(null);
+    }
+  }
+
+  return (
+    <div className="genai-pad" style={{ padding: mobile ? "20px 16px" : "26px 32px", direction: isRtl ? "rtl" : "ltr", maxWidth: 900, margin: "0 auto" }}>
+      <div style={{ marginBottom: 14, textAlign: isRtl ? "right" : "left" }}>
+        <h1 style={{ fontFamily: hFont, fontWeight: 700, fontSize: mobile ? 19 : 22, color: tokens.textPrimary, letterSpacing: "-0.025em", margin: "0 0 4px" }}>{t("Reassessment", "إعادة التقييم")}</h1>
+        <p style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textMuted, margin: 0, lineHeight: 1.6 }}>{t("Prove your growth on a topic — before/after learning gain is computed from real evidence.", "أثبت نموّك في موضوع — مكسب التعلّم قبل/بعد محسوب من أدلة حقيقية.")}</p>
+      </div>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 12, alignItems: "flex-end", flexDirection: isRtl ? "row-reverse" : "row" }}>
+        <CourseSelect courses={courses} value={effectiveCourseId ?? ""} onChange={setCourseId} tokens={tokens} lang={lang} placeholder={t("Choose course…", "اختار مقرر…")} />
+        <label style={{ fontFamily: bFont, fontSize: 12, color: tokens.textSecondary, display: "inline-flex", flexDirection: "column", gap: 4 }}>
+          {t("Questions", "عدد الأسئلة")}
+          <select value={count} onChange={(event) => setCount(Number(event.target.value))} style={{ ...inputStyle(tokens, bFont), minWidth: 80, cursor: "pointer" }} className="genai-input">
+            {[1, 2, 3, 4, 5].map((value) => <option key={value} value={value}>{value}</option>)}
+          </select>
+        </label>
+      </div>
+      {notice && <div style={{ marginBottom: 10 }}><AlertStrip tokens={tokens} lang={lang} tone="violet" icon={<span style={{ fontSize: 12 }}>!</span>} title={notice} /></div>}
+      <AsyncGate
         tokens={tokens}
         lang={lang}
-        mobile={mobile}
-        title={lang === "ar" ? "ربط إعادة التقييم بيوصل مع دفعة مسار المتعلم" : "Reassessment wiring arrives with the learner batch"}
-        body={lang === "ar" ? "الشاشة دي لسه بتتغذى من النموذج التجريبي بدون خادم. الربط الحي بيوصل مع دفعة مسار المتعلم (B6)، عشان مفيش بيانات متفبركة توصلك هنا." : "This screen is still fed by the offline prototype. The live wiring lands with the learner batch (B6), so no fabricated data reaches you here."}
-      />
-    );
-  }
-  return <DemoReassessmentPage {...props} />;
+        loading={coursesAsync.loading || listAsync.loading || sessionAsync.loading || gainAsync.loading}
+        error={coursesAsync.error ?? listAsync.error ?? sessionAsync.error ?? gainAsync.error}
+        reload={() => { coursesAsync.reload(); listAsync.reload(); sessionAsync.reload(); gainAsync.reload(); }}
+        label={t("Loading reassessments…", "جاري تحميل إعادة التقييم…")}
+      >
+        {!sessionId && <LearnerSessionTabs tab={tab} onChange={setTab} tokens={tokens} lang={lang} />}
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {!sessionId && tab === "new" && (
+            <Card tokens={tokens} style={{ padding: "16px 18px" }}>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
+                <TopicSelect topics={topics} value={topicId} onChange={setTopicId} tokens={tokens} lang={lang} placeholder={t("Choose topic…", "اختار موضوع…")} />
+                <Btn tokens={tokens} lang={lang} disabled={busy || !topicId} onClick={() => void start()}>
+                  {busy ? t("Generating…", "جاري التوليد…") : t("Start reassessment", "ابدأ إعادة التقييم")}
+                </Btn>
+              </div>
+            </Card>
+          )}
+
+          {sessionId && session && (
+            <QuestionFlow
+              questions={session.questions ?? []}
+              evaluations={evaluations}
+              answeredIds={answeredIds}
+              busyId={busyQuestion}
+              onSubmit={(questionId, content) => void answer(questionId, content)}
+              tokens={tokens}
+              lang={lang}
+              mobile={mobile}
+              doneNote={complete ? (
+                <Card tokens={tokens} style={{ padding: "14px 16px" }}>
+                  <div style={{ fontFamily: bFont, fontSize: 12.5, fontWeight: 600, color: tokens.textPrimary, marginBottom: 8, textAlign: isRtl ? "right" : "left" }}>
+                    {t("Reassessment complete — the gain table below now reflects it.", "إعادة التقييم اكتملت — جدول المكسب تحت بقى يعكسها.")}
+                  </div>
+                  <Btn tokens={tokens} lang={lang} variant="ghost" onClick={() => setSessionId("")}>
+                    {t("Back to list", "ارجع للقايمة")}
+                  </Btn>
+                </Card>
+              ) : null}
+            />
+          )}
+
+          {!sessionId && tab === "history" && (
+            <div>
+              <h3 style={{ fontFamily: hFont, fontSize: 13.5, fontWeight: 700, color: tokens.textPrimary, margin: "0 0 8px", textAlign: isRtl ? "right" : "left" }}>
+                {t("Your reassessments", "إعادات التقييم بتاعتك")}
+              </h3>
+              {sessions.length === 0 ? (
+                <p style={{ fontFamily: bFont, fontSize: 12, color: tokens.textFaint, margin: 0 }}>{t("No reassessments yet.", "لسه مفيش إعادات تقييم.")}</p>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {sessions.map((row) => (
+                    <Card tokens={tokens} key={row.id} style={{ padding: "10px 12px" }}>
+                      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
+                        <span style={{ fontFamily: bFont, fontSize: 12.5, fontWeight: 600, color: tokens.textPrimary, flex: 1, textAlign: isRtl ? "right" : "left" }}>
+                          {topicTitle(row.topicId)}
+                        </span>
+                        <Chip tokens={tokens} tone={row.status === "completed" ? "mastered" : "developing"}>{row.status}</Chip>
+                        <span style={{ fontFamily: bFont, fontSize: 11, color: tokens.textMuted }}>
+                          {row.answeredCount}/{row.questionCount}
+                        </span>
+                        <Btn tokens={tokens} lang={lang} variant="ghost" onClick={() => { setSessionId(row.id); setTab("new"); }}>
+                          {t("Open", "فتح")}
+                        </Btn>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {(!sessionId && tab === "history") ? null : (
+          <div>
+            <h3 style={{ fontFamily: hFont, fontSize: 13.5, fontWeight: 700, color: tokens.textPrimary, margin: "0 0 8px", textAlign: isRtl ? "right" : "left" }}>
+              {t("Learning gain", "مكسب التعلّم")}
+            </h3>
+            {gains.length === 0 ? (
+              <p style={{ fontFamily: bFont, fontSize: 12, color: tokens.textFaint, margin: 0 }}>{t("No topics to report yet.", "مفيش مواضيع للتقرير لسه.")}</p>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {gains.map((row) => (
+                  <Card tokens={tokens} key={row.topicId} style={{ padding: "10px 12px" }}>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 6, flexDirection: isRtl ? "row-reverse" : "row" }}>
+                      <span style={{ fontFamily: bFont, fontSize: 12.5, fontWeight: 600, color: tokens.textPrimary, flex: 1, textAlign: isRtl ? "right" : "left" }}>
+                        {typeof row.title === "string" ? row.title : topicTitle(row.topicId)}
+                      </span>
+                      <Chip tokens={tokens} tone={row.change === "improved" ? "mastered" : row.change === "declined" ? "gap" : "default"}>
+                        {lang === "ar" ? CHANGE_LABELS[row.change]?.ar ?? row.change : CHANGE_LABELS[row.change]?.en ?? row.change}
+                      </Chip>
+                    </div>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                      <MasteryLabel level={String(row.baselineMasteryLevel ?? "no_evidence").replace("_", "-")} lang={lang} tokens={tokens} />
+                      <span style={{ fontFamily: bFont, fontSize: 11, color: tokens.textFaint }}>→</span>
+                      <MasteryLabel level={String(row.currentMasteryLevel ?? "no_evidence").replace("_", "-")} lang={lang} tokens={tokens} />
+                      {row.change === "no_reassessment_yet" && (
+                        <span style={{ fontFamily: bFont, fontSize: 10.5, color: tokens.textMuted, textAlign: isRtl ? "right" : "left" }}>
+                          {t("no honest baseline yet — finish a reassessment", "لسه مفيش خط أساس صادق — خلّص إعادة تقييم")}
+                        </span>
+                      )}
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+          )}
+        </div>
+      </AsyncGate>
+    </div>
+  );
+}
+
+export default function ReassessmentPage(props) {
+  if (demoMode()) return <DemoReassessmentPage {...props} />;
+  return <RealReassessmentPage {...props} />;
 }

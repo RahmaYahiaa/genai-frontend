@@ -10,7 +10,7 @@ export const AUDIT_ACTION_LABELS = {
 };
 
 export function getInstructorHome() {
-  return api("/analytics/instructor/home");
+  return api("/instructor/home");
 }
 
 export function getCourseAnalytics(courseId) {

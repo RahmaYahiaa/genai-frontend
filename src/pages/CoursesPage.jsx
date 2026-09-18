@@ -69,7 +69,9 @@ export default function CoursesPage({ state, dispatch }) {
             {t("My Courses", "مقرراتي")}
           </h1>
           <p style={{ margin: 0, fontSize: 12.5, color: tokens.textMuted }}>
-            {t("Everything you're enrolled in, with live mastery evidence.", "كل المقررات المسجلة فيها، مع أدلة الإتقان الحية.")}
+            {state.role === "student"
+              ? t("Everything you're enrolled in, with live mastery evidence.", "كل المقررات المسجلة فيها، مع أدلة الإتقان الحية.")
+              : t("Courses you teach or staff — open the workspace to manage them.", "المقررات اللي بتدرّسها أو مشارك فيها — افتح مساحة العمل لإدارتها.")}
           </p>
         </div>
         {canCreate && (
@@ -125,7 +127,12 @@ export default function CoursesPage({ state, dispatch }) {
                       {t("Manage", "إدارة")}
                     </Btn>
                   ) : (
-                    <Btn tokens={tokens} variant="soft" onClick={() => dispatch({ type: "NAVIGATE", screen: real ? SCREENS.STUDENT_COURSE : SCREENS.MASTERY, courseId: real ? course.id : undefined })}>
+                    <Btn tokens={tokens} variant="soft" onClick={() => dispatch({
+                      type: "NAVIGATE",
+                      screen: real && state.role !== "student" ? SCREENS.COURSE_WORKSPACE : real ? SCREENS.STUDENT_COURSE : SCREENS.MASTERY,
+                      courseId: real ? course.id : undefined,
+                      tab: "assignments",
+                    })}>
                       {t("View topics", "عرض المواضيع")}
                     </Btn>
                   )}

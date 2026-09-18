@@ -27,6 +27,7 @@ export function mapMaterial(material) {
   return {
     id: material.id,
     title: material.title,
+    topicId: material.topicId ?? null,
     status: material.status ?? "pending",
     statusError: material.statusError ?? null,
     mimeType: material.mimeType ?? null,
@@ -79,10 +80,11 @@ export async function listMaterials(courseId) {
   return result.data.map(mapMaterial);
 }
 
-export async function uploadMaterialFile(courseId, file, title) {
+export async function uploadMaterialFile(courseId, file, title, topicId = null) {
   const body = new FormData();
   body.append("file", file);
   if (title) body.append("title", title);
+  if (topicId) body.append("topicId", topicId);
   return mapMaterial(await api(`/courses/${courseId}/materials/file`, { method: "POST", body }));
 }
 

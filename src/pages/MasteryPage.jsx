@@ -1,5 +1,8 @@
 import { demoMode } from "@/services/auth";
-import BatchNote from "@/components/BatchNote";
+import { useCallback, useState } from "react";
+import { listCourses } from "@/services/courses";
+import { getLearnerModel } from "@/services/learning";
+import { CourseSelect } from "@/components/SessionSolver";
 import useAsync from "@/hooks/useAsync";
 import useMediaQuery from "@/hooks/useMediaQuery";
 import { fetchMastery } from "@/services/api";
@@ -119,20 +122,79 @@ function MasteryInner({ courses, tokens, lang, t, dispatch }) {
     </>
   );
 }
-export default function MasteryPage(props) {
+const pctOf = (value) => (value == null ? 0 : value <= 1 ? Math.round(value * 100) : Math.round(value));
+
+function RealMasteryPage({ state, dispatch }) {
+  const tokens = tk(state.dark);
+  const lang = state.lang;
+  const t = (en, ar) => (lang === "ar" ? ar : en);
   const mobile = useMediaQuery("(max-width: 760px)");
-  const tokens = tk(props.state.dark);
-  const lang = props.state.lang;
-  if (!demoMode()) {
-    return (
-      <BatchNote
+  const [courseId, setCourseId] = useState("");
+  const loadCourses = useCallback(() => listCourses(), []);
+  const coursesAsync = useAsync(loadCourses);
+  const courses = coursesAsync.data?.items ?? [];
+  const effectiveCourseId = courseId || courses[0]?.id || null;
+  const loadModel = useCallback(
+    () => (effectiveCourseId ? getLearnerModel(effectiveCourseId).catch(() => null) : Promise.resolve(null)),
+    [effectiveCourseId],
+  );
+  const modelAsync = useAsync(loadModel);
+  const selected = courses.find((course) => course.id === effectiveCourseId) ?? null;
+  const mastery = modelAsync.data?.mastery ?? [];
+  const overview = modelAsync.data?.overview ?? null;
+  const mapped = selected
+    ? [
+        {
+          id: selected.code ?? selected.title?.en ?? selected.id,
+          title: { en: selected.title?.en ?? selected.title ?? "", ar: selected.title?.ar ?? selected.title ?? "" },
+          overall: pctOf(overview?.overallAverageScore),
+          topics: mastery.map((row) => ({
+            id: row.topicId,
+            label: { en: row.title ?? "", ar: row.title ?? "" },
+            pct: pctOf(row.averageScore),
+            evidence: row.evidenceCount ?? 0,
+          })),
+        },
+      ]
+    : [];
+
+  return (
+    <div style={{ padding: mobile ? 16 : 28, maxWidth: 1080, margin: "0 auto", fontFamily: bodyFont(lang), direction: lang === "ar" ? "rtl" : "ltr" }}>
+      <h1 style={{ margin: "0 0 4px", fontSize: mobile ? 19 : 22, fontWeight: 700, letterSpacing: "-0.02em", color: tokens.textPrimary, fontFamily: headingFont(lang) }}>
+        {t("Topics & Mastery", "المواضيع والإتقان")}
+      </h1>
+      <p style={{ margin: "0 0 20px", fontSize: 12.5, color: tokens.textMuted }}>
+        {t("Every level is backed by evidence — no guesses.", "كل مستوى مدعوم بأدلة — لا تخمين.")}
+      </p>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
+        <CourseSelect courses={courses} value={effectiveCourseId ?? ""} onChange={setCourseId} tokens={tokens} lang={lang} placeholder={t("Choose course…", "اختار مقرر…")} />
+      </div>
+      <AsyncGate
         tokens={tokens}
         lang={lang}
-        mobile={mobile}
-        title={lang === "ar" ? "ربط المواضيع والإتقان بيوصل مع دفعة مسار المتعلم" : "Topics & mastery wiring arrives with the learner batch"}
-        body={lang === "ar" ? "الشاشة دي لسه بتتغذى من النموذج التجريبي بدون خادم. الربط الحي بيوصل مع دفعة مسار المتعلم (B6)، عشان مفيش بيانات متفبركة توصلك هنا." : "This screen is still fed by the offline prototype. The live wiring lands with the learner batch (B6), so no fabricated data reaches you here."}
-      />
-    );
-  }
-  return <DemoMasteryPage {...props} />;
+        loading={coursesAsync.loading || modelAsync.loading}
+        error={coursesAsync.error ?? modelAsync.error}
+        reload={() => {
+          coursesAsync.reload();
+          modelAsync.reload();
+        }}
+        label={t("Loading mastery map…", "جاري تحميل خريطة الإتقان…")}
+      >
+        {mapped.length === 0 ? (
+          <Card tokens={tokens} style={{ padding: "16px 18px" }}>
+            <p style={{ fontFamily: bodyFont(lang), fontSize: 12.5, color: tokens.textMuted, margin: 0, lineHeight: 1.7 }}>
+              {t("No institutional courses yet — mastery appears once you are enrolled.", "لسه مفيش مقررات مؤسسية — الإتقان بيظهر أول ما تتقيد.")}
+            </p>
+          </Card>
+        ) : (
+          <MasteryInner courses={mapped} tokens={tokens} lang={lang} t={t} dispatch={dispatch} />
+        )}
+      </AsyncGate>
+    </div>
+  );
+}
+
+export default function MasteryPage(props) {
+  if (demoMode()) return <DemoMasteryPage {...props} />;
+  return <RealMasteryPage {...props} />;
 }

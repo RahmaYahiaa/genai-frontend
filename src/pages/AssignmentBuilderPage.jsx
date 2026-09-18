@@ -23,6 +23,7 @@ import {
   setGradeVisibility,
   setFeedbackVisibility,
   renameAssignment,
+  createAssignment,
 } from "@/services/assignments";
 import { AsyncGate } from "@/components/ui";
 import { Card, Btn, Chip, BackCircle, inputStyle, textareaStyle, bFontFor, hFontFor, toast, Toggle } from "@/components/ModuleUI";
@@ -81,6 +82,7 @@ function RealBuilderView({ state, dispatch }) {
   const [editor, setEditor] = useState(null);
   const [busyAction, setBusyAction] = useState(null);
   const [titleEdit, setTitleEdit] = useState(null);
+  const [newTitle, setNewTitle] = useState("");
 
   const run = async (action, fn, okMessage) => {
     if (busyAction) return;
@@ -94,6 +96,19 @@ function RealBuilderView({ state, dispatch }) {
     } finally {
       setBusyAction(null);
     }
+  };
+
+  const createNow = async () => {
+    const clean = newTitle.trim();
+    if (!clean || busyAction) return;
+    await run(
+      "create",
+      async () => {
+        const assignment = await createAssignment(courseId, clean);
+        dispatch({ type: "NAVIGATE", screen: SCREENS.ASSIGNMENT_CREATE, courseId, assignmentId: assignment.id, tab: "assignments" });
+      },
+      t("Assignment created.", "التكليف اتعمل."),
+    );
   };
 
   const validateDraft = (draft) => {
@@ -132,17 +147,31 @@ function RealBuilderView({ state, dispatch }) {
   return (
     <div style={{ padding: mobile ? "20px 16px" : "26px 32px", direction: isRtl ? "rtl" : "ltr", maxWidth: 900, margin: "0 auto", fontFamily: bFont }}>
       <AsyncGate tokens={tokens} lang={lang} loading={loading} error={error} reload={reload} label={t("Loading assignment…", "جاري تحميل الواجب…")}>
-        {!assignmentId || !data ? (
+        {!assignmentId ? (
           <Card tokens={tokens} style={{ padding: 30, textAlign: "center" }}>
             <div style={{ fontFamily: hFont, fontWeight: 600, fontSize: 15, color: tokens.textPrimary, marginBottom: 6 }}>
-              {t("No assignment selected", "مفيش واجب متحدد")}
+              {t("New assignment", "تكليف جديد")}
             </div>
             <div style={{ fontSize: 12.5, color: tokens.textMuted, marginBottom: 14 }}>
-              {t("Create the assignment from the course workspace first.", "اعملي الواجب من مساحة المقرر الأول.")}
+              {t("Name it, then add its questions and publish when ready.", "سمّيه، وبعد كده ضيفي أسئلته وانشريه لما تجهزي.")}
             </div>
-            <Btn tokens={tokens} variant="soft" onClick={() => dispatch({ type: "NAVIGATE", screen: SCREENS.COURSE_WORKSPACE, courseId, tab: "assignments" })}>
-              {t("Back to course", "الرجوع للمقرر")}
+            <div style={{ maxWidth: 420, margin: "0 auto 14px" }}>
+              <input
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                placeholder={t("e.g. Week 4 problem set", "مثال: مهام الأسبوع الرابع")}
+                style={inputStyle(tokens, bFont)}
+                className="genai-input"
+                onKeyDown={(e) => { if (e.key === "Enter") createNow(); }}
+              />
+            </div>
+            <Btn tokens={tokens} lang={lang} disabled={!newTitle.trim() || busyAction === "create"} onClick={createNow}>
+              {t("Create & open builder", "إنشاء وفتح المحرر")}
             </Btn>
+          </Card>
+        ) : !data ? (
+          <Card tokens={tokens} style={{ padding: 30, textAlign: "center" }}>
+            <div style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textMuted }}>{t("Loading…", "جاري التحميل…")}</div>
           </Card>
         ) : (
           (() => {

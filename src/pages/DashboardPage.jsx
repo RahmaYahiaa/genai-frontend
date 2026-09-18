@@ -5,13 +5,14 @@ import useMediaQuery from "@/hooks/useMediaQuery";
 import { fetchDashboard } from "@/services/api";
 import { listCourses } from "@/services/courses";
 import { listAssignmentsForCourse } from "@/services/assignments";
-import { tk, MONO, headingFont, bodyFont } from "@/constants/tokens";
+import { getLearnerModel } from "@/services/learning";
+import { tk, headingFont, bodyFont } from "@/constants/tokens";
 import { SCREENS } from "@/constants/routes";
 import { TASK_KIND_LABELS } from "@/data/student";
 import { Card, Btn, Chip, Bar, Stat, AsyncGate } from "@/components/ui";
 import MasteryBar from "@/components/MasteryBar";
 
-const TASK_TONE = { diagnostic: "primary", practice: "default", reassessment: "mastered" };
+const TASK_TONE = { diagnostic: "primary", practice: "default", reassessment: "mastered", assignment: "primary" };
 
 function DemoDashboardPage({ state, dispatch }) {
   const tokens = tk(state.dark);
@@ -49,15 +50,15 @@ function DashboardInner({ data, tokens, lang, t, dispatch }) {
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <Chip tokens={tokens} tone="primary">{course.id}</Chip>
-          <Chip tokens={tokens}>{t(`Week ${course.week}`, `الأسبوع ${course.week}`)}</Chip>
+          {course.week != null && <Chip tokens={tokens}>{t(`Week ${course.week}`, `الأسبوع ${course.week}`)}</Chip>}
         </div>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: 12, marginBottom: 14 }}>
         <Stat tokens={tokens} label={t("Avg mastery", "متوسط الإتقان")} value={`${stats.avgMastery}%`} accent={tokens.mastered} />
         <Stat tokens={tokens} label={t("Evidence items", "عناصر الأدلة")} value={stats.evidenceItems} hint={t(`${stats.topicsCovered}/${stats.topicsTotal} topics covered`, `${stats.topicsCovered}/${stats.topicsTotal} موضوعاً مغطى`)} />
-        <Stat tokens={tokens} label={t("Streak", "سلسلة الأيام")} value={`${stats.streakDays} ${t("days", "أيام")}`} />
-        <Stat tokens={tokens} label={t("Study time", "وقت الدراسة")} value={`${stats.studyMinutes}m`} hint={t(`Goal ${stats.goalMinutes}m`, `الهدف ${stats.goalMinutes} د`)} />
+        <Stat tokens={tokens} label={t("Streak", "سلسلة الأيام")} value={stats.streakDays == null ? "—" : `${stats.streakDays} ${t("days", "أيام")}`} hint={stats.streakDays == null ? t("not tracked yet", "مش متتبعة لسه") : undefined} />
+        <Stat tokens={tokens} label={t("Study time", "وقت الدراسة")} value={stats.studyMinutes == null ? "—" : `${stats.studyMinutes}m`} hint={stats.studyMinutes == null ? t("not tracked yet", "مش متتبع لسه") : t(`Goal ${stats.goalMinutes}m`, `الهدف ${stats.goalMinutes} د`)} />
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "1.7fr 1fr", gap: 14, marginBottom: 14, alignItems: "start" }}>
@@ -84,9 +85,12 @@ function DashboardInner({ data, tokens, lang, t, dispatch }) {
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <Card tokens={tokens}>
             <div style={{ fontWeight: 700, fontSize: 14, color: tokens.textPrimary, marginBottom: 12 }}>{t("Up next", "التالي")}</div>
+            {tasks.length === 0 && (
+              <div style={{ fontSize: 12.5, color: tokens.textFaint }}>{t("Nothing open right now.", "مفيش حاجة مفتوحة دلوقتي.")}</div>
+            )}
             {tasks.map((task) => (
               <div key={task.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: `1px solid ${tokens.cardBorder}`, ...(task.id === tasks[tasks.length - 1].id ? { borderBottom: "none" } : {}) }}>
-                <Chip tokens={tokens} tone={TASK_TONE[task.kind]}>{TASK_KIND_LABELS[task.kind][lang]}</Chip>
+                <Chip tokens={tokens} tone={TASK_TONE[task.kind] ?? "default"}>{TASK_KIND_LABELS[task.kind]?.[lang] ?? (lang === "ar" ? "تكليف" : "assignment")}</Chip>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 12.5, color: tokens.textPrimary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{task.label[lang]}</div>
                   <div style={{ fontSize: 11, color: tokens.textFaint }}>{task.course} · {task.due[lang]}</div>
@@ -113,81 +117,108 @@ function DashboardInner({ data, tokens, lang, t, dispatch }) {
           <div>
             <div style={{ fontWeight: 700, fontSize: 14, color: tokens.textPrimary }}>{t("Study goal", "هدف الدراسة")}</div>
             <div style={{ fontSize: 12, color: tokens.textMuted, marginTop: 2 }}>
-              {t(`${stats.studyMinutes} of ${stats.goalMinutes} minutes this week`, `${stats.studyMinutes} من ${stats.goalMinutes} دقيقة هذا الأسبوع`)}
+              {stats.goalMinutes
+                ? t(`${stats.studyMinutes} of ${stats.goalMinutes} minutes this week`, `${stats.studyMinutes} من ${stats.goalMinutes} دقيقة هذا الأسبوع`)
+                : t("Session minutes are not tracked by the backend yet.", "دقائق الجلسات مش متسجلة في الباك إند لسه.")}
             </div>
           </div>
           <div style={{ width: mobile ? "100%" : 220 }}>
-            <Bar tokens={tokens} value={(stats.studyMinutes / stats.goalMinutes) * 100} color={tokens.primary} height={8} />
+            {stats.goalMinutes ? (
+              <Bar tokens={tokens} value={(stats.studyMinutes / stats.goalMinutes) * 100} color={tokens.primary} height={8} />
+            ) : (
+              <Bar tokens={tokens} value={0} color={tokens.primary} height={8} />
+            )}
           </div>
         </div>
       </Card>
     </>
   );
 }
+const pctOf = (value) => (value == null ? 0 : value <= 1 ? Math.round(value * 100) : Math.round(value));
+
 function RealDashboardPage({ state, dispatch }) {
-  const mobile = useMediaQuery("(max-width: 760px)");
   const tokens = tk(state.dark);
   const lang = state.lang;
   const t = (en, ar) => (lang === "ar" ? ar : en);
-  const isRtl = lang === "ar";
-  const hFont = headingFont(lang);
-  const bFont = bodyFont(lang);
+  const mobile = useMediaQuery("(max-width: 760px)");
 
   const load = useCallback(async () => {
     const { items } = await listCourses();
-    return Promise.all(
-      items.map(async (course) => {
-        const { items: assignments } = await listAssignmentsForCourse(course.id, {});
-        return {
-          course,
-          open: assignments.filter((assignment) => assignment.status === "OPEN").length,
-          closed: assignments.filter((assignment) => assignment.status === "CLOSED").length,
-        };
+    const enrolled = items ?? [];
+    let modelCourse = null;
+    let model = null;
+    for (const course of enrolled) {
+      try {
+        const candidate = await getLearnerModel(course.id);
+        if (!model || (candidate?.mastery ?? []).some((row) => row.evidenceCount > 0)) {
+          modelCourse = course;
+          model = candidate;
+        }
+        if ((candidate?.mastery ?? []).some((row) => row.evidenceCount > 0)) break;
+      } catch {
+        modelCourse = modelCourse ?? course;
+      }
+    }
+    const mastery = model?.mastery ?? [];
+    const overview = model?.overview ?? null;
+    const topics = mastery.map((row) => ({
+      id: row.topicId,
+      label: { en: row.title ?? "", ar: row.title ?? "" },
+      pct: pctOf(row.averageScore),
+      evidence: row.evidenceCount ?? 0,
+    }));
+    const withEvidence = topics.filter((topic) => topic.evidence > 0);
+    const stats = {
+      avgMastery: overview?.overallAverageScore != null
+        ? pctOf(overview.overallAverageScore)
+        : withEvidence.length
+          ? Math.round(withEvidence.reduce((sum, topic) => sum + topic.pct, 0) / withEvidence.length)
+          : 0,
+      evidenceItems: overview?.evidenceCount ?? topics.reduce((sum, topic) => sum + topic.evidence, 0),
+      topicsCovered: overview?.assessedTopicsCount ?? withEvidence.length,
+      topicsTotal: overview?.topicsCount ?? topics.length,
+      streakDays: null,
+      studyMinutes: null,
+      goalMinutes: null,
+    };
+    const taskRows = await Promise.all(
+      enrolled.slice(0, 6).map(async (course) => {
+        try {
+          const { items: assignments } = await listAssignmentsForCourse(course.id, {});
+          return assignments
+            .filter((assignment) => assignment.status === "OPEN")
+            .map((assignment) => ({
+              id: `${course.id}-${assignment.id}`,
+              kind: "assignment",
+              label: { en: assignment.title?.en ?? "", ar: assignment.title?.ar ?? "" },
+              course: course.code ?? course.id,
+              due: { en: "open now", ar: "مفتوح الآن" },
+            }));
+        } catch {
+          return [];
+        }
       }),
     );
-  }, []);
+    return {
+      user: state.user ?? { name: { en: "learner", ar: "متعلم" } },
+      stats,
+      courses: [
+        {
+          id: modelCourse?.code ?? modelCourse?.title?.en ?? modelCourse?.id ?? "—",
+          week: null,
+          overall: stats.avgMastery,
+          topics,
+        },
+      ],
+      tasks: taskRows.flat().slice(0, 5),
+    };
+  }, [state.user]);
   const { data, loading, error, reload } = useAsync(load);
-  const rows = data ?? [];
 
   return (
-    <div className="genai-pad" style={{ padding: mobile ? "20px 16px" : "26px 32px", direction: isRtl ? "rtl" : "ltr", maxWidth: 980, margin: "0 auto" }}>
-      <div style={{ marginBottom: 14, textAlign: isRtl ? "right" : "left" }}>
-        <h1 style={{ fontFamily: hFont, fontWeight: 700, fontSize: mobile ? 19 : 22, color: tokens.textPrimary, letterSpacing: "-0.025em", margin: "0 0 4px" }}>
-          {t("My dashboard", "لوحتي")}
-        </h1>
-        <p style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textMuted, margin: 0, lineHeight: 1.6 }}>
-          {t("Your enrolled courses and what is open in each right now.", "مقرراتك المقيدة والمفتوح فيها دلوقتي.")}
-        </p>
-      </div>
-      <AsyncGate tokens={tokens} lang={lang} loading={loading} error={error} reload={reload} label={t("Loading your courses…", "جاري تحميل مقرراتك…")}>
-        {rows.length === 0 ? (
-          <Card tokens={tokens} style={{ padding: "16px 18px" }}>
-            <p style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textMuted, margin: 0, lineHeight: 1.7, textAlign: isRtl ? "right" : "left" }}>
-              {t("You are not enrolled in any course yet.", "لسه مش مقيد في أي مقرر.")}
-            </p>
-          </Card>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {rows.map(({ course, open, closed }) => (
-              <Card tokens={tokens} key={course.id} style={{ padding: "14px 16px" }}>
-                <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
-                  <div style={{ flex: 1, minWidth: 0, textAlign: isRtl ? "right" : "left" }}>
-                    <div style={{ fontFamily: bFont, fontSize: 13.5, fontWeight: 700, color: tokens.textPrimary }}>{course.title?.en ?? course.title}</div>
-                    {course.code && <span style={{ fontFamily: MONO, fontSize: 10, color: tokens.textFaint }}>{course.code}</span>}
-                  </div>
-                  <Chip tokens={tokens} tone={open > 0 ? "primary" : "slate"}>{t("Open", "مفتوح")}: {open}</Chip>
-                  <Chip tokens={tokens} tone="slate">{t("Closed", "مغلق")}: {closed}</Chip>
-                  <Btn tokens={tokens} lang={lang} variant="soft" onClick={() => dispatch({ type: "NAVIGATE", screen: SCREENS.STUDENT_ASSIGNMENTS })}>
-                    {t("My assignments", "تكليفاتي")}
-                  </Btn>
-                  <Btn tokens={tokens} lang={lang} variant="ghost" onClick={() => dispatch({ type: "NAVIGATE", screen: SCREENS.STUDENT_COURSE, courseId: course.id })}>
-                    {t("Open course", "افتح المقرر")}
-                  </Btn>
-                </div>
-              </Card>
-            ))}
-          </div>
-        )}
+    <div style={{ padding: mobile ? 16 : 28, maxWidth: 1080, margin: "0 auto", fontFamily: bodyFont(lang), direction: lang === "ar" ? "rtl" : "ltr" }}>
+      <AsyncGate tokens={tokens} lang={lang} loading={loading} error={error} reload={reload} label={t("Loading your dashboard…", "جاري تحميل لوحتك…")}>
+        {data && <DashboardInner data={data} tokens={tokens} lang={lang} t={t} dispatch={dispatch} />}
       </AsyncGate>
     </div>
   );
