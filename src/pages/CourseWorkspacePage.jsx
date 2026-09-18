@@ -10,7 +10,6 @@ import { demoMode } from "@/services/auth";
 import { getCourse } from "@/services/courses";
 import { approvedMaterials } from "@/data/instructorModule";
 import { AsyncGate } from "@/components/ui";
-import BatchNote from "@/components/BatchNote";
 import AssignmentsTab from "@/components/AssignmentsTab";
 import CourseMaterialsTab from "@/components/CourseMaterialsTab";
 import CourseAnalyticsTab from "@/components/CourseAnalyticsTab";
@@ -83,30 +82,8 @@ export default function CourseWorkspacePage({ state, dispatch }) {
             <div style={{ marginTop: 24 }}>
               {tab === "assignments" && <AssignmentsTab state={state} dispatch={dispatch} courseId={course.id} />}
               {tab === "materials" && <CourseMaterialsTab state={state} dispatch={dispatch} courseId={course.id} />}
-              {tab === "analytics" &&
-                (real ? (
-                  <BatchNote
-                    tokens={tokens}
-                    lang={lang}
-                    mobile={mobile}
-                    title={lang === "ar" ? "تحليلات المقرر بتوصل مع دفعة التحليلات" : "Course analytics arrive with the analytics batch"}
-                    body={lang === "ar" ? "الشاشة دي لسه بتتغذى من النموذج التجريبي بدون خادم. الربط الحي بيوصل مع دفعة التحليلات (B5)، عشان مفيش بيانات متفبركة توصلك هنا." : "This screen is still fed by the offline prototype. The live wiring lands with the analytics batch (B5), so no fabricated data reaches you here."}
-                  />
-                ) : (
-                  <CourseAnalyticsTab state={state} dispatch={dispatch} courseId={course.id} />
-                ))}
-              {tab === "audit" &&
-                (real ? (
-                  <BatchNote
-                    tokens={tokens}
-                    lang={lang}
-                    mobile={mobile}
-                    title={lang === "ar" ? "سجل التدقيق بيوصل مع دفعة التحليلات" : "Audit trail arrives with the analytics batch"}
-                    body={lang === "ar" ? "السجل الحقيقي بيتكتب في الباكند فعلاً من كل إجراء حساس، وعرضه هنا هيترابط مع دفعة التحليلات (B5)." : "The real trail is already recorded server-side for every sensitive action; surfacing it here lands with the analytics batch (B5)."}
-                  />
-                ) : (
-                  <AuditTrailTab state={state} courseId={course.id} />
-                ))}
+              {tab === "analytics" && <CourseAnalyticsTab state={state} dispatch={dispatch} courseId={course.id} />}
+              {tab === "audit" && <AuditTrailTab state={state} courseId={course.id} />}
             </div>
           </>
         )}

@@ -1,6 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { tk, MONO, masteryColor, masteryLevel, masteryBg } from "@/constants/tokens";
 import useMediaQuery from "@/hooks/useMediaQuery";
+import useAsync from "@/hooks/useAsync";
+import { demoMode } from "@/services/auth";
+import { getCourseAnalytics, getCoverageGaps } from "@/services/analytics";
+import { AsyncGate } from "@/components/ui";
 import { useInstructorModule } from "@/store/InstructorProvider";
 import { Card, Btn, Chip, Modal, bFontFor, hFontFor, toast, Th, Skeleton } from "@/components/ModuleUI";
 import { IconWarning, IconCheck, IconDownload, IconSparkle } from "@/components/Icons";
@@ -28,7 +32,7 @@ function CitationChip({ label, tokens }) {
   );
 }
 
-export default function CourseAnalyticsTab({ state, courseId, dispatch }) {
+function DemoCourseAnalyticsTab({ state, courseId, dispatch }) {
   const { state: mod, approveMaterial } = useInstructorModule();
   const mobile = useMediaQuery("(max-width: 760px)");
   const tokens = tk(state.dark);
@@ -429,10 +433,138 @@ export default function CourseAnalyticsTab({ state, courseId, dispatch }) {
         </div>
       </Modal>
 
-            <StudentInterventionModal open={interveneFor !== null} onClose={() => setInterveneFor(null)} studentId={interveneFor}
+      <StudentInterventionModal open={interveneFor !== null} onClose={() => setInterveneFor(null)} studentId={interveneFor}
         courseId={courseId} tokens={tokens} lang={lang}
         onOpenFile={(id) => dispatch({ type: "NAVIGATE", screen: SCREENS.INSTRUCTOR_STUDENTS, studentId: id, courseId })} />
+
       <RemedialModal open={remedialEntry !== null} onClose={() => setRemedialEntry(null)} entry={remedialEntry} tokens={tokens} lang={lang} />
     </div>
   );
+}
+
+function RealCourseAnalyticsTab({ state, courseId }) {
+  const mobile = useMediaQuery("(max-width: 760px)");
+  const tokens = tk(state.dark);
+  const lang = state.lang;
+  const t = (en, ar) => (lang === "ar" ? ar : en);
+  const isRtl = lang === "ar";
+  const hFont = hFontFor(lang);
+  const bFont = bFontFor(lang);
+
+  const loadAnalytics = useCallback(
+    () => (courseId ? getCourseAnalytics(courseId) : Promise.resolve(null)),
+    [courseId],
+  );
+  const analyticsAsync = useAsync(loadAnalytics);
+  const loadGaps = useCallback(
+    () => (courseId ? getCoverageGaps(courseId) : Promise.resolve(null)),
+    [courseId],
+  );
+  const gapsAsync = useAsync(loadGaps);
+
+  const analytics = analyticsAsync.data;
+  const gaps = gapsAsync.data;
+  const totals = analytics?.totals ?? null;
+  const topics = analytics?.topics ?? [];
+  const topicTitle = (title) => (typeof title === "string" ? title : (title?.[lang] ?? title?.en ?? ""));
+
+  return (
+    <AsyncGate
+      tokens={tokens}
+      lang={lang}
+      loading={analyticsAsync.loading || gapsAsync.loading}
+      error={analyticsAsync.error ?? gapsAsync.error}
+      reload={() => {
+        analyticsAsync.reload();
+        gapsAsync.reload();
+      }}
+      label={t("Loading analytics…", "جاري تحميل التحليلات…")}
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        {totals && (
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <Chip tokens={tokens} tone="slate">{t("Finalized", "معتمد")}: {totals.finalizedCount}</Chip>
+            <Chip tokens={tokens} tone={totals.pendingReviewCount > 0 ? "violet" : "slate"}>{t("Pending review", "معلّق للمراجعة")}: {totals.pendingReviewCount}</Chip>
+            <Chip tokens={tokens} tone="primary">{t("Fast track", "اعتماد سريع")}: {totals.fastTrackCount}</Chip>
+            <Chip tokens={tokens} tone="slate">
+              {t("Course average", "متوسط المقرر")}: {totals.avgCoursePercentage === null ? "—" : `${totals.avgCoursePercentage}%`}
+            </Chip>
+            <Chip tokens={tokens} tone="slate">
+              {t("Assignments", "تكليفات")}: {totals.assignments?.openCount ?? 0} {t("open", "مفتوح")} / {totals.assignments?.closedCount ?? 0} {t("closed", "مغلق")}
+            </Chip>
+            <Chip tokens={tokens} tone="slate">
+              {t("Materials", "مواد")}: {totals.materials?.readyCount ?? 0}/{totals.materials?.totalCount ?? 0}
+            </Chip>
+          </div>
+        )}
+
+        <div>
+          <h3 style={{ fontFamily: hFont, fontSize: 13.5, fontWeight: 700, color: tokens.textPrimary, margin: "0 0 8px", textAlign: isRtl ? "right" : "left" }}>
+            {t("Topics — graded evidence", "المواضيع — أدلة مصححة")}
+          </h3>
+          {topics.length === 0 ? (
+            <p style={{ fontFamily: bFont, fontSize: 12, color: tokens.textFaint, margin: 0 }}>{t("No topics in this course yet.", "مفيش مواضيع في المقرر ده لسه.")}</p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {topics.map((topic) => (
+                <Card tokens={tokens} key={topic.topicId} style={{ padding: mobile ? "10px 12px" : "12px 14px" }}>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 6, flexDirection: isRtl ? "row-reverse" : "row" }}>
+                    <span style={{ fontFamily: bFont, fontSize: 12.5, fontWeight: 600, color: tokens.textPrimary, flex: 1, textAlign: isRtl ? "right" : "left" }}>
+                      {topicTitle(topic.title)}
+                    </span>
+                    <span style={{ fontFamily: MONO, fontSize: 10.5, color: tokens.textSecondary, flexShrink: 0 }}>
+                      {topic.avgScorePercentage === null ? t("no evidence", "مفيش أدلة") : `${topic.avgScorePercentage}%`}
+                    </span>
+                  </div>
+                  <MasteryBar pct={topic.avgScorePercentage ?? 0} evidence={topic.evidenceCount} tokens={tokens} />
+                  <div style={{ fontFamily: MONO, fontSize: 9.5, color: tokens.textFaint, marginTop: 5 }}>
+                    {t("evidence", "أدلة")}: {topic.evidenceCount} · {t("students graded", "طلاب مصححون")}: {topic.studentsGradedCount}
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div>
+          <h3 style={{ fontFamily: hFont, fontSize: 13.5, fontWeight: 700, color: tokens.textPrimary, margin: "0 0 8px", textAlign: isRtl ? "right" : "left" }}>
+            {t("Coverage gaps", "فجوات التغطية")}
+          </h3>
+          {gaps && (
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+              <Chip tokens={tokens} tone="primary">
+                {t("Covered", "مغطى")}: {gaps.coveredTopics ?? 0}/{gaps.totalTopics ?? 0}
+              </Chip>
+            </div>
+          )}
+          {(gaps?.items ?? []).length === 0 ? (
+            <p style={{ fontFamily: bFont, fontSize: 12, color: tokens.textMuted, margin: 0, textAlign: isRtl ? "right" : "left" }}>
+              {t("Every topic has at least one assignment question.", "كل المواضيع عندها سؤال تكليف واحد على الأقل.")}
+            </p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {gaps.items.map((item) => (
+                <div key={item.topicId} style={{ display: "flex", gap: 8, alignItems: "center", padding: "9px 11px", background: tokens.gapBg, border: `1px solid ${tokens.gapBorder}`, borderRadius: 8, flexDirection: isRtl ? "row-reverse" : "row" }}>
+                  <IconWarning size={13} color={tokens.gap} />
+                  <span style={{ fontFamily: bFont, fontSize: 12, fontWeight: 600, color: tokens.gap, flex: 1, textAlign: isRtl ? "right" : "left" }}>
+                    {topicTitle(item.title)}
+                  </span>
+                  <span style={{ fontFamily: MONO, fontSize: 10, color: tokens.gap }}>0 {t("questions", "أسئلة")}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <p style={{ fontFamily: bFont, fontSize: 10.5, color: tokens.textFaint, margin: 0, textAlign: isRtl ? "right" : "left" }}>
+          {t("Precomputed snapshot", "لقطة محسوبة مسبقاً")} · {analytics?.computedAt ? new Date(analytics.computedAt).toLocaleString(lang === "ar" ? "ar-EG" : "en-GB") : t("not computed yet", "لسه محسوبة")}
+        </p>
+      </div>
+    </AsyncGate>
+  );
+}
+
+export default function CourseAnalyticsTab(props) {
+  if (demoMode()) return <DemoCourseAnalyticsTab {...props} />;
+  return <RealCourseAnalyticsTab {...props} />;
 }

@@ -1,9 +1,11 @@
 import { demoMode } from "@/services/auth";
-import BatchNote from "@/components/BatchNote";
+import { useCallback } from "react";
 import useAsync from "@/hooks/useAsync";
 import useMediaQuery from "@/hooks/useMediaQuery";
 import { fetchDashboard } from "@/services/api";
-import { tk, headingFont, bodyFont } from "@/constants/tokens";
+import { listCourses } from "@/services/courses";
+import { listAssignmentsForCourse } from "@/services/assignments";
+import { tk, MONO, headingFont, bodyFont } from "@/constants/tokens";
 import { SCREENS } from "@/constants/routes";
 import { TASK_KIND_LABELS } from "@/data/student";
 import { Card, Btn, Chip, Bar, Stat, AsyncGate } from "@/components/ui";
@@ -122,20 +124,76 @@ function DashboardInner({ data, tokens, lang, t, dispatch }) {
     </>
   );
 }
-export default function DashboardPage(props) {
+function RealDashboardPage({ state, dispatch }) {
   const mobile = useMediaQuery("(max-width: 760px)");
-  const tokens = tk(props.state.dark);
-  const lang = props.state.lang;
-  if (!demoMode()) {
-    return (
-      <BatchNote
-        tokens={tokens}
-        lang={lang}
-        mobile={mobile}
-        title={lang === "ar" ? "لوحة التحكم الحية بتوصل مع دفعة التحليلات" : "Live dashboard arrives with the analytics batch"}
-        body={lang === "ar" ? "الشاشة دي لسه بتتغذى من النموذج التجريبي بدون خادم. الربط الحي بيوصل مع دفعة التحليلات (B5)، عشان مفيش بيانات متفبركة توصلك هنا." : "This screen is still fed by the offline prototype. The live wiring lands with the analytics batch (B5), so no fabricated data reaches you here."}
-      />
+  const tokens = tk(state.dark);
+  const lang = state.lang;
+  const t = (en, ar) => (lang === "ar" ? ar : en);
+  const isRtl = lang === "ar";
+  const hFont = headingFont(lang);
+  const bFont = bodyFont(lang);
+
+  const load = useCallback(async () => {
+    const { items } = await listCourses();
+    return Promise.all(
+      items.map(async (course) => {
+        const { items: assignments } = await listAssignmentsForCourse(course.id, {});
+        return {
+          course,
+          open: assignments.filter((assignment) => assignment.status === "OPEN").length,
+          closed: assignments.filter((assignment) => assignment.status === "CLOSED").length,
+        };
+      }),
     );
-  }
-  return <DemoDashboardPage {...props} />;
+  }, []);
+  const { data, loading, error, reload } = useAsync(load);
+  const rows = data ?? [];
+
+  return (
+    <div className="genai-pad" style={{ padding: mobile ? "20px 16px" : "26px 32px", direction: isRtl ? "rtl" : "ltr", maxWidth: 980, margin: "0 auto" }}>
+      <div style={{ marginBottom: 14, textAlign: isRtl ? "right" : "left" }}>
+        <h1 style={{ fontFamily: hFont, fontWeight: 700, fontSize: mobile ? 19 : 22, color: tokens.textPrimary, letterSpacing: "-0.025em", margin: "0 0 4px" }}>
+          {t("My dashboard", "لوحتي")}
+        </h1>
+        <p style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textMuted, margin: 0, lineHeight: 1.6 }}>
+          {t("Your enrolled courses and what is open in each right now.", "مقرراتك المقيدة والمفتوح فيها دلوقتي.")}
+        </p>
+      </div>
+      <AsyncGate tokens={tokens} lang={lang} loading={loading} error={error} reload={reload} label={t("Loading your courses…", "جاري تحميل مقرراتك…")}>
+        {rows.length === 0 ? (
+          <Card tokens={tokens} style={{ padding: "16px 18px" }}>
+            <p style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textMuted, margin: 0, lineHeight: 1.7, textAlign: isRtl ? "right" : "left" }}>
+              {t("You are not enrolled in any course yet.", "لسه مش مقيد في أي مقرر.")}
+            </p>
+          </Card>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {rows.map(({ course, open, closed }) => (
+              <Card tokens={tokens} key={course.id} style={{ padding: "14px 16px" }}>
+                <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
+                  <div style={{ flex: 1, minWidth: 0, textAlign: isRtl ? "right" : "left" }}>
+                    <div style={{ fontFamily: bFont, fontSize: 13.5, fontWeight: 700, color: tokens.textPrimary }}>{course.title?.en ?? course.title}</div>
+                    {course.code && <span style={{ fontFamily: MONO, fontSize: 10, color: tokens.textFaint }}>{course.code}</span>}
+                  </div>
+                  <Chip tokens={tokens} tone={open > 0 ? "primary" : "slate"}>{t("Open", "مفتوح")}: {open}</Chip>
+                  <Chip tokens={tokens} tone="slate">{t("Closed", "مغلق")}: {closed}</Chip>
+                  <Btn tokens={tokens} lang={lang} variant="soft" onClick={() => dispatch({ type: "NAVIGATE", screen: SCREENS.STUDENT_ASSIGNMENTS })}>
+                    {t("My assignments", "تكليفاتي")}
+                  </Btn>
+                  <Btn tokens={tokens} lang={lang} variant="ghost" onClick={() => dispatch({ type: "NAVIGATE", screen: SCREENS.STUDENT_COURSE, courseId: course.id })}>
+                    {t("Open course", "افتح المقرر")}
+                  </Btn>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+      </AsyncGate>
+    </div>
+  );
+}
+
+export default function DashboardPage(props) {
+  if (demoMode()) return <DemoDashboardPage {...props} />;
+  return <RealDashboardPage {...props} />;
 }

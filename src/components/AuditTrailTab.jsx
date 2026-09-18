@@ -1,11 +1,15 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { tk, MONO } from "@/constants/tokens";
 import useMediaQuery from "@/hooks/useMediaQuery";
+import useAsync from "@/hooks/useAsync";
+import { demoMode } from "@/services/auth";
+import { listCourseAudit, AUDIT_ACTION_LABELS } from "@/services/analytics";
+import { AsyncGate } from "@/components/ui";
 import { useInstructorModule } from "@/store/InstructorProvider";
-import { Card, Chip, Th, bFontFor, hFontFor, inputStyle } from "@/components/ModuleUI";
+import { Card, Chip, Th, bFontFor, hFontFor, inputStyle, Btn, AlertStrip } from "@/components/ModuleUI";
 import { fmtWhen } from "@/data/instructorModule";
 
-export default function AuditTrailTab({ state, courseId }) {
+function DemoAuditTrailTab({ state, courseId }) {
   const { state: mod } = useInstructorModule();
   const mobile = useMediaQuery("(max-width: 760px)");
   const tokens = tk(state.dark);
@@ -156,4 +160,117 @@ export default function AuditTrailTab({ state, courseId }) {
       </Card>
     </div>
   );
+}
+
+const ACTION_TONE = {
+  APPROVE: "primary",
+  EDIT: "slate",
+  REJECT: "violet",
+  REQUEST_RESUBMISSION: "violet",
+  TOGGLE_GRADE_VISIBILITY: "slate",
+  TOGGLE_FEEDBACK_VISIBILITY: "slate",
+};
+
+function RealAuditTrailTab({ state, courseId }) {
+  const mobile = useMediaQuery("(max-width: 760px)");
+  const tokens = tk(state.dark);
+  const lang = state.lang;
+  const t = (en, ar) => (lang === "ar" ? ar : en);
+  const isRtl = lang === "ar";
+  const bFont = bFontFor(lang);
+  const [actionFilter, setActionFilter] = useState("all");
+  const [page, setPage] = useState(1);
+
+  const load = useCallback(
+    () => (courseId
+      ? listCourseAudit(courseId, {
+        page,
+        limit: 20,
+        action: actionFilter === "all" ? undefined : actionFilter,
+      })
+      : Promise.resolve(null)),
+    [courseId, page, actionFilter],
+  );
+  const { data, loading, error, reload } = useAsync(load);
+  const rows = data?.items ?? [];
+  const total = data?.total ?? 0;
+  const pages = Math.max(1, Math.ceil(total / 20));
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <AlertStrip
+        tokens={tokens}
+        lang={lang}
+        tone="slate"
+        icon={<span style={{ fontFamily: MONO, fontSize: 11, color: tokens.textMuted }}>▣</span>}
+        title={t("Governance log — staff only, never shown to students.", "سجل حوكمة — للطاقم بس، مش بيظهر للطلاب أبداً.")}
+      />
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+        <select
+          value={actionFilter}
+          onChange={(event) => {
+            setActionFilter(event.target.value);
+            setPage(1);
+          }}
+          style={{ ...inputStyle(tokens, bFont), minWidth: 170 }}
+        >
+          <option value="all">{t("All actions", "كل الإجراءات")}</option>
+          {Object.entries(AUDIT_ACTION_LABELS).map(([key, label]) => (
+            <option key={key} value={key}>{lang === "ar" ? label.ar : label.en}</option>
+          ))}
+        </select>
+        <span style={{ fontFamily: MONO, fontSize: 10.5, color: tokens.textMuted }}>
+          {t("page", "صفحة")} {page}/{pages} · {total} {t("entries", "سجل")}
+        </span>
+        <span style={{ flex: 1 }} />
+        <Btn tokens={tokens} lang={lang} variant="ghost" disabled={page <= 1} onClick={() => setPage((value) => value - 1)}>
+          {t("Previous", "السابق")}
+        </Btn>
+        <Btn tokens={tokens} lang={lang} variant="ghost" disabled={page >= pages} onClick={() => setPage((value) => value + 1)}>
+          {t("Next", "التالي")}
+        </Btn>
+      </div>
+      <AsyncGate tokens={tokens} lang={lang} loading={loading} error={error} reload={reload} label={t("Loading audit log…", "جاري تحميل السجل…")}>
+        {rows.length === 0 ? (
+          <Card tokens={tokens} style={{ padding: "16px 18px" }}>
+            <p style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textMuted, margin: 0, lineHeight: 1.7, textAlign: isRtl ? "right" : "left" }}>
+              {t("No audit entries for this filter yet.", "مفيش مدخلات سجل للفلتر ده لسه.")}
+            </p>
+          </Card>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {rows.map((row) => (
+              <Card tokens={tokens} key={row.id} style={{ padding: mobile ? "10px 12px" : "12px 14px" }}>
+                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 4, flexDirection: isRtl ? "row-reverse" : "row" }}>
+                  <span style={{ fontFamily: bFont, fontSize: 12.5, fontWeight: 600, color: tokens.textPrimary }}>{row.actorName}</span>
+                  <Chip tokens={tokens} tone={ACTION_TONE[row.action] ?? "slate"}>
+                    {lang === "ar" ? AUDIT_ACTION_LABELS[row.action]?.ar ?? row.action : AUDIT_ACTION_LABELS[row.action]?.en ?? row.action}
+                  </Chip>
+                  <span style={{ flex: 1 }} />
+                  <span style={{ fontFamily: MONO, fontSize: 10, color: tokens.textFaint }}>
+                    {new Date(row.createdAt).toLocaleString(lang === "ar" ? "ar-EG" : "en-GB")}
+                  </span>
+                </div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
+                  <span style={{ fontFamily: MONO, fontSize: 10.5, color: tokens.textSecondary }}>
+                    {t("AI", "ذكاء")}: {row.aiOriginalScore ?? "—"} → {t("final", "نهائي")}: {row.finalScore ?? "—"}
+                  </span>
+                  {row.reasonText && (
+                    <span style={{ fontFamily: bFont, fontSize: 11.5, color: tokens.gap, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: mobile ? "100%" : 420, textAlign: isRtl ? "right" : "left" }}>
+                      {row.reasonText}
+                    </span>
+                  )}
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+      </AsyncGate>
+    </div>
+  );
+}
+
+export default function AuditTrailTab(props) {
+  if (demoMode()) return <DemoAuditTrailTab {...props} />;
+  return <RealAuditTrailTab {...props} />;
 }

@@ -1,6 +1,11 @@
 import { demoMode } from "@/services/auth";
-import BatchNote from "@/components/BatchNote";
-import { useState } from "react";
+import { useCallback, useState } from "react";
+import useAsync from "@/hooks/useAsync";
+import { listCourses, listEnrollments } from "@/services/courses";
+import { listAssignmentsForCourse } from "@/services/assignments";
+import { getReview } from "@/services/review";
+import { SUBMISSION_STATUS_LABELS } from "@/services/submissions";
+import { AsyncGate } from "@/components/ui";
 import { tk, MONO, masteryColor, masteryLevel } from "@/constants/tokens";
 import useMediaQuery from "@/hooks/useMediaQuery";
 import { useInstructorModule } from "@/store/InstructorProvider";
@@ -389,20 +394,184 @@ function DemoInstructorStudentsPage({ state, dispatch }) {
   );
 }
 
-export default function InstructorStudentsPage(props) {
+function StudentDrillModal({ courseId, student, tokens, lang, onClose }) {
+  const t = (en, ar) => (lang === "ar" ? ar : en);
+  const isRtl = lang === "ar";
+  const bFont = bFontFor(lang);
+  const load = useCallback(async () => {
+    const { items } = await listAssignmentsForCourse(courseId, {});
+    const active = items.filter((assignment) => assignment.status !== "DRAFT");
+    const reviews = await Promise.all(
+      active.map((assignment) => getReview(assignment.id, { limit: 100 }).then((review) => ({ assignment, review }))),
+    );
+    return reviews
+      .map(({ assignment, review }) => {
+        const row = [...(review?.fastTrack ?? []), ...(review?.needsReview ?? [])].find((item) => item.studentId === student.id);
+        if (!row) return null;
+        return {
+          assignmentId: assignment.id,
+          title: assignment.title?.[lang] ?? assignment.title?.en ?? "",
+          status: row.submission.status,
+          aiTotalScore: row.aiTotalScore,
+          maxTotalScore: row.maxTotalScore,
+          decided: row.decided,
+        };
+      })
+      .filter(Boolean);
+  }, [courseId, student.id, lang]);
+  const { data, loading, error, reload } = useAsync(load);
+
+  return (
+    <Modal open onClose={onClose} tokens={tokens} lang={lang} width={620} title={student.name} subtitle={student.email}>
+      <AsyncGate tokens={tokens} lang={lang} loading={loading} error={error} reload={reload} label={t("Loading submissions…", "جاري تحميل التسليمات…")}>
+        {(data ?? []).length === 0 ? (
+          <p style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textMuted, margin: 0, textAlign: isRtl ? "right" : "left" }}>
+            {t("This student has no submissions in this course yet.", "الطالب ده مفيش ليه تسليمات في المقرر ده لسه.")}
+          </p>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {data.map((row) => (
+              <div key={row.assignmentId} style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", background: tokens.inset, border: `1px solid ${tokens.cardBorder}`, borderRadius: 8, padding: "8px 10px", flexDirection: isRtl ? "row-reverse" : "row" }}>
+                <span style={{ fontFamily: bFont, fontSize: 12.5, fontWeight: 600, color: tokens.textPrimary, flex: 1, textAlign: isRtl ? "right" : "left" }}>{row.title}</span>
+                <Chip tokens={tokens} tone={row.status === "FINALIZED" ? "slate" : "primary"}>
+                  {lang === "ar" ? SUBMISSION_STATUS_LABELS[row.status]?.ar ?? row.status : SUBMISSION_STATUS_LABELS[row.status]?.en ?? row.status}
+                </Chip>
+                {row.decided && (
+                  <span style={{ fontFamily: MONO, fontSize: 11, color: tokens.textSecondary, flexShrink: 0 }}>
+                    {row.aiTotalScore}/{row.maxTotalScore}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </AsyncGate>
+    </Modal>
+  );
+}
+
+function RealInstructorStudents({ state }) {
   const mobile = useMediaQuery("(max-width: 760px)");
-  const tokens = tk(props.state.dark);
-  const lang = props.state.lang;
-  if (!demoMode()) {
-    return (
-      <BatchNote
+  const tokens = tk(state.dark);
+  const lang = state.lang;
+  const t = (en, ar) => (lang === "ar" ? ar : en);
+  const isRtl = lang === "ar";
+  const hFont = hFontFor(lang);
+  const bFont = bFontFor(lang);
+  const [courseId, setCourseId] = useState("");
+  const [query, setQuery] = useState("");
+  const [drill, setDrill] = useState(null);
+
+  const loadCourses = useCallback(() => listCourses(), []);
+  const coursesAsync = useAsync(loadCourses);
+  const courses = coursesAsync.data?.items ?? [];
+  const effectiveCourseId = courseId || courses[0]?.id || null;
+
+  const loadRoster = useCallback(
+    () => (effectiveCourseId ? listEnrollments(effectiveCourseId, { page: 1, limit: 100 }) : Promise.resolve(null)),
+    [effectiveCourseId],
+  );
+  const rosterAsync = useAsync(loadRoster);
+
+  const students = (rosterAsync.data?.items ?? []).map((enrollment) => ({
+    id: enrollment.student?.id ?? enrollment.id,
+    name: enrollment.student ? `${enrollment.student.firstName} ${enrollment.student.lastName}`.trim() : "—",
+    email: enrollment.student?.email ?? "",
+    enrolledAt: enrollment.enrolledAt ?? null,
+  }));
+  const needle = query.trim().toLowerCase();
+  const filtered = needle
+    ? students.filter((student) => `${student.name} ${student.email}`.toLowerCase().includes(needle))
+    : students;
+
+  function exportCsv() {
+    const head = ["name", "email", "enrolledAt"].join(",");
+    const lines = filtered.map((student) => [student.name, student.email, student.enrolledAt ?? ""]
+      .map((value) => `"${String(value).replace(/"/g, '""')}"`)
+      .join(","));
+    const blob = new Blob([[head, ...lines].join("\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "students.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  return (
+    <div className="genai-pad" style={{ padding: mobile ? "20px 16px" : "26px 32px", direction: isRtl ? "rtl" : "ltr", maxWidth: 980, margin: "0 auto" }}>
+      <div style={{ marginBottom: 14, textAlign: isRtl ? "right" : "left" }}>
+        <h1 style={{ fontFamily: hFont, fontWeight: 700, fontSize: mobile ? 19 : 22, color: tokens.textPrimary, letterSpacing: "-0.025em", margin: "0 0 4px" }}>
+          {t("Students", "الطلاب")}
+        </h1>
+        <p style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textMuted, margin: 0, lineHeight: 1.6 }}>
+          {t("Real enrollment roster per course — search, drill in and export.", "كشف القيد الحقيقي لكل مقرر — دور، ادخل في تفاصيل الطالب، وصدّر.")}
+        </p>
+      </div>
+
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+        <select value={effectiveCourseId ?? ""} onChange={(event) => setCourseId(event.target.value)} style={{ ...inputStyle(tokens, bFont), minWidth: 180, flex: 1 }}>
+          {courses.map((course) => (
+            <option key={course.id} value={course.id}>{course.title?.en ?? course.title}</option>
+          ))}
+        </select>
+        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t("Search name or email…", "دور بالاسم أو الإيميل…")} style={{ ...inputStyle(tokens, bFont), flex: 1, minWidth: 160 }} />
+        <Btn tokens={tokens} lang={lang} variant="ghost" onClick={exportCsv} disabled={filtered.length === 0}>
+          {t("Export CSV", "تصدير CSV")}
+        </Btn>
+      </div>
+
+      <AsyncGate
         tokens={tokens}
         lang={lang}
-        mobile={mobile}
-        title={lang === "ar" ? "ربط شاشة الطلاب بيوصل مع دفعة التحليلات" : "Students wiring arrives with the analytics batch"}
-        body={lang === "ar" ? "الشاشة دي لسه بتتغذى من النموذج التجريبي بدون خادم. الربط الحي بيوصل مع دفعة التحليلات (B5)، عشان مفيش بيانات متفبركة توصلك هنا." : "This screen is still fed by the offline prototype. The live wiring lands with the analytics batch (B5), so no fabricated data reaches you here."}
-      />
-    );
-  }
-  return <DemoInstructorStudentsPage {...props} />;
+        loading={coursesAsync.loading || rosterAsync.loading}
+        error={coursesAsync.error ?? rosterAsync.error}
+        reload={() => {
+          coursesAsync.reload();
+          rosterAsync.reload();
+        }}
+        label={t("Loading roster…", "جاري تحميل الكشف…")}
+      >
+        {filtered.length === 0 ? (
+          <Card tokens={tokens} style={{ padding: "16px 18px" }}>
+            <p style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textMuted, margin: 0, lineHeight: 1.7, textAlign: isRtl ? "right" : "left" }}>
+              {students.length === 0
+                ? t("No enrolled students in this course yet.", "مفيش طلاب مقيدين في المقرر ده لسه.")
+                : t("No student matches your search.", "مفيش طالب مطابق لبحثك.")}
+            </p>
+          </Card>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {filtered.map((student) => (
+              <Card tokens={tokens} key={student.id} style={{ padding: "12px 14px" }}>
+                <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
+                  <div style={{ flex: 1, minWidth: 0, textAlign: isRtl ? "right" : "left" }}>
+                    <div style={{ fontFamily: bFont, fontSize: 13, fontWeight: 600, color: tokens.textPrimary }}>{student.name}</div>
+                    <div style={{ fontFamily: MONO, fontSize: 10.5, color: tokens.textMuted }}>{student.email}</div>
+                  </div>
+                  {student.enrolledAt && (
+                    <span style={{ fontFamily: MONO, fontSize: 10, color: tokens.textFaint }}>
+                      {new Date(student.enrolledAt).toLocaleDateString(lang === "ar" ? "ar-EG" : "en-GB")}
+                    </span>
+                  )}
+                  <Btn tokens={tokens} lang={lang} variant="ghost" onClick={() => setDrill(student)}>
+                    {t("Submissions", "التسليمات")}
+                  </Btn>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+      </AsyncGate>
+
+      {drill && effectiveCourseId && (
+        <StudentDrillModal courseId={effectiveCourseId} student={drill} tokens={tokens} lang={lang} onClose={() => setDrill(null)} />
+      )}
+    </div>
+  );
+}
+
+export default function InstructorStudentsPage(props) {
+  if (demoMode()) return <DemoInstructorStudentsPage {...props} />;
+  return <RealInstructorStudents {...props} />;
 }

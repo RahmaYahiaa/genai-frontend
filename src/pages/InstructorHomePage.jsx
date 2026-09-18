@@ -1,9 +1,12 @@
 import { demoMode } from "@/services/auth";
-import BatchNote from "@/components/BatchNote";
+import { useCallback } from "react";
+import useAsync from "@/hooks/useAsync";
 import { tk, MONO } from "@/constants/tokens";
 import useMediaQuery from "@/hooks/useMediaQuery";
 import { useInstructorModule } from "@/store/InstructorProvider";
-import { bFontFor, hFontFor } from "@/components/ModuleUI";
+import { getInstructorHome } from "@/services/analytics";
+import { AsyncGate } from "@/components/ui";
+import { bFontFor, hFontFor, Card, Btn, Chip } from "@/components/ModuleUI";
 import { SCREENS } from "@/constants/routes";
 import { IconWarning, IconClipboard } from "@/components/Icons";
 import { MISCONCEPTIONS, latestAttempt, approvedMaterials, INSTRUCTOR_COURSE_IDS } from "@/data/instructorModule";
@@ -190,20 +193,73 @@ function DemoInstructorHomePage({ state, dispatch }) {
     </div>;
 }
 
-export default function InstructorHomePage(props) {
+function RealInstructorHome({ state, dispatch }) {
   const mobile = useMediaQuery("(max-width: 760px)");
-  const tokens = tk(props.state.dark);
-  const lang = props.state.lang;
-  if (!demoMode()) {
-    return (
-      <BatchNote
-        tokens={tokens}
-        lang={lang}
-        mobile={mobile}
-        title={lang === "ar" ? "صفحة المدرّس الرئيسية بتترابط مع دفعة التحليلات" : "Instructor home wiring arrives with the analytics batch"}
-        body={lang === "ar" ? "الشاشة دي لسه بتتغذى من النموذج التجريبي بدون خادم. الربط الحي بيوصل مع دفعة التحليلات (B5)، عشان مفيش بيانات متفبركة توصلك هنا." : "This screen is still fed by the offline prototype. The live wiring lands with the analytics batch (B5), so no fabricated data reaches you here."}
-      />
-    );
-  }
-  return <DemoInstructorHomePage {...props} />;
+  const tokens = tk(state.dark);
+  const lang = state.lang;
+  const t = (en, ar) => (lang === "ar" ? ar : en);
+  const isRtl = lang === "ar";
+  const hFont = hFontFor(lang);
+  const bFont = bFontFor(lang);
+  const load = useCallback(() => getInstructorHome(), []);
+  const { data, loading, error, reload } = useAsync(load);
+  const courses = data?.courses ?? [];
+  const pendingTotal = courses.reduce((sum, course) => sum + (course.pendingReviewCount ?? 0), 0);
+
+  return (
+    <div className="genai-pad" style={{ padding: mobile ? "20px 16px" : "26px 32px", direction: isRtl ? "rtl" : "ltr", maxWidth: 980, margin: "0 auto" }}>
+      <div style={{ marginBottom: 14, textAlign: isRtl ? "right" : "left" }}>
+        <h1 style={{ fontFamily: hFont, fontWeight: 700, fontSize: mobile ? 19 : 22, color: tokens.textPrimary, letterSpacing: "-0.025em", margin: "0 0 4px" }}>
+          {t("Instructor home", "صفحة المدرّس")}
+        </h1>
+        <p style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textMuted, margin: 0, lineHeight: 1.6 }}>
+          {t("Live counts from the precomputed analytics snapshots of your courses.", "أعداد حية من لقطات التحليلات المحسوبة مسبقاً لمقرراتك.")}
+        </p>
+      </div>
+      <AsyncGate tokens={tokens} lang={lang} loading={loading} error={error} reload={reload} label={t("Loading your courses…", "جاري تحميل مقرراتك…")}>
+        {data && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <Chip tokens={tokens} tone="slate">{t("Courses", "مقررات")}: {courses.length}</Chip>
+              <Chip tokens={tokens} tone={pendingTotal > 0 ? "violet" : "slate"}>{t("Pending review", "معلّقة للمراجعة")}: {pendingTotal}</Chip>
+            </div>
+            {courses.length === 0 ? (
+              <Card tokens={tokens} style={{ padding: "16px 18px" }}>
+                <p style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textMuted, margin: 0, lineHeight: 1.7 }}>
+                  {t("You are not staffed on any course yet — create one from My Courses.", "لسه مش مشارك في أي مقرر — أنشئ واحد من «مقرراتي».")}
+                </p>
+              </Card>
+            ) : (
+              courses.map((course) => (
+                <Card tokens={tokens} key={course.courseId} style={{ padding: "14px 16px" }}>
+                  <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
+                    <div style={{ flex: 1, minWidth: 0, textAlign: isRtl ? "right" : "left" }}>
+                      <div style={{ fontFamily: bFont, fontSize: 13.5, fontWeight: 700, color: tokens.textPrimary }}>{course.title}</div>
+                      {course.code && <span style={{ fontFamily: MONO, fontSize: 10, color: tokens.textFaint }}>{course.code}</span>}
+                    </div>
+                    <Chip tokens={tokens} tone={course.pendingReviewCount > 0 ? "violet" : "slate"}>
+                      {t("Pending", "معلّق")}: {course.pendingReviewCount}
+                    </Chip>
+                    <Chip tokens={tokens} tone="primary">{t("Fast track", "سريع")}: {course.fastTrackCount}</Chip>
+                    <Chip tokens={tokens} tone="slate">{t("Finalized", "معتمد")}: {course.finalizedCount}</Chip>
+                    <Btn tokens={tokens} lang={lang} variant="ghost" onClick={() => dispatch({ type: "NAVIGATE", screen: SCREENS.COURSE_WORKSPACE, courseId: course.courseId, tab: "assignments" })}>
+                      {t("Open", "فتح")}
+                    </Btn>
+                  </div>
+                </Card>
+              ))
+            )}
+            <p style={{ fontFamily: bFont, fontSize: 11, color: tokens.textFaint, margin: 0, textAlign: isRtl ? "right" : "left" }}>
+              {t("Snapshots recompute automatically after every finalized submission.", "اللقطات بتتحسب من جديد تلقائياً بعد كل تسليم معتمد.")}
+            </p>
+          </div>
+        )}
+      </AsyncGate>
+    </div>
+  );
+}
+
+export default function InstructorHomePage(props) {
+  if (demoMode()) return <DemoInstructorHomePage {...props} />;
+  return <RealInstructorHome {...props} />;
 }

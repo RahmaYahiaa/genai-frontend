@@ -54,6 +54,14 @@ export async function getCourse(courseId) {
   return mapCourse(await api(`/courses/${courseId}`));
 }
 
+export async function listEnrollments(courseId, params = {}) {
+  const query = new URLSearchParams();
+  query.set("page", String(params.page ?? 1));
+  query.set("limit", String(params.limit ?? 100));
+  const result = await apiFull(`/courses/${courseId}/enrollments?${query.toString()}`);
+  return { items: result.data ?? [], total: result.meta?.total ?? 0 };
+}
+
 export async function createPersonalCourse(title) {
   return mapCourse(await api("/courses", { method: "POST", body: { title } }));
 }
