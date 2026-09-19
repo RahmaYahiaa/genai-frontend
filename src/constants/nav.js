@@ -11,6 +11,7 @@ import {
   IconSparkle,
   IconClipboard,
   IconGlobe,
+  IconBookOpen,
   IconAnchor,
   IconGear,
   IconHistory,
@@ -21,6 +22,7 @@ import { SCREENS } from "./routes";
 export const STUDENT_NAV = [
   { id: SCREENS.DASHBOARD, en: "Dashboard", ar: "لوحة التحكم", Icon: IconDashboard },
   { id: SCREENS.COURSES, en: "My Courses", ar: "مقرراتي", Icon: IconCourses },
+  { id: SCREENS.BROWSE_COURSES, en: "Browse institution courses", ar: "استعرض مقررات المؤسسة", Icon: IconBookOpen },
   { id: SCREENS.STUDENT_ASSIGNMENTS, en: "Assignments", ar: "التكليفات", Icon: IconClipboard },
   { id: SCREENS.MASTERY, en: "Topics & Mastery", ar: "المواضيع والإتقان", Icon: IconMastery },
   { id: SCREENS.TUTOR, en: "AI Tutor", ar: "المعلم الذكي", Icon: IconTutor },
@@ -40,7 +42,7 @@ export const INSTRUCTOR_NAV = [
 ];
 
 export const ADMIN_NAV = [
-  { id: SCREENS.ADMIN, en: "Institution Overview", ar: "نظرة عامة على المؤسسة", Icon: IconGlobe },
+  { id: SCREENS.ADMIN, en: "Institution Health", ar: "صحة المؤسسة", Icon: IconGlobe },
   { id: SCREENS.ADMIN_USERS, en: "Users", ar: "المستخدمون", Icon: IconUsers, gate: "users.view" },
   { id: SCREENS.ADMIN_OFFICERS, en: "Officers & Permissions", ar: "المسؤولون والصلاحيات", Icon: IconSparkle, gate: "super" },
   { id: SCREENS.ADMIN_IMPORT, en: "Bulk Invitations", ar: "الإدخال الجماعي", Icon: IconClipboard, gate: "bulk.import" },

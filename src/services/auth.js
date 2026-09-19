@@ -85,6 +85,10 @@ export async function restoreSession() {
   }
 }
 
+export function applyAuthData(data) {
+  return persistAuth(data);
+}
+
 export function signOut() {
   const session = readSession();
   clearSession();

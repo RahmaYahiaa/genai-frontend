@@ -111,3 +111,30 @@ export async function downloadMaterial(courseId, materialId, fileName) {
   anchor.remove();
   URL.revokeObjectURL(url);
 }
+
+export async function listInstitutionCatalog({ search, page = 1, limit = 20, year } = {}) {
+  const params = new URLSearchParams();
+  if (search?.trim()) params.set("search", search.trim());
+  params.set("page", String(page));
+  params.set("limit", String(limit));
+  if (year) params.set("year", String(year));
+  const result = await apiFull(`/courses/catalog?${params.toString()}`);
+  return { items: result.data ?? [], meta: result.meta };
+}
+
+export async function catalogEnroll(courseId) {
+  return api(`/courses/${courseId}/catalog-enroll`, { method: "POST" });
+}
+
+export async function requestCourseEnrollment(courseId, { note, proof }) {
+  return api(`/courses/${courseId}/enrollment-request`, { method: "POST", body: { note, proof } });
+}
+
+export async function listMyEnrollmentRequests({ status, page = 1, limit = 20 } = {}) {
+  const params = new URLSearchParams();
+  if (status) params.set("status", status);
+  params.set("page", String(page));
+  params.set("limit", String(limit));
+  const result = await apiFull(`/courses/enrollment-requests/my?${params.toString()}`);
+  return { items: result.data ?? [], meta: result.meta };
+}

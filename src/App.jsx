@@ -8,6 +8,7 @@ import LoginPage from "@/pages/LoginPage";
 import RegisterPage from "@/pages/RegisterPage";
 import DashboardPage from "@/pages/DashboardPage";
 import CoursesPage from "@/pages/CoursesPage";
+import StudentBrowseCoursesPage from "@/pages/StudentBrowseCoursesPage";
 import MasteryPage from "@/pages/MasteryPage";
 import TutorPage from "@/pages/TutorPage";
 import DiagnosticPage from "@/pages/DiagnosticPage";
@@ -47,6 +48,7 @@ const PAGES = {
   [SCREENS.STUDENT_COURSE]: StudentCoursePage,
   [SCREENS.DASHBOARD]: DashboardPage,
   [SCREENS.COURSES]: CoursesPage,
+  [SCREENS.BROWSE_COURSES]: StudentBrowseCoursesPage,
   [SCREENS.MASTERY]: MasteryPage,
   [SCREENS.TUTOR]: TutorPage,
   [SCREENS.DIAGNOSTIC]: DiagnosticPage,
