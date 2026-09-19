@@ -62,3 +62,22 @@ export function discardImport(batchId) {
 export function listInvitations(status) {
   return api(status ? `/admin/invitations?status=${status}` : "/admin/invitations");
 }
+
+export function listRequests({ status, page = 1, limit = 20 } = {}) {
+  const params = new URLSearchParams();
+  if (status) params.set("status", status);
+  params.set("page", String(page));
+  params.set("limit", String(limit));
+  return api(`/admin/requests?${params.toString()}`);
+}
+
+export function getRequestProof(requestId) {
+  return api(`/admin/requests/${requestId}/proof`);
+}
+
+export function decideRequest(requestId, decision, note) {
+  return api(`/admin/requests/${requestId}/decision`, {
+    method: "POST",
+    body: { decision, ...(note?.trim() ? { note: note.trim() } : {}) },
+  });
+}

@@ -14,6 +14,8 @@ export const SCREENS = Object.freeze({
   ADMIN: "admin",
   ADMIN_USERS: "admin-users",
   ADMIN_OFFICERS: "admin-officers",
+  ADMIN_IMPORT: "admin-import",
+  ADMIN_REQUESTS: "admin-requests",
   INSTRUCTOR_HOME: "instructor-home",
   COURSE_WORKSPACE: "course-workspace",
   ASSIGNMENT_CREATE: "assignment-create",
