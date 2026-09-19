@@ -24,6 +24,8 @@ import StudentAssignmentsPage from "@/pages/StudentAssignmentsLegacy";
 import StudentAssignmentPage from "@/pages/StudentAssignmentLegacy";
 import StudentCoursePage from "@/pages/StudentCoursePage";
 import AdminHealthPage from "@/pages/admin/AdminHealthPage";
+import AdminUsersPage from "@/pages/admin/AdminUsersPage";
+import AdminOfficersPage from "@/pages/admin/AdminOfficersPage";
 import AppShell from "@/components/AppShell";
 import "./App.css";
 
@@ -46,6 +48,8 @@ const PAGES = {
   [SCREENS.REASSESSMENT]: ReassessmentPage,
   [SCREENS.PROFILE]: ProfilePage,
   [SCREENS.ADMIN]: AdminHealthPage,
+  [SCREENS.ADMIN_USERS]: AdminUsersPage,
+  [SCREENS.ADMIN_OFFICERS]: AdminOfficersPage,
 };
 
 function AppContent() {

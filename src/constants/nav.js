@@ -37,6 +37,8 @@ export const INSTRUCTOR_NAV = [
 
 export const ADMIN_NAV = [
   { id: SCREENS.ADMIN, en: "Institution health", ar: "صحة المؤسسة", Icon: IconGlobe },
+  { id: SCREENS.ADMIN_USERS, en: "Users", ar: "المستخدمون", Icon: IconUsers, gate: "users.view" },
+  { id: SCREENS.ADMIN_OFFICERS, en: "Officers", ar: "المسؤولون", Icon: IconSparkle, gate: "super" },
 ];
 
 export function navForRole(role, accountType) {

@@ -4,6 +4,7 @@ import { navForRole, navBottomForRole } from "@/constants/nav";
 import { demoMode } from "@/services/auth";
 import { DEMO_USER } from "@/data/user";
 import { INSTRUCTOR_NAME } from "@/data/instructorModule";
+import { useAdmin } from "@/store/admin-context";
 import BrandMark from "./BrandMark";
 
 const MONO = "'JetBrains Mono', monospace";
@@ -15,7 +16,11 @@ export default function Sidebar({ state, dispatch, role, onNavigate }) {
   const lang = state.lang;
   const isRtl = lang === "ar";
   const hFont = headingFont(lang);
-  const nav = navForRole(role, state.user?.accountType);
+  const admin = useAdmin();
+  let nav = navForRole(role, state.user?.accountType);
+  if (role === "admin") {
+    nav = nav.filter((item) => !item.gate || (item.gate === "super" ? admin.isSuperAdmin : admin.hasScope(item.gate)));
+  }
   const navBottom = navBottomForRole(role);
   const activeScreen = state.screen;
 
