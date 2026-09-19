@@ -28,6 +28,8 @@ import AdminUsersPage from "@/pages/admin/AdminUsersPage";
 import AdminOfficersPage from "@/pages/admin/AdminOfficersPage";
 import AdminBulkImportPage from "@/pages/admin/AdminBulkImportPage";
 import AdminRequestsPage from "@/pages/admin/AdminRequestsPage";
+import AdminLinkAccountsPage from "@/pages/admin/AdminLinkAccountsPage";
+import AdminSettingsPage from "@/pages/admin/AdminSettingsPage";
 import AppShell from "@/components/AppShell";
 import "./App.css";
 
@@ -54,6 +56,8 @@ const PAGES = {
   [SCREENS.ADMIN_OFFICERS]: AdminOfficersPage,
   [SCREENS.ADMIN_IMPORT]: AdminBulkImportPage,
   [SCREENS.ADMIN_REQUESTS]: AdminRequestsPage,
+  [SCREENS.ADMIN_LINK]: AdminLinkAccountsPage,
+  [SCREENS.ADMIN_SETTINGS]: AdminSettingsPage,
 };
 
 function AppContent() {

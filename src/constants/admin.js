@@ -55,3 +55,11 @@ export const AUDIT_TYPE_LABELS = {
   "settings.changed": { en: "Institution settings changed", ar: "تعديل إعدادات المؤسسة" },
   "account.linked": { en: "Individual account linked", ar: "ربط حساب فردي" },
 };
+
+export const SOURCE_TYPE_LABELS = {
+  official_slides: { en: "Official slides", ar: "الشرائح الرسمية" },
+  lecture_notes: { en: "Lecture notes", ar: "تلخيصات المحاضرات" },
+  textbook: { en: "Textbook chapter", ar: "فصول الكتاب المقرر" },
+  instructor_notes: { en: "Instructor notes", ar: "مواد عونية للدكتور" },
+  external_reference: { en: "External references", ar: "مراجع خارجية" },
+};

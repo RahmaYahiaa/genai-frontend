@@ -11,6 +11,8 @@ import {
   IconSparkle,
   IconClipboard,
   IconGlobe,
+  IconAnchor,
+  IconGear,
 } from "@/components/Icons";
 import { SCREENS } from "./routes";
 
@@ -36,11 +38,13 @@ export const INSTRUCTOR_NAV = [
 ];
 
 export const ADMIN_NAV = [
-  { id: SCREENS.ADMIN, en: "Institution health", ar: "صحة المؤسسة", Icon: IconGlobe },
+  { id: SCREENS.ADMIN, en: "Institution Health", ar: "صحة المؤسسة", Icon: IconGlobe },
   { id: SCREENS.ADMIN_USERS, en: "Users", ar: "المستخدمون", Icon: IconUsers, gate: "users.view" },
-  { id: SCREENS.ADMIN_IMPORT, en: "Bulk invitations", ar: "الإدخال الجماعي", Icon: IconClipboard, gate: "bulk.import" },
-  { id: SCREENS.ADMIN_REQUESTS, en: "Join requests", ar: "طلبات الانضمام", Icon: IconProfile, gate: "requests.review" },
-  { id: SCREENS.ADMIN_OFFICERS, en: "Officers", ar: "المسؤولون", Icon: IconSparkle, gate: "super" },
+  { id: SCREENS.ADMIN_OFFICERS, en: "Officers & Permissions", ar: "المسؤولون والصلاحيات", Icon: IconSparkle, gate: "super" },
+  { id: SCREENS.ADMIN_IMPORT, en: "Bulk Invitations", ar: "الإدخال الجماعي", Icon: IconClipboard, gate: "bulk.import" },
+  { id: SCREENS.ADMIN_REQUESTS, en: "Out-of-Year Requests", ar: "طلبات خارج السنة", Icon: IconProfile, gate: "requests.review" },
+  { id: SCREENS.ADMIN_LINK, en: "Account Linking", ar: "ربط الحسابات", Icon: IconAnchor, gate: "accounts.link" },
+  { id: SCREENS.ADMIN_SETTINGS, en: "Settings", ar: "الإعدادات", Icon: IconGear, gate: "settings.manage" },
 ];
 
 export function navForRole(role, accountType) {

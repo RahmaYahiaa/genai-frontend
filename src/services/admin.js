@@ -91,3 +91,23 @@ export function listAuditEvents({ scope, search, period = "7d", page = 1, limit 
   params.set("limit", String(limit));
   return api(`/admin/audit?${params.toString()}`);
 }
+
+export function getSettings() {
+  return api("/admin/settings");
+}
+
+export function updateSettings(patch) {
+  return api("/admin/settings", { method: "PATCH", body: patch });
+}
+
+export function listLinkCandidates() {
+  return api("/admin/link-candidates");
+}
+
+export function listLinkInvitations(status) {
+  return api(status ? `/admin/link-invitations?status=${status}` : "/admin/link-invitations");
+}
+
+export function sendLinkInvitation(userId) {
+  return api("/admin/link-invitations", { method: "POST", body: { userId } });
+}
