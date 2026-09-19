@@ -1,14 +1,41 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { tk, MONO } from "@/constants/tokens";
+import useAsync from "@/hooks/useAsync";
 import useMediaQuery from "@/hooks/useMediaQuery";
-import { useInstructorModule } from "@/store/InstructorProvider";
-import { Card, Chip, ScoreValue, AlertStrip, BackCircle, ConfirmBtn, Modal, bFontFor, hFontFor, textareaStyle, toast } from "@/components/ModuleUI";
-import { IconCheck, IconImageAttach, IconReply, IconBan, IconTrash } from "@/components/Icons";
+import { Card, Chip, ScoreValue, AlertStrip, BackCircle, ConfirmBtn, bFontFor, hFontFor, textareaStyle, toast } from "@/components/ModuleUI";
+import { IconCheck, IconReply, IconBan } from "@/components/Icons";
 import { SCREENS } from "@/constants/routes";
-import { DEMO_STUDENT_ID, latestAttempt, fmtAgo, kindOf, kindLabel, kindRows, kindNeedsOptions, isChoiceKind } from "@/data/instructorModule";
+import { AsyncGate } from "@/components/ui";
+import { apiErrorText } from "@/services/http";
+import { getCourse } from "@/services/courses";
+import { ASSIGNMENT_STATUSES, getAssignment } from "@/services/assignments";
+import { getStudentResult, saveAnswer, submitAssignment } from "@/services/submissions";
+
+const QUESTION_KIND_LABELS = {
+  multiple_choice: { en: "Multiple choice", ar: "اختيار من متعدد" },
+  multiple_select: { en: "Multiple select", ar: "اختيار متعدد الإجابات" },
+  true_false: { en: "True / False", ar: "صح / خطأ" },
+  short_answer: { en: "Short answer", ar: "إجابة قصيرة" },
+  long_answer: { en: "Long answer", ar: "إجابة طويلة" },
+  essay: { en: "Essay", ar: "مقال" },
+  problem_solving: { en: "Problem-solving", ar: "حل مسألة" },
+};
+const kindOf = (q) => q?.type ?? "long_answer";
+const kindNeedsOptions = (kind) => kind === "multiple_choice" || kind === "multiple_select";
+const isChoiceKind = (kind) => kindNeedsOptions(kind) || kind === "true_false";
+const kindRows = (kind) => (kind === "short_answer" ? 2 : kind === "essay" ? 9 : kind === "problem_solving" ? 7 : 5);
+const kindLabel = (kind, lang) => (QUESTION_KIND_LABELS[kind] ? QUESTION_KIND_LABELS[kind][lang] : kind);
+
+function fmtAgo(iso, lang) {
+  const mins = Math.max(1, Math.round((Date.now() - new Date(iso).getTime()) / 6e4));
+  if (mins < 60) return lang === "ar" ? `منذ ${mins} د` : `${mins}m ago`;
+  const h = Math.round(mins / 60);
+  if (h < 24) return lang === "ar" ? `منذ ${h} س` : `${h}h ago`;
+  const d = Math.round(h / 24);
+  return lang === "ar" ? `منذ ${d} يوم` : `${d}d ago`;
+}
 
 export default function StudentAssignmentPage({ state, dispatch }) {
-  const { state: mod, saveDraft, submitAssignment } = useInstructorModule();
   const mobile = useMediaQuery("(max-width: 760px)");
   const tokens = tk(state.dark);
   const lang = state.lang;
@@ -16,116 +43,133 @@ export default function StudentAssignmentPage({ state, dispatch }) {
   const hFont = hFontFor(lang);
   const bFont = bFontFor(lang);
 
-  const assignment = mod.assignments.find((a) => a.id === state.assignmentId);
+  const assignmentId = state.assignmentId ?? null;
 
-  const units = useMemo(
-    () => (assignment ? mod.units.filter((u) => u.assignmentId === assignment.id && u.studentId === DEMO_STUDENT_ID) : []),
-    [mod.units, assignment],
-  );
+  const load = useCallback(async () => {
+    if (!assignmentId) return { assignment: null, course: null };
+    const assignment = await getAssignment(assignmentId);
+    const course = assignment?.courseId ? await getCourse(assignment.courseId) : null;
+    return { assignment, course };
+  }, [assignmentId]);
+  const { data, loading, error, reload } = useAsync(load);
 
-  const isEditable = (qid) => {
-    if (!assignment || assignment.status !== "open") return false;
-    const u = units.find((x) => x.questionId === qid);
-    if (!u) return true;
-    return u.status === "resubmission_requested";
-  };
+  const assignment = useMemo(() => {
+    const a = data?.assignment ?? null;
+    if (!a) return null;
+    return { ...a, questions: [...(a.questions ?? [])].sort((x, y) => x.orderIndex - y.orderIndex) };
+  }, [data]);
+  const course = data?.course ?? null;
+
+  const submission = assignment?.submission ?? null;
+  const submitted = submission && submission.status !== "DRAFT";
+  const allFinal = submission?.status === "FINALIZED";
+  const anyResub = submission?.status === "RESUBMISSION_REQUESTED";
+  const allSubmitted = submitted && !anyResub && !allFinal;
+  const resubReason = anyResub ? assignment?.resubmissionRequest?.reason ?? undefined : undefined;
+  const anyEditable = Boolean(assignment?.canSubmit) && (!submitted || anyResub);
+  const closedBlocked = assignment?.status !== ASSIGNMENT_STATUSES.OPEN && !submission;
+  const attemptLabel = Math.max(1, Number(submission?.currentAttemptNo) || 1);
 
   const initial = useMemo(() => {
     const map = {};
     if (!assignment) return map;
+    const work = new Map((assignment.workingAnswers ?? []).map((w) => [w.questionId, w]));
+    const prefill = new Map((assignment.resubmissionRequest?.prefilledAnswers ?? []).map((p) => [p.questionId, p]));
     for (const q of assignment.questions) {
-      const u = units.find((x) => x.questionId === q.id);
-      const d = mod.drafts[`${assignment.id}|${q.id}`];
-      if (u) {
-        const last = latestAttempt(u);
-        map[q.id] = { text: last.text, image: last.image, selected: last.selected ?? [] };
-      } else if (d) {
-        map[q.id] = { text: d.text, image: d.image, selected: d.selected ?? [] };
-      } else {
-        map[q.id] = { text: "", image: undefined, selected: [] };
-      }
+      const src = anyResub ? (prefill.get(q.id) ?? work.get(q.id)) : (work.get(q.id) ?? prefill.get(q.id));
+      map[q.id] = { text: src?.answerText ?? "", selected: [...(src?.selectedOptionIds ?? [])] };
     }
     return map;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [assignment?.id]);
+  }, [assignment?.id, submission?.currentAttemptNo, anyResub]);
 
   const [answers, setAnswers] = useState(initial);
   const [saving, setSaving] = useState(false);
-  const [zoom, setZoom] = useState(null);
-  useEffect(() => { setAnswers(initial); }, [initial]);
+  const [lastSaved, setLastSaved] = useState(null);
+  useEffect(() => {
+    setAnswers(initial);
+    setLastSaved(null);
+  }, [initial]);
 
   const first = useRef(true);
   useEffect(() => {
-    if (!assignment) return;
+    if (!assignment || !anyEditable) return;
     if (first.current) { first.current = false; return; }
     setSaving(true);
-    const t = window.setTimeout(() => {
-      for (const q of assignment.questions) {
-        if (isEditable(q.id)) saveDraft(assignment.id, q.id, answers[q.id]?.text ?? "", answers[q.id]?.image, answers[q.id]?.selected);
+    const t = window.setTimeout(async () => {
+      try {
+        for (const q of assignment.questions) {
+          const a = answers[q.id] ?? { text: "", selected: [] };
+          if (isChoiceKind(kindOf(q))) {
+            await saveAnswer(assignment.id, q.id, { answerText: "", selectedOptionIds: a.selected ?? [] });
+          } else {
+            await saveAnswer(assignment.id, q.id, { answerText: a.text ?? "" });
+          }
+        }
+        setLastSaved(new Date().toISOString());
+      } catch (err) {
+        toast(apiErrorText(err, lang));
+      } finally {
+        setSaving(false);
       }
-      setSaving(false);
     }, 600);
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [answers]);
 
-  if (!assignment) {
+  const resultLoad = useCallback(() => {
+    if (!assignment || !allFinal || !assignment.showGradeToStudent) return Promise.resolve(null);
+    return getStudentResult(assignment.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assignment?.id, allFinal, assignment?.showGradeToStudent]);
+  const { data: resultData } = useAsync(resultLoad);
+
+  if (!assignmentId) {
     return <div style={{ padding: 40, fontFamily: bFont, color: tokens.textMuted }}>{lang === "ar" ? "التكليف غير موجود." : "Assignment not found."}</div>;
   }
 
-  const course = mod.courses.find((c) => c.id === assignment.courseId);
-  const anyEditable = assignment.questions.some((qq) => isEditable(qq.id));
-  const anyResub = units.some((u) => u.status === "resubmission_requested");
-  const submittedCount = units.filter((u) => u.status === "awaiting_review" || u.status === "final").length;
-  const allFinal = units.length === assignment.questions.length && units.every((u) => u.status === "final");
-  const allSubmitted = submittedCount === assignment.questions.length && !anyEditable;
-  const closedBlocked = assignment.status !== "open" && submittedCount === 0;
-  const resubUnit = units.find((u) => u.status === "resubmission_requested");
-  const resubReason = resubUnit ? latestAttempt(resubUnit).resubmitReason : undefined;
-
-  const attemptsDone = units.length ? Math.max(...units.map((u) => u.attempts.length)) : 0;
-  const attemptLabel = anyResub ? attemptsDone + 1 : Math.max(1, attemptsDone);
-
-  const doSubmit = () => {
-    for (const qq of assignment.questions) {
-      if (isEditable(qq.id)) saveDraft(assignment.id, qq.id, answers[qq.id]?.text ?? "", answers[qq.id]?.image, answers[qq.id]?.selected);
+  const doSubmit = async () => {
+    if (!assignment) return;
+    try {
+      for (const q of assignment.questions) {
+        const a = answers[q.id] ?? { text: "", selected: [] };
+        if (isChoiceKind(kindOf(q))) {
+          await saveAnswer(assignment.id, q.id, { answerText: "", selectedOptionIds: a.selected ?? [] });
+        } else {
+          await saveAnswer(assignment.id, q.id, { answerText: a.text ?? "" });
+        }
+      }
+      await submitAssignment(assignment.id);
+      toast(lang === "ar" ? "أُرسل التكليف — إجاباتك قيد المراجعة." : "Assignment submitted — your answers are under review.");
+      reload();
+    } catch (err) {
+      toast(apiErrorText(err, lang));
     }
-    submitAssignment(assignment.id);
-    toast(lang === "ar" ? "أُرسل التكليف — إجاباتك قيد المراجعة." : "Assignment submitted — your answers are under review.");
   };
 
   const pick = (qid, value, multi) => {
     setAnswers((xs) => {
-      const cur = xs[qid] ?? { text: "", image: undefined, selected: [] };
+      const cur = xs[qid] ?? { text: "", selected: [] };
       const selected = multi
         ? cur.selected?.includes(value)
           ? cur.selected.filter((x) => x !== value)
           : [...(cur.selected ?? []), value]
         : [value];
-      return { ...xs, [qid]: { ...cur, selected, text: selected.join(" · ") } };
+      return { ...xs, [qid]: { ...cur, selected } };
     });
   };
 
   const tfLabel = (v) => (v === "True" ? (lang === "ar" ? "صح" : "True") : v === "False" ? (lang === "ar" ? "خطأ" : "False") : v);
 
-  const onPickImage = (qid, file) => {
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const url = String(reader.result);
-      setAnswers((a) => ({ ...a, [qid]: { text: a[qid]?.text ?? "", image: url, selected: a[qid]?.selected ?? [] } }));
-      saveDraft(assignment.id, qid, answers[qid]?.text ?? "", url, answers[qid]?.selected);
-    };
-    reader.readAsDataURL(file);
-  };
-
   const mono = (t) => (
     <div style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "0.09em", color: tokens.textMuted, margin: "0 0 7px" }}>{t}</div>
   );
 
-  const lastSaved = assignment.questions.map((q) => mod.drafts[`${assignment.id}|${q.id}`]?.savedAt).filter(Boolean).sort().pop();
-
   return (
+    <AsyncGate tokens={tokens} lang={lang} loading={loading} error={error} reload={reload} label={lang === "ar" ? "جارٍ تحميل التكليف…" : "Loading assignment…"}>
+    {!assignment ? (
+      <div style={{ padding: 40, fontFamily: bFont, color: tokens.textMuted }}>{lang === "ar" ? "التكليف غير موجود." : "Assignment not found."}</div>
+    ) : (
     <div className="genai-pad" style={{ padding: mobile ? "20px 16px" : "26px 32px", direction: isRtl ? "rtl" : "ltr", maxWidth: 880, margin: "0 auto" }}>
       <div style={{ display: "flex", gap: 14, alignItems: "flex-start", marginBottom: 18, flexDirection: isRtl ? "row-reverse" : "row" }}>
         <BackCircle tokens={tokens} rtl={isRtl} onClick={() => dispatch({ type: "NAVIGATE", screen: SCREENS.STUDENT_ASSIGNMENTS, assignmentId: undefined })} />
@@ -134,12 +178,12 @@ export default function StudentAssignmentPage({ state, dispatch }) {
             <h1 style={{ fontFamily: hFont, fontWeight: 700, fontSize: mobile ? 19 : 22, color: tokens.textPrimary, letterSpacing: "-0.025em", margin: 0 }}>
               {lang === "ar" ? assignment.title.ar : assignment.title.en}
             </h1>
-            <Chip tokens={tokens} tone={assignment.status === "open" ? "primary" : "slate"}>
-              {assignment.status === "open" ? (lang === "ar" ? "مفتوح" : "Open") : (lang === "ar" ? "مغلق" : "Closed")}
+            <Chip tokens={tokens} tone={assignment.status === ASSIGNMENT_STATUSES.OPEN ? "primary" : "slate"}>
+              {assignment.status === ASSIGNMENT_STATUSES.OPEN ? (lang === "ar" ? "مفتوح" : "Open") : (lang === "ar" ? "مغلق" : "Closed")}
             </Chip>
           </div>
           <p style={{ fontFamily: bFont, fontSize: 13, color: tokens.textMuted, margin: 0 }}>
-            {assignment.courseId} · {assignment.questions.length} {lang === "ar" ? "أسئلة" : "questions"} · {lang === "ar" ? `محاولة ${attemptLabel}` : `Attempt ${attemptLabel}`}
+            {course ? `${course.code ?? course.id} · ` : ""}{assignment.questions.length} {lang === "ar" ? "أسئلة" : "questions"} · {lang === "ar" ? `محاولة ${attemptLabel}` : `Attempt ${attemptLabel}`}
           </p>
         </div>
       </div>
@@ -158,7 +202,7 @@ export default function StudentAssignmentPage({ state, dispatch }) {
             body={resubReason} />
         </div>
       )}
-            {!anyResub && !closedBlocked && allSubmitted && !allFinal && (
+      {allSubmitted && (
         <div style={{ marginBottom: 16 }}>
           <AlertStrip tokens={tokens} lang={lang} tone="peri" icon={<IconCheck size={14} color={tokens.primary} />}
             title={lang === "ar"
@@ -168,8 +212,8 @@ export default function StudentAssignmentPage({ state, dispatch }) {
       )}
       {allFinal && (
         <div style={{ marginBottom: 16 }}>
-          <AlertStrip tokens={tokens} lang={lang} tone={assignment.showScoreToStudent ? "peri" : "slate"} icon={<IconCheck size={14} color={assignment.showScoreToStudent ? tokens.primary : tokens.noEvidence} />}
-            title={assignment.showScoreToStudent
+          <AlertStrip tokens={tokens} lang={lang} tone={assignment.showGradeToStudent ? "peri" : "slate"} icon={<IconCheck size={14} color={assignment.showGradeToStudent ? tokens.primary : tokens.noEvidence} />}
+            title={assignment.showGradeToStudent
               ? (lang === "ar" ? "قُيّم تكليفك — درجاتك النهائية معروضة أسفل كل سؤال." : "Graded — your final scores are shown under each question.")
               : (lang === "ar" ? "قُيّم تكليفك — الدرجات مخفية في إعداد هذا التكليف." : "Graded — scores are hidden in this assignment's setting.")} />
         </div>
@@ -177,13 +221,12 @@ export default function StudentAssignmentPage({ state, dispatch }) {
 
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         {assignment.questions.map((q, i) => {
-          const u = units.find((x) => x.questionId === q.id);
-          const editable = isEditable(q.id);
+          const editable = anyEditable;
           const topic = course?.topics.find((t) => t.id === q.topicId);
-          const a = answers[q.id] ?? { text: "", image: undefined, selected: [] };
-          const last = u ? latestAttempt(u) : null;
+          const a = answers[q.id] ?? { text: "", selected: [] };
           const kind = kindOf(q);
           const choice = isChoiceKind(kind);
+          const resultAnswer = (resultData?.result?.answers ?? []).find((x) => x.questionId === q.id) ?? null;
           return (
             <Card tokens={tokens} key={q.id} style={{ padding: "18px 20px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, marginBottom: 8, flexDirection: isRtl ? "row-reverse" : "row" }}>
@@ -195,7 +238,7 @@ export default function StudentAssignmentPage({ state, dispatch }) {
                 </span>
               </div>
               <p style={{ fontFamily: bFont, fontSize: 13.5, color: tokens.textSecondary, lineHeight: 1.7, margin: "0 0 14px" }}>
-                {lang === "ar" ? q.prompt.ar : q.prompt.en}
+                {q.text}
               </p>
 
               {mono(choice ? (lang === "ar" ? "اختر إجابتك" : "Your selection") : (lang === "ar" ? "إجابتك" : "Your answer"))}
@@ -204,15 +247,15 @@ export default function StudentAssignmentPage({ state, dispatch }) {
                   kindNeedsOptions(kind) ? (
                     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                       {(q.options ?? []).map((opt, oi) => {
-                        const sel = (a.selected ?? []).includes(opt);
+                        const sel = (a.selected ?? []).includes(opt.id);
                         return (
-                          <button key={oi} onClick={() => pick(q.id, opt, kind === "multiple_select")}
+                          <button key={opt.id ?? oi} onClick={() => pick(q.id, opt.id, kind === "multiple_select")}
                             style={{ display: "flex", gap: 10, alignItems: "center", padding: "10px 13px", borderRadius: 10, cursor: "pointer", textAlign: "start", background: sel ? tokens.primaryLight : tokens.card, border: `1px solid ${sel ? tokens.primary : tokens.cardBorder}`, fontFamily: bFont, fontSize: 13, color: sel ? tokens.primary : tokens.textPrimary }}>
                             <span style={{ width: 18, height: 18, borderRadius: kind === "multiple_select" ? 5 : "50%", border: `1.5px solid ${sel ? tokens.primary : tokens.cardBorder}`, background: sel ? tokens.primary : "transparent", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                               {sel ? <span style={{ width: 8, height: 8, borderRadius: kind === "multiple_select" ? 2 : "50%", background: "#fff" }} /> : null}
                             </span>
                             <span style={{ fontFamily: MONO, fontSize: 11, color: tokens.textFaint, flexShrink: 0 }}>{String.fromCharCode(65 + oi)}</span>
-                            {opt}
+                            {opt.text}
                           </button>
                         );
                       })}
@@ -225,9 +268,11 @@ export default function StudentAssignmentPage({ state, dispatch }) {
                   ) : (
                     <div style={{ display: "flex", gap: 10 }}>
                       {["True", "False"].map((v) => {
-                        const sel = (a.selected ?? []).includes(v);
+                        const btns = (q.options ?? []).filter((o) => o.text === "True" || o.text === "False");
+                        const opt = btns.find((o) => o.text === v);
+                        const sel = opt ? (a.selected ?? []).includes(opt.id) : (a.selected ?? []).includes(v);
                         return (
-                          <button key={v} onClick={() => pick(q.id, v, false)}
+                          <button key={v} onClick={() => pick(q.id, opt ? opt.id : v, false)}
                             style={{ flex: 1, padding: "12px 0", borderRadius: 10, cursor: "pointer", fontFamily: bFont, fontSize: 13.5, fontWeight: 600, background: sel ? tokens.primaryLight : tokens.card, border: `1px solid ${sel ? tokens.primary : tokens.cardBorder}`, color: sel ? tokens.primary : tokens.textSecondary }}>
                             {tfLabel(v)}
                           </button>
@@ -236,7 +281,6 @@ export default function StudentAssignmentPage({ state, dispatch }) {
                     </div>
                   )
                 ) : (
-                <>
                   <textarea
                     value={a.text}
                     onChange={(e) => setAnswers((xs) => ({ ...xs, [q.id]: { ...a, text: e.target.value } }))}
@@ -245,41 +289,27 @@ export default function StudentAssignmentPage({ state, dispatch }) {
                     style={textareaStyle(tokens, bFont)}
                     className="genai-input"
                   />
-                  <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 10, flexDirection: isRtl ? "row-reverse" : "row" }}>
-                    <label style={{ display: "inline-flex", gap: 7, alignItems: "center", cursor: "pointer", fontFamily: bFont, fontSize: 11.5, color: tokens.textMuted }}>
-                      <IconImageAttach size={14} color={tokens.textMuted} />
-                      {lang === "ar" ? "إرفاق صورة (اختياري)" : "Attach image (optional)"}
-                      <input type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => onPickImage(q.id, e.target.files?.[0])} />
-                    </label>
-                    {a.image && (
-                      <button onClick={() => setAnswers((xs) => ({ ...xs, [q.id]: { ...a, image: undefined } }))}
-                        style={{ display: "inline-flex", gap: 5, alignItems: "center", background: "none", border: "none", cursor: "pointer", fontFamily: bFont, fontSize: 11, color: tokens.textFaint }}>
-                        <IconTrash size={12} color={tokens.textFaint} /> {lang === "ar" ? "إزالة" : "remove"}
-                      </button>
-                    )}
-                  </div>
-                  {a.image && <img src={a.image} alt="attachment" style={{ maxWidth: "100%", borderRadius: 10, marginTop: 10, border: `1px solid ${tokens.cardBorder}` }} />}
-                </>
                 )
               ) : (
                 <>
-                  {(last?.selected ?? a.selected ?? []).length ? (
+                  {(a.selected ?? []).length ? (
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
-                      {(last?.selected ?? a.selected).map((v) => (
-                        <Chip tokens={tokens} tone="primary" key={v}>{kind === "true_false" ? tfLabel(v) : v}</Chip>
-                      ))}
+                      {(a.selected ?? []).map((vid) => {
+                        const opt = (q.options ?? []).find((o) => o.id === vid);
+                        const label = kind === "true_false" ? tfLabel(opt?.text ?? vid) : (opt?.text ?? vid);
+                        return <Chip tokens={tokens} tone="primary" key={vid}>{label}</Chip>;
+                      })}
                     </div>
                   ) : (
                     <div style={{ background: tokens.inset, border: `1px solid ${tokens.cardBorder}`, borderRadius: 10, padding: "12px 14px", fontFamily: bFont, fontSize: 13, color: tokens.textPrimary, lineHeight: 1.65, whiteSpace: "pre-wrap" }}>
-                      {last?.text || a.text || (lang === "ar" ? "(لا نص)" : "(no text)")}
+                      {a.text || (lang === "ar" ? "(لا نص)" : "(no text)")}
                     </div>
                   )}
-                  {(last?.image || a.image) && <img src={last?.image ?? a.image} alt="attachment" onClick={() => setZoom(last?.image ?? a.image)} title={lang === "ar" ? "اضغط للتكبير" : "Click to zoom"} style={{ maxWidth: "100%", borderRadius: 10, marginTop: 10, border: `1px solid ${tokens.cardBorder}`, cursor: "zoom-in" }} />}
-                  {u?.status === "final" && u && assignment.showScoreToStudent && last?.decision && (
+                  {allFinal && assignment.showGradeToStudent && resultAnswer && (
                     <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 10, flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
-                      <ScoreValue kind="final" score={last.decision.finalScore} max={q.maxScore} tokens={tokens} lang={lang} />
-                      {last.decision.finalFeedback && (
-                        <span style={{ fontFamily: bFont, fontSize: 11.5, color: tokens.textMuted, lineHeight: 1.5 }}>{last.decision.finalFeedback}</span>
+                      <ScoreValue kind="final" score={resultAnswer.finalScore} max={q.maxScore} tokens={tokens} lang={lang} />
+                      {resultAnswer.finalFeedback && (
+                        <span style={{ fontFamily: bFont, fontSize: 11.5, color: tokens.textMuted, lineHeight: 1.5 }}>{resultAnswer.finalFeedback}</span>
                       )}
                     </div>
                   )}
@@ -289,11 +319,6 @@ export default function StudentAssignmentPage({ state, dispatch }) {
           );
         })}
       </div>
-
-      <Modal open={zoom !== null} onClose={() => setZoom(null)} tokens={tokens} lang={lang} width={860}
-        title={lang === "ar" ? "المرفق — عرض مكبّر" : "Attachment — zoomed view"}>
-        {zoom && <img src={zoom} alt="attachment zoom" style={{ width: "100%", borderRadius: 10, border: `1px solid ${tokens.cardBorder}` }} />}
-      </Modal>
 
       {anyEditable && !closedBlocked && (
         <Card tokens={tokens} style={{ marginTop: 16, padding: "14px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
@@ -315,5 +340,7 @@ export default function StudentAssignmentPage({ state, dispatch }) {
         </Card>
       )}
     </div>
+    )}
+    </AsyncGate>
   );
 }

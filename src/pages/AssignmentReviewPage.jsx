@@ -904,8 +904,12 @@ function RealReviewView({ state, dispatch }) {
 
   const assignment = assignmentAsync.data;
   const review = reviewAsync.data;
-  const fastTrack = review?.fastTrack ?? [];
-  const needsReview = review?.needsReview ?? [];
+  const allRows = [...(review?.fastTrack ?? []), ...(review?.needsReview ?? [])];
+  const fastTrack = allRows.filter((row) => row.fastTrackEligible && !row.decided);
+  const needsReview = allRows.filter((row) => !row.fastTrackEligible && !row.decided);
+  const decidedRows = allRows
+    .filter((row) => row.decided)
+    .sort((a, b) => new Date(b.submission.updatedAt ?? b.submission.submittedAt ?? 0) - new Date(a.submission.updatedAt ?? a.submission.submittedAt ?? 0));
   const stats = review?.stats ?? null;
   const mistakes = mistakesAsync.data?.items ?? [];
   const selectedIds = fastTrack
@@ -997,9 +1001,9 @@ function RealReviewView({ state, dispatch }) {
           {stats && (
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <Chip tokens={tokens} tone="slate">{t("Total", "الإجمالي")}: {stats.total}</Chip>
-              <Chip tokens={tokens} tone="primary">{t("Fast track", "اعتماد سريع")}: {stats.fastTrackCount}</Chip>
-              <Chip tokens={tokens} tone="violet">{t("Needs review", "محتاجة مراجعة")}: {stats.needsReviewCount}</Chip>
-              <Chip tokens={tokens} tone="slate">{t("Decided", "معتمد")}: {stats.finalizedCount}</Chip>
+              <Chip tokens={tokens} tone="primary">{t("Fast track", "اعتماد سريع")}: {fastTrack.length}</Chip>
+              <Chip tokens={tokens} tone="violet">{t("Needs review", "محتاجة مراجعة")}: {needsReview.length}</Chip>
+              <Chip tokens={tokens} tone="slate">{t("Decided", "معتمد")}: {decidedRows.length}</Chip>
             </div>
           )}
 
@@ -1008,15 +1012,15 @@ function RealReviewView({ state, dispatch }) {
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder={t("Search student name…", "دور باسم الطالب…")}
-              style={{ ...inputStyle(tokens, bFont), flex: 1, minWidth: 160 }}
+              style={{ ...inputStyle(tokens, bFont), width: "auto", flex: 1, minWidth: 160 }}
             />
-            <select value={confFilter} onChange={(event) => setConfFilter(event.target.value)} style={{ ...inputStyle(tokens, bFont), minWidth: 140 }}>
+            <select value={confFilter} onChange={(event) => setConfFilter(event.target.value)} style={{ ...inputStyle(tokens, bFont), width: "auto", minWidth: 140 }}>
               <option value="all">{t("All confidences", "كل مستويات الثقة")}</option>
               {Object.entries(CONFIDENCE_FILTER_LABELS).map(([key, label]) => (
                 <option key={key} value={key}>{lang === "ar" ? label.ar : label.en}</option>
               ))}
             </select>
-            <select value={decidedFilter} onChange={(event) => setDecidedFilter(event.target.value)} style={{ ...inputStyle(tokens, bFont), minWidth: 120 }}>
+            <select value={decidedFilter} onChange={(event) => setDecidedFilter(event.target.value)} style={{ ...inputStyle(tokens, bFont), width: "auto", minWidth: 120 }}>
               <option value="all">{t("All", "الكل")}</option>
               <option value="pending">{t("Pending", "معلّق")}</option>
               <option value="decided">{t("Decided", "المعتمد")}</option>
@@ -1065,6 +1069,20 @@ function RealReviewView({ state, dispatch }) {
                 </div>
               )}
               {needsReview.map((row) => rowCard(row, false))}
+            </div>
+          </div>
+
+          <div>
+            <h2 style={{ fontFamily: hFont, fontSize: 14, fontWeight: 700, color: tokens.textPrimary, margin: "0 0 8px" }}>
+              {t("Reviewed", "اتمراجعت")}
+            </h2>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {decidedRows.length === 0 && (
+                <div style={{ fontFamily: bFont, fontSize: 12, color: tokens.textFaint }}>
+                  {t("Nothing decided yet — approved, edited or rejected submissions land here.", "لسه مفيش قرارات — التسليمات المعتمدة أو المعدلة أو المرفوضة بتنزل هنا.")}
+                </div>
+              )}
+              {decidedRows.map((row) => rowCard(row, false))}
             </div>
           </div>
 

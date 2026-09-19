@@ -1,22 +1,48 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import useAsync from "@/hooks/useAsync";
 import { tk, MONO } from "@/constants/tokens";
 import useMediaQuery from "@/hooks/useMediaQuery";
-import { useInstructorModule } from "@/store/InstructorProvider";
 import {
   Card, Btn, inputStyle, textareaStyle, Toggle, StatusPill,
   AIGradingResultCard, Skeleton, BackCircle, bFontFor, hFontFor, toast,
 } from "@/components/ModuleUI";
 import { IconPlus, IconTrash, IconSparkle, IconEyeOff, IconWarning } from "@/components/Icons";
 import { SCREENS } from "@/constants/routes";
-import { evaluateAnswer, COURSE_BY_ID, QUESTION_KIND_LABELS, kindNeedsOptions } from "@/data/instructorModule";
+import { AsyncGate } from "@/components/ui";
+import { apiErrorText } from "@/services/http";
+import { getCourse } from "@/services/courses";
+import {
+  ASSIGNMENT_STATUSES,
+  addQuestion,
+  closeAssignment,
+  correctIndexes,
+  createAssignment,
+  deleteQuestion,
+  getAssignment,
+  publishAssignment,
+  renameAssignment,
+  reopenAssignment,
+  setGradeVisibility,
+  trueFalseCorrect,
+  updateQuestion,
+} from "@/services/assignments";
+import { previewEvaluation } from "@/services/review";
+
+const QUESTION_KIND_LABELS = {
+  multiple_choice: { en: "Multiple choice", ar: "اختيار من متعدد" },
+  multiple_select: { en: "Multiple select", ar: "اختيار متعدد الإجابات" },
+  true_false: { en: "True / False", ar: "صح / خطأ" },
+  short_answer: { en: "Short answer", ar: "إجابة قصيرة" },
+  long_answer: { en: "Long answer", ar: "إجابة طويلة" },
+  essay: { en: "Essay", ar: "مقال" },
+  problem_solving: { en: "Problem-solving", ar: "حل مسألة" },
+};
+const kindNeedsOptions = (kind) => kind === "multiple_choice" || kind === "multiple_select";
 
 let qSeq = 0;
-const newQ = () => ({ key: ++qSeq, prompt: "", topicId: "", maxScore: "10", kind: "long_answer", options: ["", ""], referenceAnswer: "", rubric: "" });
-
-const STOP = ["that", "with", "from", "this", "have", "will", "each", "when", "than", "into", "over", "such", "they", "their", "which", "because", "order", "vertices", "vertex"];
+const newQ = () => ({ key: ++qSeq, prompt: "", topicId: "", maxScore: "10", kind: "long_answer", options: ["", ""], correct: [], tfCorrect: true, referenceAnswer: "", rubric: "" });
 
 export default function AssignmentBuilderPage({ state, dispatch }) {
-  const { state: mod, publishAssignment, updateAssignment } = useInstructorModule();
   const mobile = useMediaQuery("(max-width: 760px)");
   const tokens = tk(state.dark);
   const lang = state.lang;
@@ -24,98 +50,219 @@ export default function AssignmentBuilderPage({ state, dispatch }) {
   const hFont = hFontFor(lang);
   const bFont = bFontFor(lang);
 
-  const courseId = state.courseId ?? "CS301";
-  const course = COURSE_BY_ID(courseId);
-  const editing = mod.assignments.find((a) => a.id === state.assignmentId && a.courseId === courseId) ?? null;
+  const courseId = state.courseId ?? null;
+  const assignmentId = state.assignmentId ?? null;
 
-  const [title, setTitle] = useState(editing ? editing.title.en : "");
-  const [showScore, setShowScore] = useState(editing?.showScoreToStudent ?? false);
-  const [status, setStatus] = useState(editing?.status ?? "open");
-  const [questions, setQuestions] = useState(
-    editing
-      ? editing.questions.map((q) => ({ key: ++qSeq, prompt: q.prompt.en, topicId: q.topicId, maxScore: String(q.maxScore), kind: q.kind ?? "long_answer", options: q.options?.length >= 2 ? [...q.options] : ["", ""], referenceAnswer: q.referenceAnswer ?? "", rubric: q.rubric ?? "" }))
-      : [newQ()]
-  );
+  const load = useCallback(() => {
+    if (!courseId) return Promise.resolve({ course: null, assignment: null });
+    if (assignmentId) {
+      return Promise.all([getCourse(courseId), getAssignment(assignmentId)]).then(([course, assignment]) => ({ course, assignment }));
+    }
+    return getCourse(courseId).then((course) => ({ course, assignment: null }));
+  }, [courseId, assignmentId]);
+  const { data, loading, error, reload } = useAsync(load);
+
+  const editing = data?.assignment ?? null;
+  const course = data?.course ?? null;
+
+  const [title, setTitle] = useState("");
+  const [showScore, setShowScore] = useState(false);
+  const [status, setStatus] = useState("open");
+  const [questions, setQuestions] = useState([newQ()]);
   const [previewQ, setPreviewQ] = useState(0);
   const [previewText, setPreviewText] = useState("");
   const [previewing, setPreviewing] = useState(false);
   const [previewResult, setPreviewResult] = useState(null);
   const [touched, setTouched] = useState(false);
+  const [savingAs, setSavingAs] = useState(null);
+
+  const idsRef = useRef({ assignmentId: null, questionIds: {} });
+  const hydratedRef = useRef(null);
 
   useEffect(() => {
-    setTitle(editing?.title.en ?? "");
-    setShowScore(editing?.showScoreToStudent ?? false);
-    setStatus(editing?.status ?? "open");
+    if (!data) return;
+    const key = `${data.course?.id ?? "none"}|${data.assignment?.id ?? "new"}`;
+    if (hydratedRef.current === key) return;
+    hydratedRef.current = key;
+    idsRef.current = { assignmentId: data.assignment?.id ?? null, questionIds: {} };
+    setTitle(data.assignment?.title.en ?? "");
+    setShowScore(data.assignment?.showGradeToStudent ?? false);
+    setStatus(
+      data.assignment?.status === ASSIGNMENT_STATUSES.OPEN
+        ? "open"
+        : data.assignment?.status === ASSIGNMENT_STATUSES.DRAFT
+          ? "draft"
+          : data.assignment
+            ? "closed"
+            : "open"
+    );
     setQuestions(
-      editing
-        ? editing.questions.map((q) => ({ key: ++qSeq, prompt: q.prompt.en, topicId: q.topicId, maxScore: String(q.maxScore), kind: q.kind ?? "long_answer", options: q.options?.length >= 2 ? [...q.options] : ["", ""], referenceAnswer: q.referenceAnswer ?? "", rubric: q.rubric ?? "" }))
+      data.assignment
+        ? data.assignment.questions.map((q) => ({
+            key: ++qSeq,
+            id: q.id,
+            prompt: q.text,
+            topicId: q.topicId ?? "",
+            maxScore: String(q.maxScore),
+            kind: q.type ?? "long_answer",
+            options: kindNeedsOptions(q.type) && q.options?.length >= 2 ? q.options.map((o) => o.text) : ["", ""],
+            correct: q.type === "multiple_choice" || q.type === "multiple_select" ? correctIndexes(q) : [],
+            tfCorrect: q.type === "true_false" ? (trueFalseCorrect(q) ?? true) : undefined,
+            referenceAnswer: q.modelAnswer ?? "",
+            rubric: q.rubricText ?? "",
+          }))
         : [newQ()]
     );
     setPreviewResult(null);
     setPreviewText("");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editing?.id]);
+    setPreviewQ(0);
+  }, [data]);
 
   const patchQ = (key, patch) => setQuestions((qs) => qs.map((q) => (q.key === key ? { ...q, ...patch } : q)));
 
-  const toQuestionDef = (q, index) => ({
-    id: editing ? editing.questions[index]?.id ?? `q${index + 1}` : `q${index + 1}`,
-    prompt: { en: q.prompt, ar: q.prompt },
-    topicId: q.topicId,
-    maxScore: Math.max(1, Number(q.maxScore) || 10),
-    kind: q.kind,
-    options: kindNeedsOptions(q.kind) ? q.options.map((o) => o.trim()).filter(Boolean) : undefined,
-    referenceAnswer: q.referenceAnswer.trim() || undefined,
-    rubric: q.rubric.trim() || undefined,
-    keyTerms: [
-      ...new Set(
-        [...q.referenceAnswer.toLowerCase().matchAll(/[a-z][a-z-]{3,}/g)]
-          .map((m) => m[0])
-          .filter((w) => !STOP.includes(w))
-          .slice(0, 6)
-      ),
-    ],
-  });
+  const toggleCorrect = (key, index, multi) =>
+    setQuestions((qs) =>
+      qs.map((q) => {
+        if (q.key !== key) return q;
+        const cur = q.correct ?? [];
+        const correct = multi ? (cur.includes(index) ? cur.filter((x) => x !== index) : [...cur, index]) : [index];
+        return { ...q, correct };
+      })
+    );
+
+  const toDraft = (q) => {
+    const draft = {
+      text: q.prompt.trim(),
+      topicId: q.topicId,
+      maxScore: Math.max(1, Number(q.maxScore) || 10),
+      type: q.kind,
+      modelAnswer: q.referenceAnswer.trim() || undefined,
+      rubricText: q.rubric.trim() || undefined,
+    };
+    if (kindNeedsOptions(q.kind)) {
+      const filled = q.options.map((o, i) => (o.trim() ? i : -1)).filter((i) => i >= 0);
+      draft.options = filled.map((i) => q.options[i].trim());
+      draft.correctIndexes = (q.correct ?? []).filter((i) => q.options[i]?.trim()).map((i) => filled.indexOf(i)).filter((i) => i >= 0);
+    }
+    if (q.kind === "true_false") draft.correctAnswer = q.tfCorrect !== false;
+    return draft;
+  };
 
   const titleValid = title.trim().length > 0;
-  const questionsValid = questions.every((q) => q.prompt.trim().length > 0 && q.topicId && Number(q.maxScore) > 0 && (!kindNeedsOptions(q.kind) || q.options.filter((o) => o.trim()).length >= 2));
+  const objectiveValid = (q) =>
+    q.kind === "multiple_choice"
+      ? (q.correct ?? []).filter((i) => q.options[i]?.trim()).length === 1
+      : q.kind === "multiple_select"
+        ? (q.correct ?? []).filter((i) => q.options[i]?.trim()).length >= 1
+        : true;
+  const questionsValid = questions.every(
+    (q) =>
+      q.prompt.trim().length > 0 &&
+      q.topicId &&
+      Number(q.maxScore) > 0 &&
+      (!kindNeedsOptions(q.kind) || (q.options.filter((o) => o.trim()).length >= 2 && objectiveValid(q)))
+  );
   const canSave = titleValid && questionsValid;
   const accuracyEmpty = questions.every((q) => !q.referenceAnswer.trim() && !q.rubric.trim());
 
   const backToWorkspace = () =>
     dispatch({ type: "NAVIGATE", screen: SCREENS.COURSE_WORKSPACE, courseId, tab: "assignments", assignmentId: undefined });
 
-  const save = (as) => {
-    setTouched(true);
-    if (!canSave) return;
-    const defs = questions.map(toQuestionDef);
-    if (as === "changes" && editing) {
-      updateAssignment(editing.id, { titleEn: title.trim(), showScore, status, questions: defs });
-      toast(lang === "ar" ? "حُفظت تعديلات التكليف." : "Assignment changes saved.");
-      backToWorkspace();
-      return;
+  const ensureIds = async (index) => {
+    const q = questions[index];
+    let aid = idsRef.current.assignmentId;
+    if (!aid) {
+      const created = await createAssignment(courseId, title.trim() || (lang === "ar" ? "مسودة بدون عنوان" : "Untitled draft"));
+      aid = created.id;
+      idsRef.current.assignmentId = aid;
+      if (showScore) await setGradeVisibility(aid, true);
     }
-    if (as === "draft") {
-      publishAssignment(courseId, { titleEn: title.trim(), titleAr: title.trim(), showScore, questions: defs }, "draft");
-      toast(lang === "ar" ? "حُفظ التكليف كمسودة — لن يراه الطلاب." : "Assignment saved as draft — students cannot see it.");
-      backToWorkspace();
-      return;
+    let qid = idsRef.current.questionIds[q.key] ?? q.id ?? null;
+    const draft = toDraft(q);
+    if (qid) {
+      await updateQuestion(aid, qid, draft);
+    } else {
+      const created = await addQuestion(aid, draft);
+      qid = created.id;
     }
-    publishAssignment(courseId, { titleEn: title.trim(), titleAr: title.trim(), showScore, questions: defs }, "open");
-    toast(lang === "ar" ? "نُشر التكليف — الحالة: مفتوح." : "Assignment published — status Open.");
-    backToWorkspace();
+    idsRef.current.questionIds[q.key] = qid;
+    if (!q.id) patchQ(q.key, { id: qid });
+    return { aid, qid };
   };
 
-  const previewDefs = questions.map(toQuestionDef);
-  const runPreview = () => {
-    const def = previewDefs[previewQ];
-    if (!def || !def.topicId || !previewText.trim()) return;
+  const save = async (as) => {
+    setTouched(true);
+    if (!canSave || savingAs) return;
+    setSavingAs(as);
+    try {
+      if (as === "changes" && editing) {
+        const aid = editing.id;
+        if (title.trim() !== editing.title.en) await renameAssignment(aid, title.trim());
+        if (showScore !== Boolean(editing.showGradeToStudent)) await setGradeVisibility(aid, showScore);
+        for (const prevQ of editing.questions) {
+          if (!questions.some((q) => q.id === prevQ.id)) await deleteQuestion(aid, prevQ.id);
+        }
+        for (const q of questions) {
+          if (q.id) await updateQuestion(aid, q.id, toDraft(q));
+          else await addQuestion(aid, toDraft(q));
+        }
+        const wasOpen = editing.status === ASSIGNMENT_STATUSES.OPEN;
+        const targetOpen = status === "open";
+        if (targetOpen && editing.status === ASSIGNMENT_STATUSES.DRAFT) await publishAssignment(aid);
+        else if (targetOpen && !wasOpen) await reopenAssignment(aid);
+        else if (!targetOpen && wasOpen) await closeAssignment(aid);
+        toast(lang === "ar" ? "حُفظت تعديلات التكليف." : "Assignment changes saved.");
+        backToWorkspace();
+        return;
+      }
+      const assignment = await createAssignment(courseId, title.trim());
+      if (showScore) await setGradeVisibility(assignment.id, true);
+      for (const q of questions) await addQuestion(assignment.id, toDraft(q));
+      if (as === "draft") {
+        toast(lang === "ar" ? "حُفظ التكليف كمسودة — لن يراه الطلاب." : "Assignment saved as draft — students cannot see it.");
+        backToWorkspace();
+        return;
+      }
+      await publishAssignment(assignment.id);
+      toast(lang === "ar" ? "نُشر التكليف — الحالة: مفتوح." : "Assignment published — status Open.");
+      backToWorkspace();
+    } catch (err) {
+      toast(apiErrorText(err, lang));
+    } finally {
+      setSavingAs(null);
+    }
+  };
+
+  const runPreview = async () => {
+    const q = questions[previewQ];
+    if (!q || !q.topicId || !previewText.trim() || previewing) return;
     setPreviewing(true);
     setPreviewResult(null);
-    window.setTimeout(() => {
-      setPreviewResult(evaluateAnswer(def, previewText, course));
+    try {
+      const { aid, qid } = await ensureIds(previewQ);
+      const evaluation = await previewEvaluation(aid, qid, previewText);
+      const confKey = String(evaluation.confidence ?? "").toLowerCase();
+      setPreviewResult({
+        aiScore: evaluation.score,
+        confidence: ["high", "medium", "low", "insufficient_evidence"].includes(confKey) ? confKey : "insufficient_evidence",
+        feedback: evaluation.feedbackText,
+        criteria: Array.isArray(evaluation.rubricBreakdown)
+          ? evaluation.rubricBreakdown.map((c) => ({
+              label: c.criterion ?? c.label ?? "",
+              earned: c.earned ?? c.points ?? c.score ?? 0,
+              max: c.max_points ?? c.max ?? c.weight ?? 0,
+            }))
+          : undefined,
+        misconceptions: (evaluation.misconceptions ?? [])
+          .map((m) => (typeof m === "string" ? m : (m.code ?? m.description ?? "")))
+          .filter(Boolean),
+        sources: Array.isArray(evaluation.sourcesUsed?.chunkIds) ? evaluation.sourcesUsed.chunkIds : [],
+      });
+    } catch (err) {
+      toast(apiErrorText(err, lang));
+    } finally {
       setPreviewing(false);
-    }, 650);
+    }
   };
 
   const monoLabel = (text) => (
@@ -124,14 +271,23 @@ export default function AssignmentBuilderPage({ state, dispatch }) {
   const caption = (text) => <div style={{ fontFamily: bFont, fontSize: 11, color: tokens.textFaint, marginTop: 6 }}>{text}</div>;
 
   return (
+    <AsyncGate
+      tokens={tokens}
+      lang={lang}
+      loading={loading}
+      error={error}
+      reload={reload}
+      label={lang === "ar" ? "جارٍ تحميل المُنشئ…" : "Loading builder…"}
+    >
+      {course && (
     <div className="genai-pad" style={{ padding: "26px 32px", maxWidth: 1280, margin: "0 auto", direction: isRtl ? "rtl" : "ltr" }}>
       <div style={{ display: "flex", gap: 14, alignItems: "flex-start", marginBottom: 22, flexDirection: isRtl ? "row-reverse" : "row" }}>
         <BackCircle tokens={tokens} rtl={isRtl} onClick={backToWorkspace} />
         <div style={{ textAlign: isRtl ? "right" : "left", minWidth: 0 }}>
           <h1 style={{ fontFamily: hFont, fontWeight: 700, fontSize: mobile ? 19 : 22, color: tokens.textPrimary, letterSpacing: "-0.025em", margin: "0 0 4px" }}>
             {editing
-              ? lang === "ar" ? `تعديل التكليف · ${course.id}` : `Edit assignment · ${course.id}`
-              : lang === "ar" ? `تكليف جديد · ${course.id}` : `New assignment · ${course.id}`}
+              ? lang === "ar" ? `تعديل التكليف · ${course.code ?? course.id}` : `Edit assignment · ${course.code ?? course.id}`
+              : lang === "ar" ? `تكليف جديد · ${course.code ?? course.id}` : `New assignment · ${course.code ?? course.id}`}
           </h1>
           <p style={{ fontSize: 13, color: tokens.textMuted, margin: 0, fontFamily: bFont }}>
             {lang === "ar"
@@ -223,12 +379,54 @@ export default function AssignmentBuilderPage({ state, dispatch }) {
                 className="genai-input"
               />
 
+              {q.kind === "true_false" && (
+                <div style={{ marginTop: 14 }}>
+                  {monoLabel(lang === "ar" ? "الإجابة الصحيحة" : "CORRECT ANSWER")}
+                  <div style={{ display: "flex", gap: 10 }}>
+                    {[true, false].map((v) => {
+                      const sel = (q.tfCorrect ?? true) === v;
+                      return (
+                        <button
+                          key={String(v)}
+                          type="button"
+                          onClick={() => patchQ(q.key, { tfCorrect: v })}
+                          style={{
+                            flex: 1, padding: "10px 0", borderRadius: 10, cursor: "pointer",
+                            fontFamily: bFont, fontSize: 13, fontWeight: 600,
+                            background: sel ? tokens.primaryLight : tokens.card,
+                            border: `1px solid ${sel ? tokens.primary : tokens.cardBorder}`,
+                            color: sel ? tokens.primary : tokens.textSecondary,
+                          }}
+                        >
+                          {v ? (lang === "ar" ? "صح" : "True") : (lang === "ar" ? "خطأ" : "False")}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {kindNeedsOptions(q.kind) && (
                 <div style={{ marginTop: 14 }}>
                   {monoLabel(q.kind === "multiple_select" ? (lang === "ar" ? "الخيارات (يُسمح بأكثر من إجابة)" : "OPTIONS (MORE THAN ONE ALLOWED)") : (lang === "ar" ? "الخيارات (إجابة واحدة صحيحة)" : "OPTIONS (ONE CORRECT ANSWER)"))}
                   {q.options.map((opt, oi) => (
                     <div key={oi} style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8, flexDirection: isRtl ? "row-reverse" : "row" }}>
-                      <span style={{ fontFamily: MONO, fontSize: 11, color: tokens.textFaint, width: 18, flexShrink: 0, textAlign: "center" }}>{String.fromCharCode(65 + oi)}</span>
+                      <button
+                        type="button"
+                        onClick={() => toggleCorrect(q.key, oi, q.kind === "multiple_select")}
+                        title={lang === "ar" ? "اضغط لتحديد هذا الخيار كإجابة صحيحة" : "Click to mark this option as correct"}
+                        aria-label={lang === "ar" ? "تحديد كإجابة صحيحة" : "Mark as correct"}
+                        style={{
+                          fontFamily: MONO, fontSize: 11, width: 18, height: 18, flexShrink: 0, display: "inline-flex",
+                          alignItems: "center", justifyContent: "center", borderRadius: q.kind === "multiple_select" ? 5 : "50%",
+                          cursor: "pointer", padding: 0,
+                          border: `1.5px solid ${(q.correct ?? []).includes(oi) ? tokens.primary : tokens.cardBorder}`,
+                          background: (q.correct ?? []).includes(oi) ? tokens.primary : "transparent",
+                          color: (q.correct ?? []).includes(oi) ? "#fff" : tokens.textFaint,
+                        }}
+                      >
+                        {String.fromCharCode(65 + oi)}
+                      </button>
                       <input
                         value={opt}
                         onChange={(e) => patchQ(q.key, { options: q.options.map((o, j) => (j === oi ? e.target.value : o)) })}
@@ -238,7 +436,12 @@ export default function AssignmentBuilderPage({ state, dispatch }) {
                       />
                       {q.options.length > 2 && (
                         <button
-                          onClick={() => patchQ(q.key, { options: q.options.filter((_, j) => j !== oi) })}
+                          onClick={() => {
+                            patchQ(q.key, {
+                              options: q.options.filter((_, j) => j !== oi),
+                              correct: (q.correct ?? []).filter((j) => j !== oi).map((j) => (j > oi ? j - 1 : j)),
+                            });
+                          }}
                           title={lang === "ar" ? "حذف الخيار" : "Remove option"}
                           aria-label={lang === "ar" ? "حذف الخيار" : "Remove option"}
                           style={{ background: "none", border: "none", cursor: "pointer", padding: 4, borderRadius: 6, flexShrink: 0 }}
@@ -251,10 +454,18 @@ export default function AssignmentBuilderPage({ state, dispatch }) {
                   <Btn tokens={tokens} lang={lang} variant="ghost" onClick={() => patchQ(q.key, { options: [...q.options, ""] })} style={{ padding: "7px 14px", fontSize: 12 }}>
                     {lang === "ar" ? "إضافة خيار" : "Add option"}
                   </Btn>
-                  {touched && q.options.filter((o) => o.trim()).length < 2 && (
+                  {touched && kindNeedsOptions(q.kind) && q.options.filter((o) => o.trim()).length < 2 && (
                     <div style={{ display: "flex", gap: 6, alignItems: "center", fontFamily: bFont, fontSize: 11, color: tokens.gap, marginTop: 8, flexDirection: isRtl ? "row-reverse" : "row" }}>
                       <IconWarning size={12} color={tokens.gap} />
                       {lang === "ar" ? "خياران على الأقل مطلوبان." : "At least two options are required."}
+                    </div>
+                  )}
+                  {touched && kindNeedsOptions(q.kind) && q.options.filter((o) => o.trim()).length >= 2 && !objectiveValid(q) && (
+                    <div style={{ display: "flex", gap: 6, alignItems: "center", fontFamily: bFont, fontSize: 11, color: tokens.gap, marginTop: 8, flexDirection: isRtl ? "row-reverse" : "row" }}>
+                      <IconWarning size={12} color={tokens.gap} />
+                      {q.kind === "multiple_choice"
+                        ? lang === "ar" ? "حدد إجابة صحيحة واحدة بالضغط على حرف الخيار." : "Mark exactly one correct option by clicking its letter."
+                        : lang === "ar" ? "حدد إجابة صحيحة واحدة على الأقل بالضغط على حرف الخيار." : "Mark at least one correct option by clicking its letter."}
                     </div>
                   )}
                 </div>
@@ -270,7 +481,7 @@ export default function AssignmentBuilderPage({ state, dispatch }) {
                     className="genai-input"
                   >
                     <option value="">{lang === "ar" ? "اختر موضوعاً..." : "Choose a topic..."}</option>
-                    {course.topics.map((t) => (
+                    {(course.topics ?? []).map((t) => (
                       <option key={t.id} value={t.id}>
                         {lang === "ar" ? t.label.ar : t.label.en}
                       </option>
@@ -363,16 +574,16 @@ export default function AssignmentBuilderPage({ state, dispatch }) {
 
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
             {editing ? (
-              <Btn tokens={tokens} lang={lang} onClick={() => save("changes")} style={{ flex: 1, padding: "12px 0", fontSize: 13.5 }}>
-                {lang === "ar" ? "حفظ التعديلات" : "Save changes"}
+              <Btn tokens={tokens} lang={lang} disabled={Boolean(savingAs)} onClick={() => save("changes")} style={{ flex: 1, padding: "12px 0", fontSize: 13.5 }}>
+                {savingAs ? (lang === "ar" ? "جارٍ الحفظ…" : "Saving…") : lang === "ar" ? "حفظ التعديلات" : "Save changes"}
               </Btn>
             ) : (
               <>
-                <Btn tokens={tokens} lang={lang} variant="ghost" onClick={() => save("draft")} style={{ padding: "12px 18px", fontSize: 13, ...(mobile ? { flex: 1 } : {}) }}>
-                  {lang === "ar" ? "حفظ كمسودة" : "Save as draft"}
+                <Btn tokens={tokens} lang={lang} variant="ghost" disabled={Boolean(savingAs)} onClick={() => save("draft")} style={{ padding: "12px 18px", fontSize: 13, ...(mobile ? { flex: 1 } : {}) }}>
+                  {savingAs === "draft" ? (lang === "ar" ? "جارٍ الحفظ…" : "Saving…") : lang === "ar" ? "حفظ كمسودة" : "Save as draft"}
                 </Btn>
-                <Btn tokens={tokens} lang={lang} onClick={() => save("publish")} style={{ flex: 1, padding: "12px 0", fontSize: 13.5 }}>
-                  {lang === "ar" ? "نشر التكليف" : "Publish assignment"}
+                <Btn tokens={tokens} lang={lang} disabled={Boolean(savingAs)} onClick={() => save("publish")} style={{ flex: 1, padding: "12px 0", fontSize: 13.5 }}>
+                  {savingAs === "publish" ? (lang === "ar" ? "جارٍ النشر…" : "Publishing…") : lang === "ar" ? "نشر التكليف" : "Publish assignment"}
                 </Btn>
               </>
             )}
@@ -429,7 +640,7 @@ export default function AssignmentBuilderPage({ state, dispatch }) {
             tokens={tokens}
             lang={lang}
             variant="soft"
-            disabled={!previewText.trim() || !previewDefs[previewQ]?.topicId || previewing}
+            disabled={!previewText.trim() || !questions[previewQ]?.topicId || previewing}
             onClick={runPreview}
             style={{ width: "100%", padding: "10px 0", fontSize: 12.5, marginTop: 12 }}
           >
@@ -450,7 +661,7 @@ export default function AssignmentBuilderPage({ state, dispatch }) {
             ) : previewResult ? (
               <AIGradingResultCard
                 eval={previewResult}
-                max={previewDefs[previewQ].maxScore}
+                max={Math.max(1, Number(questions[previewQ]?.maxScore) || 10)}
                 tokens={tokens}
                 lang={lang}
                 title={lang === "ar" ? "نتيجة المعاينة" : "PREVIEW RESULT"}
@@ -465,5 +676,7 @@ export default function AssignmentBuilderPage({ state, dispatch }) {
         </Card>
       </div>
     </div>
+      )}
+    </AsyncGate>
   );
 }
