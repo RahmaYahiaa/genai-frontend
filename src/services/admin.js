@@ -111,3 +111,7 @@ export function listLinkInvitations(status) {
 export function sendLinkInvitation(userId) {
   return api("/admin/link-invitations", { method: "POST", body: { userId } });
 }
+
+export function getAnalytics() {
+  return api("/admin/analytics");
+}

@@ -30,6 +30,8 @@ import AdminBulkImportPage from "@/pages/admin/AdminBulkImportPage";
 import AdminRequestsPage from "@/pages/admin/AdminRequestsPage";
 import AdminLinkAccountsPage from "@/pages/admin/AdminLinkAccountsPage";
 import AdminSettingsPage from "@/pages/admin/AdminSettingsPage";
+import AdminAuditPage from "@/pages/admin/AdminAuditPage";
+import AdminAnalyticsPage from "@/pages/admin/AdminAnalyticsPage";
 import AppShell from "@/components/AppShell";
 import "./App.css";
 
@@ -58,6 +60,8 @@ const PAGES = {
   [SCREENS.ADMIN_REQUESTS]: AdminRequestsPage,
   [SCREENS.ADMIN_LINK]: AdminLinkAccountsPage,
   [SCREENS.ADMIN_SETTINGS]: AdminSettingsPage,
+  [SCREENS.ADMIN_AUDIT]: AdminAuditPage,
+  [SCREENS.ADMIN_ANALYTICS]: AdminAnalyticsPage,
 };
 
 function AppContent() {

@@ -3,7 +3,7 @@ import useAsync from "@/hooks/useAsync";
 import useMediaQuery from "@/hooks/useMediaQuery";
 import { tk, bodyFont } from "@/constants/tokens";
 import { AsyncGate } from "@/components/ui";
-import { AlertStrip, Card as MCard, Chip as MChip, bFontFor, hFontFor } from "@/components/ModuleUI";
+import { AlertStrip, Card as MCard, Chip as MChip, Btn as MBtn, bFontFor, hFontFor } from "@/components/ModuleUI";
 import { IconShield, IconInbox, IconUpload, IconBookOpen, IconTrendUp, IconCheck } from "@/components/Icons";
 import { getInstitutionHealth, listUsers, listAuditEvents } from "@/services/admin";
 import { demoMode } from "@/services/auth";
@@ -94,13 +94,13 @@ export default function AdminHealthPage({ state, dispatch }) {
         }}
         label={t("Loading institution health…", "جاري تحميل صحة المؤسسة…")}
       >
-        {data && <HealthInner data={data} admin={admin} canSeeAudit={canSeeAudit} tokens={tokens} lang={lang} t={t} mobile={mobile} hFont={hFont} bFont={bFont} dispatch={dispatch} />}
+        {data && <HealthInner data={data} admin={admin} tokens={tokens} lang={lang} t={t} mobile={mobile} hFont={hFont} bFont={bFont} dispatch={dispatch} />}
       </AsyncGate>
     </div>
   );
 }
 
-function HealthInner({ data, admin, canSeeAudit, tokens, lang, t, mobile, hFont, bFont, dispatch }) {
+function HealthInner({ data, admin, tokens, lang, t, mobile, hFont, bFont, dispatch }) {
   const isRtl = lang === "ar";
   const { health, users, audit } = data;
   const pendingRequests = health.pendingRequests ?? 0;
@@ -303,7 +303,7 @@ function HealthInner({ data, admin, canSeeAudit, tokens, lang, t, mobile, hFont,
           />
           {auditItems.length === 0 ? (
             <div style={{ fontFamily: bFont, fontSize: 12, color: tokens.textFaint }}>
-              {canSeeAudit ? t("Nothing logged inside your scope yet.", "لا أحداث مسجلة داخل نطاقك بعد.") : t("Audit preview needs the audit.view scope.", "معاينة التدقيق تحتاج نطاق audit.view.")}
+              {admin.hasScope("audit.view") ? t("Nothing logged inside your scope yet.", "لا أحداث مسجلة داخل نطاقك بعد.") : t("Audit preview needs the audit.view scope.", "معاينة التدقيق تحتاج نطاق audit.view.")}
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -330,14 +330,24 @@ function HealthInner({ data, admin, canSeeAudit, tokens, lang, t, mobile, hFont,
         </div>
       </div>
 
-      <div style={{ marginTop: 22, padding: "12px 16px", background: tokens.inset, border: `1px solid ${tokens.cardBorder}`, borderRadius: 10, display: "flex", gap: 10, alignItems: "center", flexDirection: isRtl ? "row-reverse" : "row" }}>
+      <div style={{ marginTop: 22, padding: "12px 16px", background: tokens.inset, border: `1px solid ${tokens.cardBorder}`, borderRadius: 10, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
         <IconTrendUp size={14} color={tokens.developing} />
         <span style={{ fontFamily: bFont, fontSize: 12, color: tokens.textSecondary }}>
           {t(
-            "Institution analytics are computed on demand from real collections — their screen arrives with the audit log and settings in the next features.",
-            "تحليلات المؤسسة تُحسب عند الطلب من المجموعات الحقيقية — شاشتها جاية مع سجل التدقيق والإعدادات في الميزات التالية.",
+            "Institution analytics are computed on demand from real collections — open the snapshot or the full audit trail.",
+            "تحليلات المؤسسة تُحسب عند الطلب من المجموعات الحقيقية — افتح اللقطة أو سجل التدقيق الكامل.",
           )}
         </span>
+        {admin.hasScope("audit.view") ? (
+          <MBtn tokens={tokens} lang={lang} variant="ghost" style={{ padding: "6px 12px", fontSize: 12 }} onClick={go(SCREENS.ADMIN_AUDIT)}>
+            {t("Full audit log", "سجل التدقيق الكامل")}
+          </MBtn>
+        ) : null}
+        {admin.hasScope("analytics.view") ? (
+          <MBtn tokens={tokens} lang={lang} variant="ghost" style={{ padding: "6px 12px", fontSize: 12 }} onClick={go(SCREENS.ADMIN_ANALYTICS)}>
+            {t("Institution analytics", "تحليلات المؤسسة")}
+          </MBtn>
+        ) : null}
       </div>
     </>
   );

@@ -13,6 +13,8 @@ import {
   IconGlobe,
   IconAnchor,
   IconGear,
+  IconHistory,
+  IconTrendUp,
 } from "@/components/Icons";
 import { SCREENS } from "./routes";
 
@@ -45,6 +47,8 @@ export const ADMIN_NAV = [
   { id: SCREENS.ADMIN_REQUESTS, en: "Out-of-Year Requests", ar: "طلبات خارج السنة", Icon: IconProfile, gate: "requests.review" },
   { id: SCREENS.ADMIN_LINK, en: "Account Linking", ar: "ربط الحسابات", Icon: IconAnchor, gate: "accounts.link" },
   { id: SCREENS.ADMIN_SETTINGS, en: "Settings", ar: "الإعدادات", Icon: IconGear, gate: "settings.manage" },
+  { id: SCREENS.ADMIN_AUDIT, en: "Audit Log", ar: "سجل التدقيق", Icon: IconHistory, gate: "audit.view" },
+  { id: SCREENS.ADMIN_ANALYTICS, en: "Analytics", ar: "التحليلات", Icon: IconTrendUp, gate: "analytics.view" },
 ];
 
 export function navForRole(role, accountType) {
