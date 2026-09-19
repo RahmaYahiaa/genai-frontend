@@ -1,5 +1,6 @@
 import AppProvider from "@/store/AppProvider";
 import { InstructorModuleProvider } from "@/store/InstructorProvider";
+import AdminProvider from "@/store/AdminProvider";
 import { useApp } from "@/store/useApp";
 import { SCREENS, ROLES } from "@/constants/routes";
 import WelcomePage from "@/pages/WelcomePage";
@@ -22,6 +23,7 @@ import ContentStudioPage from "@/pages/ContentStudioPage";
 import StudentAssignmentsPage from "@/pages/StudentAssignmentsLegacy";
 import StudentAssignmentPage from "@/pages/StudentAssignmentLegacy";
 import StudentCoursePage from "@/pages/StudentCoursePage";
+import AdminHealthPage from "@/pages/admin/AdminHealthPage";
 import AppShell from "@/components/AppShell";
 import "./App.css";
 
@@ -43,6 +45,7 @@ const PAGES = {
   [SCREENS.PRACTICE]: PracticePage,
   [SCREENS.REASSESSMENT]: ReassessmentPage,
   [SCREENS.PROFILE]: ProfilePage,
+  [SCREENS.ADMIN]: AdminHealthPage,
 };
 
 function AppContent() {
@@ -65,9 +68,11 @@ function AppContent() {
 export default function App() {
   return (
     <AppProvider>
-      <InstructorModuleProvider>
-        <AppContent />
-      </InstructorModuleProvider>
+      <AdminProvider>
+        <InstructorModuleProvider>
+          <AppContent />
+        </InstructorModuleProvider>
+      </AdminProvider>
     </AppProvider>
   );
 }

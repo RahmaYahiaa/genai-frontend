@@ -10,6 +10,7 @@ import {
   IconUsers,
   IconSparkle,
   IconClipboard,
+  IconGlobe,
 } from "@/components/Icons";
 import { SCREENS } from "./routes";
 
@@ -35,9 +36,7 @@ export const INSTRUCTOR_NAV = [
 ];
 
 export const ADMIN_NAV = [
-  { id: SCREENS.ADMIN, en: "Platform Overview", ar: "نظرة عامة", Icon: IconDashboard },
-  { id: SCREENS.COURSES, en: "Courses", ar: "المقررات", Icon: IconCourses },
-  { id: SCREENS.PROFILE, en: "Settings", ar: "الإعدادات", Icon: IconProfile },
+  { id: SCREENS.ADMIN, en: "Institution health", ar: "صحة المؤسسة", Icon: IconGlobe },
 ];
 
 export function navForRole(role, accountType) {

@@ -21,7 +21,11 @@ export default function Topbar({ state, dispatch, role, onMenu }) {
       : lang === "ar"
         ? `${course.id} · الأسبوع ${course.week}`
         : `${course.id} · Week ${course.week}`
-    : role === "instructor"
+    : role === "admin"
+      ? lang === "ar"
+        ? "إدارة المؤسسة"
+        : "Institution administration"
+      : role === "instructor"
       ? state.courseId
         ? lang === "ar"
           ? `لوحة تحكم المدرّس — ${state.courseId}`
