@@ -92,7 +92,7 @@ export default function AdminHealthPage({ state, dispatch }) {
           admin.reload();
           reload();
         }}
-        label={t("Loading institution health…", "جاري تحميل صحة المؤسسة…")}
+        label={t("Loading institution …", "جاري تحمي المؤسسة…")}
       >
         {data && <HealthInner data={data} admin={admin} tokens={tokens} lang={lang} t={t} mobile={mobile} hFont={hFont} bFont={bFont} dispatch={dispatch} />}
       </AsyncGate>
@@ -124,7 +124,7 @@ function HealthInner({ data, admin, tokens, lang, t, mobile, hFont, bFont, dispa
     <>
       <div style={{ marginBottom: 20 }}>
         <h1 style={{ fontFamily: hFont, fontWeight: 700, fontSize: mobile ? 19 : 22, color: tokens.textPrimary, letterSpacing: "-0.025em", margin: "0 0 4px" }}>
-          {t("Institution health", "صحة المؤسسة")}
+          {t("Institution overview", "نظرة عامة على المؤسسة")}
         </h1>
         <p style={{ fontFamily: bFont, fontSize: 13, color: tokens.textMuted, margin: 0 }}>
           {t(
