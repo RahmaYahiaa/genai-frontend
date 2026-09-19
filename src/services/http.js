@@ -148,7 +148,7 @@ function fail(status, payload, codeOverride) {
   throw new ApiError(
     status,
     codeOverride ?? payload?.error?.code ?? "REQUEST_FAILED",
-    payload?.error?.message ?? `Request failed (${status})`,
+    payload?.error?.message ?? `Request failed (${status}) [${codeOverride ?? "REQUEST_FAILED"}]`,
     payload?.error?.details,
   );
 }

@@ -1,353 +1,377 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import useAsync from "@/hooks/useAsync";
 import useMediaQuery from "@/hooks/useMediaQuery";
-import { tk, headingFont, bodyFont } from "@/constants/tokens";
-import { AsyncGate, Chip, Btn } from "@/components/ui";
-import { Drawer, Toggle, Field, inputStyle, toast, bFontFor } from "@/components/ModuleUI";
+import { tk, bodyFont } from "@/constants/tokens";
+import { AsyncGate } from "@/components/ui";
+import { AlertStrip, Card, Chip, ConfirmBtn, Drawer, Field, Btn, inputStyle, toast, bFontFor, hFontFor } from "@/components/ModuleUI";
+import { IconEye, IconShield, IconCheck, IconWarning } from "@/components/Icons";
 import { listUsers, setUserActive, changeUserRole, setAcademicNumber } from "@/services/admin";
 import { demoMode } from "@/services/auth";
 import { useAdmin } from "@/store/admin-context";
-import { BACKEND_ROLE_TO_KIND, KIND_TO_BACKEND_ROLE, KIND_LABELS } from "@/constants/admin";
+import { KIND_LABELS } from "@/constants/admin";
 import OfficerScopeCard from "@/components/admin/OfficerScopeCard";
 
-function kindOf(user) {
-  return BACKEND_ROLE_TO_KIND[user.role] ?? "student";
-}
+const MONO = "'JetBrains Mono', monospace";
+const KIND_KEYS = ["all", "student", "doctor", "officer"];
 
 export default function AdminUsersPage({ state }) {
   const tokens = tk(state.dark);
   const lang = state.lang;
   const isRtl = lang === "ar";
-  const t = (en, ar) => (lang === "ar" ? ar : en);
+  const hFont = hFontFor(lang);
   const bFont = bFontFor(lang);
-  const hFont = headingFont(lang);
+  const t = (en, ar) => (lang === "ar" ? ar : en);
   const mobile = useMediaQuery("(max-width: 860px)");
   const admin = useAdmin();
+  const canSee = admin.hasScope("users.view");
   const canManage = admin.hasScope("users.manage");
-  const fetchUsers = useCallback(() => listUsers(), []);
-  const { data, loading, error, reload } = useAsync(fetchUsers);
 
-  const [query, setQuery] = useState("");
+  const [search, setSearch] = useState("");
   const [kindFilter, setKindFilter] = useState("all");
+  const [departmentFilter, setDepartmentFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [openUserId, setOpenUserId] = useState(null);
   const [numberDraft, setNumberDraft] = useState("");
-  const [kindDraft, setKindDraft] = useState("student");
-  const [busy, setBusy] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const all = useMemo(() => (Array.isArray(data) ? data : []), [data]);
+  const demo = demoMode();
+  const fetchUsers = useCallback(() => (demo || !canSee ? Promise.resolve([]) : listUsers()), [demo, canSee]);
+  const { data, loading, error, reload, setData } = useAsync(fetchUsers);
+  const users = useMemo(() => (Array.isArray(data) ? data : []), [data]);
 
-  const users = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    return all.filter((user) => {
-      const kind = kindOf(user);
-      if (kindFilter !== "all" && kind !== kindFilter) return false;
-      if (statusFilter === "active" && !user.isActive) return false;
-      if (statusFilter === "inactive" && user.isActive) return false;
-      if (!needle) return true;
-      return (
-        `${user.firstName} ${user.lastName}`.toLowerCase().includes(needle) ||
-        String(user.email).toLowerCase().includes(needle) ||
-        String(user.academicNumber ?? "").toLowerCase().includes(needle)
-      );
-    });
-  }, [all, query, kindFilter, statusFilter]);
+  const departments = useMemo(() => [...new Set(users.map((u) => u.department).filter(Boolean))], [users]);
 
-  const openUser = all.find((user) => user.id === openUserId) ?? null;
-  const openKind = openUser ? kindOf(openUser) : null;
-
-  useEffect(() => {
-    if (openUser) {
-      setNumberDraft(openUser.academicNumber ?? "");
-      setKindDraft(kindOf(openUser));
+  const shown = users.filter((u) => {
+    if (kindFilter !== "all" && u.role !== kindFilter) return false;
+    if (departmentFilter !== "all" && u.department !== departmentFilter) return false;
+    if (statusFilter === "active" && !u.isActive) return false;
+    if (statusFilter === "inactive" && u.isActive) return false;
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      const hay = `${u.firstName ?? ""} ${u.lastName ?? ""} ${u.email} ${u.academicNumber ?? ""}`.toLowerCase();
+      if (!hay.includes(q)) return false;
     }
-  }, [openUserId, openUser?.role]);
+    return true;
+  });
 
-  const counts = {
-    all: all.length,
-    student: all.filter((u) => kindOf(u) === "student").length,
-    doctor: all.filter((u) => kindOf(u) === "doctor").length,
-    officer: all.filter((u) => kindOf(u) === "officer").length,
+  const openUser = users.find((u) => u.id === openUserId) ?? null;
+
+  const patchUser = (id, patch) => setData((prev) => (Array.isArray(prev) ? prev.map((u) => (u.id === id ? { ...u, ...patch } : u)) : prev));
+
+  const saveNumber = async () => {
+    setSaving(true);
+    try {
+      await setAcademicNumber(openUser.id, numberDraft);
+      patchUser(openUser.id, { academicNumber: numberDraft.trim() || null });
+      toast(t("Number saved.", "حُفظ الرقم."));
+    } catch (err) {
+      toast(err?.message ?? t("Could not save the number.", "تعذر حفظ الرقم."));
+    } finally {
+      setSaving(false);
+    }
   };
 
-  async function mutate(action, message) {
-    setBusy(true);
-    try {
-      await action();
-      toast(message);
-      reload();
+  const applyRole = async (kind) => {
+      try {
+        await changeUserRole(openUser.id, kind);
+        reload();
+        toast(t("Role updated and audit-logged.", "حُدّث الدور وسُجّل في التدقيق."));
     } catch (err) {
-      toast(err.message);
-    } finally {
-      setBusy(false);
+      toast(err?.message ?? t("Could not update the role.", "تعذر تحديث الدور."));
     }
-  }
+  };
 
-  const chip = (id, active, label, count) => (
-    <button
-      key={id}
-      onClick={() => (active === "kind" ? setKindFilter(id) : setStatusFilter(id))}
-      style={{
-        padding: "6px 12px",
-        borderRadius: 999,
-        cursor: "pointer",
-        fontFamily: bFont,
-        fontSize: 12,
-        fontWeight: (active === "kind" ? kindFilter : statusFilter) === id ? 600 : 500,
-        background: (active === "kind" ? kindFilter : statusFilter) === id ? tokens.primaryLight : tokens.card,
-        border: `1px solid ${(active === "kind" ? kindFilter : statusFilter) === id ? tokens.primary : tokens.cardBorder}`,
-        color: (active === "kind" ? kindFilter : statusFilter) === id ? tokens.primary : tokens.textSecondary,
-      }}
+  const toggleActive = async () => {
+    const next = !openUser.isActive;
+    try {
+      await setUserActive(openUser.id, next ? "activate" : "deactivate");
+      patchUser(openUser.id, { isActive: next });
+      toast(next ? t("Account reactivated.", "أُعيد تفعيل الحساب.") : t("Account deactivated and audit-logged.", "عُطّل الحساب وسُجّل في التدقيق."));
+    } catch (err) {
+      toast(err?.message ?? t("Could not change account status.", "تعذر تغيير حالة الحساب."));
+    }
+  };
+
+  const statusChip = (value, label) => (
+    <Btn
+      key={value}
+      tokens={tokens}
+      lang={lang}
+      variant={statusFilter === value ? "primary" : "ghost"}
+      style={{ fontSize: 12, padding: "6px 12px" }}
+      onClick={() => setStatusFilter(value)}
     >
       {label}
-      {count !== undefined ? ` · ${count}` : ""}
-    </button>
+    </Btn>
   );
 
-  if (demoMode()) {
+  if (demo) {
     return (
-      <div style={{ padding: 28, maxWidth: 720, margin: "0 auto", fontFamily: bodyFont(lang) }}>
-        <div style={{ fontFamily: hFont, fontWeight: 800, fontSize: 16, color: tokens.textPrimary }}>
-          {t("User management needs the real backend — set VITE_API_URL.", "إدارة المستخدمين محتاجة الباك إند الحقيقي — اضبطي VITE_API_URL.")}
-        </div>
+      <div style={{ padding: mobile ? 16 : "26px 32px", maxWidth: 720, margin: "0 auto", fontFamily: bodyFont(lang) }}>
+        <AlertStrip
+          tokens={tokens}
+          lang={lang}
+          tone="violet"
+          icon={<IconShield size={14} color={tokens.gap} />}
+          title={t("Admin module requires the real backend", "وحدة إدارة المؤسسة بتشتغل مع الباك إند الحقيقي بس")}
+          body={t(
+            "Set VITE_API_URL to your running backend (ending with /api/v1), restart the frontend, then sign in with your institution admin account.",
+            "اضبطي VITE_API_URL على الباك إند الشغال (منتهيًا بـ /api/v1)، اعملي إعادة تشغيل للفرونت، وسجّلي دخولك بحساب مسؤول المؤسسة.",
+          )}
+        />
       </div>
     );
   }
 
   return (
-    <div style={{ padding: mobile ? 16 : "26px 32px", maxWidth: 1080, margin: "0 auto", fontFamily: bodyFont(lang) }}>
+    <div style={{ padding: mobile ? 16 : "26px 32px", maxWidth: 1080, margin: "0 auto", direction: isRtl ? "rtl" : "ltr", textAlign: isRtl ? "right" : "left", fontFamily: bodyFont(lang) }}>
       <div style={{ marginBottom: 18 }}>
-        <h1 style={{ margin: "0 0 4px", fontFamily: hFont, fontWeight: 700, fontSize: mobile ? 19 : 22, letterSpacing: "-0.025em", color: tokens.textPrimary }}>
-          {t("User management", "إدارة المستخدمين")}
-        </h1>
-        <p style={{ margin: 0, fontFamily: bFont, fontSize: 13, color: tokens.textMuted }}>
+        <h2 style={{ fontFamily: hFont, fontWeight: 700, fontSize: 22, color: tokens.textPrimary, letterSpacing: "-0.025em", margin: "0 0 4px" }}>
+          {t("Users and roles", "المستخدمون والأدوار")}
+        </h2>
+        <p style={{ fontFamily: bFont, fontSize: 13, color: tokens.textMuted, margin: 0 }}>
           {t(
-            "Every student, doctor and officer of the institution — status, roles and verification numbers, straight from the database.",
-            "كل طالب ودكتور ومسؤول في المؤسسة — الحالة والأدوار وأرقام التحقق، من قاعدة البيانات مباشرة.",
+            "Manage every account inside your institution — academic numbers are for manual verification and never gate login.",
+            "إدارة كل الحسابات داخل مؤسستك — الرقم الأكاديمي للتحقق اليدوي ولا يمنع الدخول أبدًا.",
           )}
         </p>
       </div>
 
-      <AsyncGate tokens={tokens} lang={lang} loading={loading} error={error} reload={reload} label={t("Loading users…", "جاري تحميل المستخدمين…")}>
-        <>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14, alignItems: "center" }}>
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder={t("Search name, email or number…", "دور بالاسم أو الإيميل أو الرقم…")}
-              style={{ ...inputStyle(tokens, bFont), flex: 1, minWidth: 200 }}
-            />
-            {chip("all", "kind", t("All", "الكل"), counts.all)}
-            {chip("student", "kind", t("Students", "طلاب"), counts.student)}
-            {chip("doctor", "kind", t("Doctors", "دكاترة"), counts.doctor)}
-            {chip("officer", "kind", t("Officers", "مسؤولون"), counts.officer)}
-            <span style={{ width: 1, background: tokens.cardBorder, alignSelf: "stretch" }} />
-            {chip("all", "status", t("Any status", "أي حالة"))}
-            {chip("active", "status", t("Active", "نشِط"))}
-            {chip("inactive", "status", t("Inactive", "معطّل"))}
-          </div>
-
-          {!canManage && (
-            <div style={{ fontFamily: bFont, fontSize: 12, color: tokens.developing, background: tokens.developingBg, border: `1px solid ${tokens.developingBorder}`, borderRadius: 8, padding: "8px 12px", marginBottom: 12 }}>
-              {t(
-                "Read-only view — your scope lacks users.manage, so actions are hidden.",
-                "عرض للقراءة فقط — نطاقك لا يشمل users.manage فالإجراءات مخفية.",
-              )}
-            </div>
-          )}
-
-          <div style={{ border: `1px solid ${tokens.cardBorder}`, borderRadius: 12, background: tokens.card, overflow: "hidden" }}>
-            {users.length === 0 ? (
-              <div style={{ padding: 26, textAlign: "center", fontFamily: bFont, fontSize: 13, color: tokens.textMuted }}>
-                {t("No users match this filter.", "لا يوجد مستخدمون بهذا الفلتر.")}
-              </div>
-            ) : (
-              users.map((user, index) => {
-                const kind = kindOf(user);
-                const label = KIND_LABELS[kind];
-                return (
-                  <button
-                    key={user.id}
-                    onClick={() => setOpenUserId(user.id)}
-                    style={{
-                      width: "100%",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 12,
-                      padding: "12px 16px",
-                      background: "transparent",
-                      border: "none",
-                      borderTop: index === 0 ? "none" : `1px solid ${tokens.cardBorder}`,
-                      cursor: "pointer",
-                      textAlign: isRtl ? "right" : "left",
-                      flexDirection: isRtl ? "row-reverse" : "row",
-                    }}
-                  >
-                    <span
-                      style={{
-                        width: 34,
-                        height: 34,
-                        borderRadius: 9,
-                        flexShrink: 0,
-                        background: user.isActive ? tokens.primaryLight : tokens.inset,
-                        color: user.isActive ? tokens.primary : tokens.textFaint,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontFamily: hFont,
-                        fontWeight: 800,
-                        fontSize: 12,
-                      }}
-                    >
-                      {`${user.firstName?.charAt(0) ?? ""}${user.lastName?.charAt(0) ?? ""}`.toUpperCase()}
-                    </span>
-                    <span style={{ flex: 1, minWidth: 0 }}>
-                      <span style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                        <span style={{ fontFamily: bFont, fontWeight: 600, fontSize: 13.5, color: tokens.textPrimary }}>
-                          {user.firstName} {user.lastName}
-                        </span>
-                        {user.invited ? (
-                          <Chip tokens={tokens} tone="developing">{t("invited — awaiting first registration", "مدعو — في انتظار أول تسجيل")}</Chip>
-                        ) : null}
-                      </span>
-                      <span style={{ display: "block", fontFamily: bFont, fontSize: 12, color: tokens.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {user.email}
-                      </span>
-                    </span>
-                    <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: user.academicNumber ? tokens.textSecondary : tokens.textFaint, flexShrink: 0 }}>
-                      {user.academicNumber ?? t("no number yet", "بلا رقم بعد")}
-                    </span>
-                    <Chip tokens={tokens} tone={kind === "officer" ? "primary" : "default"}>
-                      {lang === "ar" ? label.ar : label.en}
-                    </Chip>
-                    <span
-                      title={user.isActive ? t("active", "نشِط") : t("deactivated", "معطّل")}
-                      style={{ width: 9, height: 9, borderRadius: "50%", flexShrink: 0, background: user.isActive ? tokens.mastered : tokens.gap ?? "#d64545" }}
-                    />
-                  </button>
-                );
-              })
-            )}
-          </div>
-        </>
-      </AsyncGate>
-
-      <Drawer
-        open={Boolean(openUser)}
-        onClose={() => setOpenUserId(null)}
-        title={openUser ? `${openUser.firstName} ${openUser.lastName}` : ""}
-        subtitle={openUser?.email ?? ""}
+      <AsyncGate
         tokens={tokens}
         lang={lang}
+        loading={admin.loading || loading}
+        error={admin.error || error}
+        reload={() => {
+          admin.reload();
+          reload();
+        }}
+        label={t("Loading users…", "جاري تحميل المستخدمين…")}
       >
-        {openUser && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <div style={{ fontFamily: bFont, fontSize: 12, color: tokens.textMuted, lineHeight: 1.7 }}>
-              {openUser.lastLoginAt
-                ? t(`Last login ${new Date(openUser.lastLoginAt).toLocaleString(lang === "ar" ? "ar-EG" : "en-GB")}`, `آخر دخول ${new Date(openUser.lastLoginAt).toLocaleString(lang === "ar" ? "ar-EG" : "en-GB")}`)
-                : t("Never logged in.", "لم يسجل الدخول بعد.")}
-            </div>
-
-            <Field
-              tokens={tokens}
-              lang={lang}
-              label={t("Academic / employee number (manual verification)", "الرقم الأكاديمي / الوظيفي (تحقق يدوي)")}
-            >
-              <div style={{ display: "flex", gap: 8 }}>
-                <input
-                  value={numberDraft}
-                  onChange={(event) => setNumberDraft(event.target.value)}
-                  disabled={!canManage || busy}
-                  placeholder={t("e.g. 202341872 or EMP-0117", "مثال: 202341872 أو EMP-0117")}
-                  style={{ ...inputStyle(tokens, bFont), flex: 1, fontFamily: "'JetBrains Mono', monospace" }}
-                />
-                <Btn
+        {!canSee ? (
+          <AlertStrip
+            tokens={tokens}
+            lang={lang}
+            tone="violet"
+            icon={<IconShield size={14} color={tokens.gap} />}
+            title={t("This page needs the users.view scope", "هذه الصفحة تحتاج نطاق users.view")}
+            body={t("Ask your super admin to grant you the scope, or return to the health dashboard.", "اطلب من السوبر أدمن منحك النطاق، أو عُد إلى لوحة الصحة.")}
+          />
+        ) : (
+          <>
+            {!canManage && (
+              <div style={{ marginBottom: 14 }}>
+                <AlertStrip
                   tokens={tokens}
-                  disabled={!canManage || busy || String(numberDraft ?? "") === String(openUser.academicNumber ?? "")}
-                  onClick={() =>
-                    mutate(
-                      () => setAcademicNumber(openUser.id, numberDraft),
-                      t("Number saved.", "حُفظ الرقم."),
-                    )
-                  }
-                >
-                  {t("Save", "حفظ")}
-                </Btn>
+                  lang={lang}
+                  tone="violet"
+                  icon={<IconShield size={14} color={tokens.gap} />}
+                  title={t("View-only mode", "وضع الاطلاع فقط")}
+                  body={t(
+                    "You have users.view but not users.manage — searching and reading is allowed; changes need a scope upgrade from your super admin.",
+                    "عندك users.view دون users.manage — متاح لك البحث والاطلاع؛ التعديلات تحتاج صلاحية أعلى من السوبر أدمن.",
+                  )}
+                />
               </div>
-            </Field>
+            )}
 
-            <Field tokens={tokens} lang={lang} label={t("Role", "الدور")}>
-              <div style={{ display: "flex", gap: 8 }}>
-                <select
-                  value={kindDraft}
-                  onChange={(event) => setKindDraft(event.target.value)}
-                  disabled={!canManage || busy}
-                  style={{ ...inputStyle(tokens, bFont), flex: 1 }}
-                >
-                  {Object.entries(KIND_LABELS).map(([id, label]) => (
-                    <option key={id} value={id}>{lang === "ar" ? label.ar : label.en}</option>
+            <div style={{ display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={t("Search name, email or academic number", "ابحث بالاسم أو البريد أو الرقم الأكاديمي")}
+                style={{ ...inputStyle(tokens, bFont), flex: 1, minWidth: 220 }}
+              />
+              {departments.length > 0 && (
+                <select value={departmentFilter} onChange={(e) => setDepartmentFilter(e.target.value)} style={{ ...inputStyle(tokens, bFont), width: "auto", cursor: "pointer" }}>
+                  <option value="all">{t("Any department", "أي قسم")}</option>
+                  {departments.map((d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
                   ))}
                 </select>
-                <Btn
-                  tokens={tokens}
-                  disabled={!canManage || busy || kindDraft === openKind}
-                  onClick={() =>
-                    mutate(
-                      () => changeUserRole(openUser.id, KIND_TO_BACKEND_ROLE[kindDraft]),
-                      t("Role changed.", "تغيّر الدور."),
-                    )
-                  }
-                >
-                  {t("Apply", "تطبيق")}
-                </Btn>
-              </div>
-            </Field>
-
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                border: `1px solid ${tokens.cardBorder}`,
-                borderRadius: 10,
-                padding: "12px 14px",
-                background: tokens.card,
-                flexDirection: isRtl ? "row-reverse" : "row",
-              }}
-            >
-              <Toggle
-                on={Boolean(openUser.isActive)}
-                disabled={!canManage || busy || admin.me?.user?.id === openUser.id}
-                tokens={tokens}
-                onChange={() =>
-                  mutate(
-                    () => setUserActive(openUser.id, !openUser.isActive),
-                    openUser.isActive ? t("Account deactivated — login blocked instantly.", "عُطّل الحساب — الدخول محظور فورًا.") : t("Account activated — login restored.", "فُعّل الحساب — عاد الدخول."),
-                  )
-                }
-              />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontFamily: bFont, fontWeight: 600, fontSize: 13, color: tokens.textPrimary }}>
-                  {openUser.isActive ? t("Account is active", "الحساب نشِط") : t("Account is deactivated", "الحساب معطّل")}
-                </div>
-                <div style={{ fontFamily: bFont, fontSize: 11.5, color: tokens.textMuted }}>
-                  {admin.me?.user?.id === openUser.id
-                    ? t("You cannot deactivate yourself.", "لا يمكنك تعطيل حسابك بنفسك.")
-                    : t("Deactivated users are blocked at login immediately.", "المستخدمون المعطّلون يُمنعون من الدخول فورًا.")}
-                </div>
-              </div>
+              )}
+              <select value={kindFilter} onChange={(e) => setKindFilter(e.target.value)} style={{ ...inputStyle(tokens, bFont), width: "auto", cursor: "pointer" }}>
+                <option value="all">{t("Any kind", "أي نوع")}</option>
+                {KIND_KEYS.slice(1).map((k) => (
+                  <option key={k} value={k}>
+                    {lang === "ar" ? KIND_LABELS[k].ar : KIND_LABELS[k].en}
+                  </option>
+                ))}
+              </select>
             </div>
 
-            {openKind === "officer" && admin.isSuperAdmin ? (
-              <OfficerScopeCard officer={openUser} templates={admin.me?.templates} tokens={tokens} lang={lang} t={t} onChanged={reload} />
-            ) : openKind === "officer" ? (
-              <div style={{ fontFamily: bFont, fontSize: 11.5, color: tokens.textFaint }}>
-                {t("Permission scopes are edited by the super admin from the officers screen.", "نطاقات الصلاحيات يعدلها السوبر أدمن من شاشة المسؤولين.")}
-              </div>
-            ) : null}
-          </div>
+            <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
+              {statusChip("all", t("Any status", "أي حالة"))}
+              {statusChip("active", t("Active", "نشط"))}
+              {statusChip("inactive", t("Deactivated", "معطّل"))}
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {shown.map((user) => {
+                const kind = user.role === "institution_admin" ? "officer" : user.role === "doctor" ? "doctor" : "student";
+                const custom = Array.isArray(user.permissions) && user.permissions.length > 0;
+                const isSuper = user.isSuperAdmin === true || (admin.me?.user?.email === user.email && admin.isSuperAdmin && kind === "officer");
+                return (
+                  <Card tokens={tokens} key={user.id} style={{ padding: "12px 16px", opacity: user.isActive ? 1 : 0.62 }}>
+                    <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
+                      <div style={{ flex: 1, minWidth: 220 }}>
+                        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
+                          <span style={{ fontFamily: bFont, fontWeight: 600, fontSize: 13.5, color: tokens.textPrimary }}>
+                            {user.firstName} {user.lastName}
+                          </span>
+                          <Chip tokens={tokens} tone={kind === "officer" ? "primary" : kind === "doctor" ? "peri" : "default"}>
+                            {lang === "ar" ? KIND_LABELS[kind].ar : KIND_LABELS[kind].en}
+                          </Chip>
+                          {isSuper && <Chip tokens={tokens} tone="primary">{t("Super", "سوبر")}</Chip>}
+                          {custom && !isSuper && <Chip tokens={tokens} tone="violet">{t("Custom permissions", "صلاحيات مخصصة")}</Chip>}
+                          {user.accountType === "individual" && <Chip tokens={tokens} tone="slate">{t("Individual", "فردي")}</Chip>}
+                          {!user.isActive && <Chip tokens={tokens} tone="slate">{t("Deactivated", "معطّل")}</Chip>}
+                        </div>
+                        <div style={{ fontFamily: MONO, fontSize: 11, color: tokens.textMuted, marginTop: 4 }}>{user.email}</div>
+                        <div style={{ fontFamily: bFont, fontSize: 11.5, color: tokens.textFaint, marginTop: 3 }}>
+                          {kind === "student" && user.year ? `${t(`Year ${user.year}`, `سنة ${user.year}`)} · ` : ""}
+                          {user.department ?? (user.accountType === "individual" ? t("Personal space", "مساحة شخصية") : "—")}
+                          {kind === "officer" && custom ? ` · ${user.permissions.length} ${t("scopes", "نطاقات")}` : ""}
+                        </div>
+                      </div>
+                      <span style={{ fontFamily: MONO, fontSize: 11, color: user.academicNumber ? tokens.textSecondary : tokens.textFaint, flexShrink: 0 }}>
+                        {user.academicNumber ?? t("no number yet", "بلا رقم بعد")}
+                      </span>
+                      <Btn
+                        tokens={tokens}
+                        lang={lang}
+                        variant="ghost"
+                        style={{ padding: "7px 12px", fontSize: 12, flexShrink: 0 }}
+                        onClick={() => {
+                          setOpenUserId(user.id);
+                          setNumberDraft(user.academicNumber ?? "");
+                        }}
+                      >
+                        <IconEye size={13} color={tokens.textSecondary} />
+                        {t("Manage", "إدارة")}
+                      </Btn>
+                    </div>
+                  </Card>
+                );
+              })}
+              {shown.length === 0 && (
+                <div style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textFaint, padding: "18px 4px" }}>
+                  {t("No users match these filters.", "لا مستخدمون يطابقون عوامل التصفية.")}
+                </div>
+              )}
+            </div>
+
+            <Drawer
+              open={openUser !== null}
+              onClose={() => setOpenUserId(null)}
+              tokens={tokens}
+              lang={lang}
+              title={openUser ? `${openUser.firstName} ${openUser.lastName}` : ""}
+              subtitle={openUser?.email}
+            >
+              {openUser && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
+                    <Chip tokens={tokens}>
+                      {lang === "ar" ? KIND_LABELS[openUser.role === "institution_admin" ? "officer" : openUser.role].ar : KIND_LABELS[openUser.role === "institution_admin" ? "officer" : openUser.role].en}
+                    </Chip>
+                    {(openUser.isSuperAdmin || (admin.me?.user?.email === openUser.email && admin.isSuperAdmin)) && (
+                      <Chip tokens={tokens} tone="primary">{t("Super admin", "سوبر أدمن")}</Chip>
+                    )}
+                    <Chip tokens={tokens} tone={openUser.isActive ? "peri" : "slate"}>
+                      {openUser.isActive ? t("Active", "نشط") : t("Deactivated", "معطّل")}
+                    </Chip>
+                    {openUser.accountType === "individual" && <Chip tokens={tokens} tone="slate">{t("Individual account", "حساب فردي")}</Chip>}
+                  </div>
+
+                  <Field
+                    tokens={tokens}
+                    lang={lang}
+                    label={
+                      openUser.role === "student"
+                        ? t("Academic number (optional)", "الرقم الأكاديمي (اختياري)")
+                        : openUser.role === "doctor" || openUser.role === "institution_admin"
+                          ? t("Employee number (optional)", "الرقم الوظيفي (اختياري)")
+                          : t("Number", "الرقم")
+                    }
+                    hint={t("For manual verification only — never gates login or registration.", "للتحقق اليدوي فقط — لا يمنع الدخول أو التسجيل أبدًا.")}
+                  >
+                    <div style={{ display: "flex", gap: 8, flexDirection: isRtl ? "row-reverse" : "row" }}>
+                      <input
+                        value={numberDraft}
+                        onChange={(e) => setNumberDraft(e.target.value)}
+                        disabled={!canManage || saving}
+                        style={{ ...inputStyle(tokens, bFont), width: "auto", flex: 1 }}
+                        placeholder={openUser.role === "student" ? "20231701" : "EMP-0021"}
+                      />
+                      <Btn tokens={tokens} lang={lang} variant="soft" style={{ padding: "8px 14px", fontSize: 12 }} disabled={!canManage || saving} onClick={saveNumber}>
+                        {t("Save", "حفظ")}
+                      </Btn>
+                    </div>
+                  </Field>
+
+                  {!openUser.isSuperAdmin && !(admin.me?.user?.email === openUser.email && admin.isSuperAdmin) && (
+                    <Field tokens={tokens} lang={lang} label={t("Account role", "دور الحساب")}>
+                      <select
+                        value={openUser.role}
+                        onChange={(e) => applyRole(e.target.value)}
+                        disabled={!canManage}
+                        style={{ ...inputStyle(tokens, bFont), cursor: "pointer" }}
+                      >
+                        <option value="student">{t("Student", "طالب")}</option>
+                        <option value="doctor">{t("Doctor", "دكتور")}</option>
+                        <option value="institution_admin">{t("Officer", "مسؤول")}</option>
+                      </select>
+                    </Field>
+                  )}
+
+                  {openUser.role === "institution_admin" && !(admin.me?.user?.email === openUser.email && admin.isSuperAdmin) && !openUser.isSuperAdmin && (
+                    <OfficerScopeCard officer={openUser} templates={admin.me?.templates ?? []} tokens={tokens} lang={lang} t={t} onChanged={reload} />
+                  )}
+
+                  {(openUser.isSuperAdmin || (admin.me?.user?.email === openUser.email && admin.isSuperAdmin)) ? (
+                    <AlertStrip
+                      tokens={tokens}
+                      lang={lang}
+                      tone="peri"
+                      icon={<IconCheck size={14} color={tokens.primary} />}
+                      title={t("The super admin account can never be deactivated or demoted.", "لا يمكن تعطيل حساب السوبر أدمن أو تخفيض دوره أبدًا.")}
+                    />
+                  ) : (
+                    <div style={{ border: `1px solid ${tokens.gapBorder}`, borderRadius: 10, padding: "12px 14px" }}>
+                      <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6, flexDirection: isRtl ? "row-reverse" : "row" }}>
+                        <IconWarning size={13} color={tokens.gap} />
+                        <span style={{ fontFamily: bFont, fontWeight: 600, fontSize: 12.5, color: tokens.textPrimary }}>
+                          {openUser.isActive ? t("Deactivate account", "تعطيل الحساب") : t("Reactivate account", "إعادة تفعيل الحساب")}
+                        </span>
+                      </div>
+                      <p style={{ fontFamily: bFont, fontSize: 11.5, color: tokens.textMuted, margin: "0 0 10px", lineHeight: 1.6 }}>
+                        {openUser.isActive
+                          ? t(
+                              "Deactivating blocks login immediately — the platform already enforces this at sign-in. Data and enrollments stay untouched.",
+                              "التعطيل يمنع الدخول فورًا — المنصة تفرض ذلك عند تسجيل الدخول بالفعل. البيانات والتسجيلات تبقى كما هي.",
+                            )
+                          : t("Reactivating restores login instantly.", "إعادة التفعيل تعيد الدخول فورًا.")}
+                      </p>
+                      <ConfirmBtn
+                        tokens={tokens}
+                        lang={lang}
+                        variant={openUser.isActive ? "violet" : "soft"}
+                        disabled={!canManage}
+                        label={openUser.isActive ? t("Deactivate this account", "تعطيل هذا الحساب") : t("Reactivate this account", "إعادة تفعيل هذا الحساب")}
+                        confirmLabel={openUser.isActive ? t("Click again — login gets blocked now", "اضغط للتأكيد — سيُمنع الدخول الآن") : t("Click again to restore login", "اضغط للتأكيد لاستعادة الدخول")}
+                        onConfirm={toggleActive}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+            </Drawer>
+          </>
         )}
-      </Drawer>
+      </AsyncGate>
     </div>
   );
 }

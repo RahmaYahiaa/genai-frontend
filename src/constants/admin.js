@@ -43,3 +43,15 @@ export const KIND_LABELS = {
   doctor: { en: "Doctor", ar: "دكتور" },
   officer: { en: "Officer", ar: "مسؤول" },
 };
+
+export const AUDIT_TYPE_LABELS = {
+  "user.activated": { en: "Account activated", ar: "تفعيل حساب" },
+  "user.deactivated": { en: "Account deactivated", ar: "تعطيل حساب" },
+  "role.changed": { en: "Role changed", ar: "تغيير دور" },
+  "permissions.changed": { en: "Officer permissions edited", ar: "تعديل صلاحيات مسؤول" },
+  "officer.added": { en: "Officer added", ar: "إضافة مسؤول" },
+  "bulk.imported": { en: "Bulk import executed", ar: "تنفيذ إدخال جماعي" },
+  "request.decided": { en: "Join request decided", ar: "البت في طلب انضمام" },
+  "settings.changed": { en: "Institution settings changed", ar: "تعديل إعدادات المؤسسة" },
+  "account.linked": { en: "Individual account linked", ar: "ربط حساب فردي" },
+};

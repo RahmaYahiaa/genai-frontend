@@ -12,8 +12,8 @@ function sameSet(a, b) {
 export default function OfficerScopeCard({ officer, templates, tokens, lang, t, onChanged }) {
   const bFont = bFontFor(lang);
   const isRtl = lang === "ar";
-  const keys = officer.permissions ?? officer.keys ?? [];
   const [busy, setBusy] = useState(false);
+  const keys = useMemo(() => officer.permissions ?? officer.keys ?? [], [officer]);
 
   const currentTemplate = useMemo(
     () => (templates ?? []).find((tpl) => sameSet(tpl.keys ?? tpl, keys))?.id ?? "",

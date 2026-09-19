@@ -81,3 +81,13 @@ export function decideRequest(requestId, decision, note) {
     body: { decision, ...(note?.trim() ? { note: note.trim() } : {}) },
   });
 }
+
+export function listAuditEvents({ scope, search, period = "7d", page = 1, limit = 20 } = {}) {
+  const params = new URLSearchParams();
+  if (scope) params.set("scope", scope);
+  if (search?.trim()) params.set("search", search.trim());
+  params.set("period", period);
+  params.set("page", String(page));
+  params.set("limit", String(limit));
+  return api(`/admin/audit?${params.toString()}`);
+}

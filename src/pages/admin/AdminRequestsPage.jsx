@@ -1,314 +1,358 @@
 import { useCallback, useEffect, useState } from "react";
 import useAsync from "@/hooks/useAsync";
-import useMediaQuery from "@/hooks/useMediaQuery";
-import { tk, headingFont, bodyFont } from "@/constants/tokens";
-import { AsyncGate, Chip, Btn } from "@/components/ui";
-import { Drawer, Field, textareaStyle, toast, bFontFor } from "@/components/ModuleUI";
+import { tk, bodyFont } from "@/constants/tokens";
+import { AsyncGate } from "@/components/ui";
+import { AlertStrip, Btn, Card, Chip, ConfirmBtn, Drawer, Field, PillTabs, textareaStyle, toast, bFontFor, hFontFor } from "@/components/ModuleUI";
+import { IconInbox, IconDoc, IconImageAttach, IconCheck, IconBan, IconClock, IconEye, IconShield } from "@/components/Icons";
 import { listRequests, getRequestProof, decideRequest } from "@/services/admin";
 import { demoMode } from "@/services/auth";
+import { useAdmin } from "@/store/admin-context";
 
-const STATUS_TABS = ["PENDING", "APPROVED", "REJECTED"];
+const MONO = "'JetBrains Mono', monospace";
+const FILTERS = [
+  { id: "pending", status: "PENDING" },
+  { id: "accepted", status: "APPROVED" },
+  { id: "rejected", status: "REJECTED" },
+];
+
+const daysAgo = (iso) => Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 864e5));
 
 export default function AdminRequestsPage({ state }) {
   const tokens = tk(state.dark);
   const lang = state.lang;
   const isRtl = lang === "ar";
-  const t = (en, ar) => (lang === "ar" ? ar : en);
+  const hFont = hFontFor(lang);
   const bFont = bFontFor(lang);
-  const hFont = headingFont(lang);
-  const mobile = useMediaQuery("(max-width: 860px)");
+  const t = (en, ar) => (lang === "ar" ? ar : en);
+  const admin = useAdmin();
+  const canReview = admin.hasScope("requests.review");
+  const demo = demoMode();
 
-  const [tab, setTab] = useState("PENDING");
-  const [page, setPage] = useState(1);
-  const fetchRequests = useCallback(() => listRequests({ status: tab, page }), [tab, page]);
-  const { data, loading, error, reload } = useAsync(fetchRequests);
+  const [filter, setFilter] = useState("pending");
+  const [openId, setOpenId] = useState(null);
+  const [note, setNote] = useState("");
+  const [counts, setCounts] = useState({ pending: 0, accepted: 0, rejected: 0 });
+  const [proofBusy, setProofBusy] = useState(false);
 
-  const [openRequest, setOpenRequest] = useState(null);
-  const [decisionNote, setDecisionNote] = useState("");
-  const [proof, setProof] = useState(null);
-  const [proofError, setProofError] = useState(null);
-  const [busy, setBusy] = useState(false);
+  const statusParam = FILTERS.find((f) => f.id === filter).status;
+  const fetchList = useCallback(async () => {
+    if (demo || !canReview) return { items: [] };
+    const data = await listRequests({ status: statusParam, page: 1, limit: 20 });
+    return { items: data?.items ?? [] };
+  }, [demo, canReview, statusParam]);
 
-  const items = data?.items ?? [];
-  const total = data?.total ?? 0;
-  const pages = Math.max(1, Math.ceil(total / 20));
+  const { data, loading, error, reload } = useAsync(fetchList);
+  const shown = data?.items ?? [];
+  const open = shown.find((r) => r.id === openId) ?? null;
+  const noteOk = note.trim().length > 0;
 
   useEffect(() => {
-    setDecisionNote("");
-    setProof(null);
-    setProofError(null);
-    if (openRequest?.hasProof) {
-      getRequestProof(openRequest.id)
-        .then(setProof)
-        .catch((err) => setProofError(err.message));
-    }
-  }, [openRequest?.id]);
+    if (demo || !canReview) return undefined;
+    let alive = true;
+    Promise.all(
+      FILTERS.map(async (f) => {
+        const res = await listRequests({ status: f.status, page: 1, limit: 1 });
+        return [f.id, res?.total ?? 0];
+      }),
+    ).then((pairs) => {
+      if (alive) setCounts(Object.fromEntries(pairs));
+    }).catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [demo, canReview, data]);
 
-  async function decide(decision) {
-    if (decision === "REJECTED" && !decisionNote.trim()) {
-      toast(t("A written reason is required when rejecting a request.", "سبب الرفض مطلوب عند رفض الطلب."));
-      return;
-    }
-    setBusy(true);
+  const studentName = (r) => (r.student ? `${r.student.firstName} ${r.student.lastName}` : r.studentId);
+  const courseLabel = (r) => (r.course?.code ? `${r.course.code} · ${r.course.title}` : (r.course?.title ?? r.courseId));
+
+  const statusChip = (s) =>
+    s === "PENDING"
+      ? <Chip tokens={tokens} tone="peri">{t("Waiting for review", "بانتظار المراجعة")}</Chip>
+      : s === "APPROVED"
+        ? <Chip tokens={tokens} tone="primary">{t("Accepted", "مقبول")}</Chip>
+        : <Chip tokens={tokens} tone="violet">{t("Rejected", "مرفوض")}</Chip>;
+
+  const downloadProof = async () => {
+    if (!open) return;
+    setProofBusy(true);
     try {
-      const result = await decideRequest(openRequest.id, decision, decisionNote);
-      if (decision === "APPROVED") {
-        toast(
-          result.enrollmentCreated
-            ? t("Approved — the student is enrolled in the course right now.", "اتقبل — الطالب اتسجّل في المقرر لحظيًا.")
-            : t("Approved — request closed (student was already enrolled).", "اتقبل — الطلب اتقفل (الطالب كان مسجلًا بالفعل)."),
-        );
-      } else {
-        toast(t("Rejected with your written reason.", "اترفض بالسبب المكتوب."));
-      }
-      setOpenRequest(null);
-      reload();
+      const proof = await getRequestProof(open.id);
+      const bytes = proof?.data?.type === "Buffer" ? new Uint8Array(proof.data.data) : null;
+      if (!bytes) throw new Error(t("Proof payload was not readable.", "محتوى الإثبات غير قابل للقراءة."));
+      const blob = new Blob([bytes], { type: proof.mimeType || "application/octet-stream" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = proof.fileName || "proof";
+      a.click();
+      URL.revokeObjectURL(url);
     } catch (err) {
-      toast(err.message);
+      toast(err?.message ?? t("Could not download the proof file.", "تعذر تنزيل ملف الإثبات."));
     } finally {
-      setBusy(false);
+      setProofBusy(false);
     }
-  }
+  };
 
-  const tabChip = (id) => (
-    <button
-      key={id}
-      onClick={() => {
-        setTab(id);
-        setPage(1);
-      }}
-      style={{
-        padding: "6px 12px",
-        borderRadius: 999,
-        cursor: "pointer",
-        fontFamily: bFont,
-        fontSize: 12,
-        fontWeight: tab === id ? 600 : 500,
-        background: tab === id ? tokens.primaryLight : tokens.card,
-        border: `1px solid ${tab === id ? tokens.primary : tokens.cardBorder}`,
-        color: tab === id ? tokens.primary : tokens.textSecondary,
-      }}
-    >
-      {id === "PENDING" ? t("pending", "معلقة") : id === "APPROVED" ? t("approved", "مقبولة") : t("rejected", "مرفوضة")}
-    </button>
-  );
+  const decide = (decision) => {
+    if (!open) return;
+    decideRequest(open.id, decision, note.trim() || undefined)
+      .then(() => {
+        toast(decision === "APPROVED"
+          ? t("Request accepted — the student lands in the course immediately, and the decision is audit-logged.", "قُبل الطلب — يصل الطالب للمقرر فورًا والقرار مسجل في التدقيق.")
+          : t("Request rejected with your reason — the student sees it in his notifications, and the decision is audit-logged.", "رُفض الطلب بسببك — يراه الطالب في إشعاراته والقرار مسجل في التدقيق."));
+        setOpenId(null);
+        reload();
+      })
+      .catch((err) => toast(err?.message ?? t("Could not record the decision.", "تعذر تسجيل القرار.")));
+  };
 
-  if (demoMode()) {
+  if (demo) {
     return (
-      <div style={{ padding: 28, maxWidth: 720, margin: "0 auto", fontFamily: bodyFont(lang) }}>
-        <div style={{ fontFamily: hFont, fontWeight: 800, fontSize: 16, color: tokens.textPrimary }}>
-          {t("Request review needs the real backend — set VITE_API_URL.", "مراجعة الطلبات محتاجة الباك إند الحقيقي — اضبطي VITE_API_URL.")}
-        </div>
+      <div style={{ padding: "26px 32px", maxWidth: 720, margin: "0 auto", fontFamily: bodyFont(lang) }}>
+        <AlertStrip
+          tokens={tokens}
+          lang={lang}
+          tone="violet"
+          icon={<IconShield size={14} color={tokens.gap} />}
+          title={t("Admin module requires the real backend", "وحدة إدارة المؤسسة بتشتغل مع الباك إند الحقيقي بس")}
+          body={t(
+            "Set VITE_API_URL to your running backend (ending with /api/v1), restart the frontend, then sign in with your institution admin account.",
+            "اضبطي VITE_API_URL على الباك إند الشغال (منتهيًا بـ /api/v1)، اعملي إعادة تشغيل للفرونت، وسجّلي دخولك بحساب مسؤول المؤسسة.",
+          )}
+        />
       </div>
     );
   }
 
   return (
-    <div style={{ padding: mobile ? 16 : "26px 32px", maxWidth: 1080, margin: "0 auto", fontFamily: bodyFont(lang) }}>
+    <div style={{ padding: "26px 32px", maxWidth: 980, margin: "0 auto", direction: isRtl ? "rtl" : "ltr", textAlign: isRtl ? "right" : "left", fontFamily: bodyFont(lang) }}>
       <div style={{ marginBottom: 18 }}>
-        <h1 style={{ margin: "0 0 4px", fontFamily: hFont, fontWeight: 700, fontSize: mobile ? 19 : 22, letterSpacing: "-0.025em", color: tokens.textPrimary }}>
-          {t("Join requests", "طلبات الانضمام")}
+        <h1 style={{ fontFamily: hFont, fontWeight: 700, fontSize: 22, color: tokens.textPrimary, letterSpacing: "-0.025em", margin: "0 0 4px" }}>
+          {t("Out-of-year requests", "طلبات خارج السنة")}
         </h1>
-        <p style={{ margin: 0, fontFamily: bFont, fontSize: 13, color: tokens.textMuted, maxWidth: 720, lineHeight: 1.7 }}>
-          {t(
-            "Students asking to join institution courses, with their notes and proof files. Approval enrolls the student instantly; rejection always carries your written reason to the record.",
-            "طلاب بيطلبوا الانضمام لمقررات المؤسسة بملاحظاتهم وملفات الإثبات. القبول بيسجّل الطالب لحظيًا؛ والرفض بيتسجّل بالسبب المكتوب.",
-          )}
+        <p style={{ fontFamily: bFont, fontSize: 13, color: tokens.textMuted, margin: 0 }}>
+          {t("Proof-backed exceptions — decided one by one, never by accident.", "استثناءات مدعومة بإثباتات — تُبت واحدًا واحدًا ولا تقع بالمصادفة.")}
         </p>
       </div>
 
-      <AsyncGate tokens={tokens} lang={lang} loading={loading} error={error} reload={reload} label={t("Loading requests…", "جاري تحميل الطلبات…")}>
-        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 14, flexWrap: "wrap" }}>
-          {STATUS_TABS.map(tabChip)}
-          <span style={{ fontFamily: bFont, fontSize: 12, color: tokens.textFaint, marginInlineStart: "auto" }}>
-            {t(`${total} total`, `${total} إجمالي`)}
-          </span>
-        </div>
+      <div style={{ marginBottom: 16 }}>
+        <AlertStrip
+          tokens={tokens}
+          lang={lang}
+          tone="peri"
+          icon={<IconInbox size={14} color={tokens.primary} />}
+          title={t(
+            "A student outside the course year can not enroll by code — he requests, attaches the official exception, and your decision both grants the seat and reaches his notifications.",
+            "الطالب خارج سنة المقرر لا يسجل بالكود — يطلب ويرفق الاستثناء الرسمي، وقرارك يمنح المقعد ويصل لإشعاراته معًا.",
+          )}
+        />
+      </div>
 
-        {items.length === 0 ? (
-          <div style={{ padding: 26, textAlign: "center", fontFamily: bFont, fontSize: 13, color: tokens.textMuted, border: `1px dashed ${tokens.cardBorder}`, borderRadius: 12 }}>
-            {tab === "PENDING" ? t("The queue is clear — nothing waits for a decision.", "الطابور فاضي — مفيش حاجة ناطرة قرار.") : t("Nothing in this state yet.", "مفيش طلبات بالحالة دي لسه.")}
-          </div>
+      <div style={{ marginBottom: 14 }}>
+        <PillTabs
+          tokens={tokens}
+          lang={lang}
+          active={filter}
+          onSelect={(id) => {
+            setFilter(id);
+            setOpenId(null);
+          }}
+          tabs={[
+            { id: "pending", label: `${t("Pending", "معلقة")} · ${counts.pending}` },
+            { id: "accepted", label: `${t("Accepted", "مقبولة")} · ${counts.accepted}` },
+            { id: "rejected", label: `${t("Rejected", "مرفوضة")} · ${counts.rejected}` },
+          ]}
+        />
+      </div>
+
+      <AsyncGate
+        tokens={tokens}
+        lang={lang}
+        loading={admin.loading || loading}
+        error={admin.error || error}
+        reload={async () => {
+          await admin.reload();
+          await reload();
+        }}
+        label={t("Loading requests…", "جاري تحميل الطلبات…")}
+      >
+        {!canReview ? (
+          <AlertStrip
+            tokens={tokens}
+            lang={lang}
+            tone="violet"
+            icon={<IconShield size={14} color={tokens.gap} />}
+            title={t("This page needs the requests.review scope", "هذه الصفحة تحتاج نطاق requests.review")}
+            body={t("Ask your super admin to grant you the scope, or return to the health dashboard.", "اطلب من السوبر أدمن منحك النطاق، أو عُد إلى لوحة الصحة.")}
+          />
         ) : (
-          <div style={{ border: `1px solid ${tokens.cardBorder}`, borderRadius: 12, background: tokens.card, overflow: "hidden" }}>
-            {items.map((request, index) => {
-              const studentLabel = request.student ? `${request.student.firstName} ${request.student.lastName}` : t("a student", "طالب");
-              const courseLabel = request.course ? `${request.course.code ?? ""} ${request.course.title}`.trim() : t("a course", "مقرر");
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {shown.map((r) => {
+              const waiting = daysAgo(r.createdAt);
+              const isImage = (r.proofMimeType ?? "").startsWith("image/");
               return (
-                <button
-                  key={request.id}
-                  onClick={() => setOpenRequest(request)}
-                  style={{
-                    width: "100%",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 12,
-                    padding: "12px 16px",
-                    background: "transparent",
-                    border: "none",
-                    borderTop: index === 0 ? "none" : `1px solid ${tokens.cardBorder}`,
-                    cursor: "pointer",
-                    textAlign: isRtl ? "right" : "left",
-                    flexDirection: isRtl ? "row-reverse" : "row",
-                  }}
-                >
-                  <span style={{ flex: 1, minWidth: 0 }}>
-                    <span style={{ fontFamily: bFont, fontWeight: 600, fontSize: 13.5, color: tokens.textPrimary, display: "block" }}>
-                      {studentLabel}
-                      <span style={{ fontWeight: 400, color: tokens.textMuted }}> → {courseLabel}</span>
-                    </span>
-                    <span style={{ display: "block", fontFamily: bFont, fontSize: 11.5, color: tokens.textMuted }}>
-                      {request.student?.email}
-                    </span>
-                    {request.studentNote ? (
-                      <span style={{ display: "block", fontFamily: bFont, fontSize: 12, color: tokens.textSecondary, marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        “{request.studentNote}”
-                      </span>
-                    ) : null}
-                  </span>
-                  {request.hasProof ? <Chip tokens={tokens} tone="primary">{t("proof attached", "إثبات مرفق")}</Chip> : null}
-                  <span style={{ fontFamily: bFont, fontSize: 11, color: tokens.textFaint, flexShrink: 0 }}>
-                    {new Date(request.createdAt).toLocaleDateString(lang === "ar" ? "ar-EG" : "en-GB")}
-                  </span>
-                  {request.status !== "PENDING" ? (
-                    <Chip tokens={tokens} tone={request.status === "APPROVED" ? "mastered" : "gap"}>
-                      {request.status === "APPROVED" ? t("approved", "مقبول") : t("rejected", "مرفوض")}
-                    </Chip>
-                  ) : (
-                    <Chip tokens={tokens} tone="developing">{t("needs decision", "محتاج قرار")}</Chip>
-                  )}
-                </button>
+                <Card tokens={tokens} key={r.id} style={{ padding: "14px 16px" }}>
+                  <div style={{ display: "flex", gap: 12, alignItems: "flex-start", flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
+                    <div style={{ flex: 1, minWidth: 240 }}>
+                      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
+                        <span style={{ fontFamily: bFont, fontWeight: 600, fontSize: 13.5, color: tokens.textPrimary }}>{studentName(r)}</span>
+                        {r.student?.email && <Chip tokens={tokens} tone="slate">{r.student.email}</Chip>}
+                        {statusChip(r.status)}
+                      </div>
+                      <div style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textSecondary, marginTop: 6 }}>
+                        <span style={{ fontFamily: MONO, fontSize: 11.5 }}>{r.course?.code}</span>
+                        {r.course?.code ? "  ·  " : ""}
+                        {r.course?.title}
+                      </div>
+                      {r.studentNote && (
+                        <div style={{ fontFamily: bFont, fontSize: 12, color: tokens.textMuted, marginTop: 6, lineHeight: 1.65 }}>{r.studentNote}</div>
+                      )}
+                      {r.hasProof && (
+                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8, flexDirection: isRtl ? "row-reverse" : "row" }}>
+                          <span style={{ display: "inline-flex", gap: 5, alignItems: "center", fontFamily: MONO, fontSize: 10, color: tokens.textSecondary, background: tokens.inset, border: `1px solid ${tokens.cardBorder}`, borderRadius: 5, padding: "3px 8px" }}>
+                            {isImage ? <IconImageAttach size={11} color={tokens.textSecondary} /> : <IconDoc size={11} color={tokens.textSecondary} />}
+                            {r.proofFileName}
+                          </span>
+                        </div>
+                      )}
+                      {r.status !== "PENDING" && (
+                        <div style={{ fontFamily: bFont, fontSize: 11.5, color: tokens.textFaint, marginTop: 8 }}>
+                          {t("Decided", "تم البت")}
+                          {r.decisionNote ? ` — “${r.decisionNote}”` : ""}
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: isRtl ? "flex-start" : "flex-end", flexShrink: 0 }}>
+                      {r.status === "PENDING" ? (
+                        <>
+                          <Btn tokens={tokens} lang={lang} variant="soft" style={{ padding: "8px 14px", fontSize: 12.5 }} onClick={() => { setNote(""); setOpenId(r.id); }}>
+                            <IconEye size={13} color={tokens.primary} />
+                            {t("Review proofs & decide", "راجع الإثباتات وابت")}
+                          </Btn>
+                          <span style={{ display: "inline-flex", gap: 5, alignItems: "center", fontFamily: MONO, fontSize: 10.5, color: waiting >= 3 ? tokens.gap : tokens.textFaint }}>
+                            <IconClock size={11} color={waiting >= 3 ? tokens.gap : tokens.textFaint} />
+                            {waiting > 0 ? t(`waiting ${waiting}d`, `معلق منذ ${waiting} يوم`) : t("submitted today", "قُدم اليوم")}
+                          </span>
+                        </>
+                      ) : (
+                        <span style={{ fontFamily: MONO, fontSize: 10.5, color: tokens.textFaint }}>
+                          {r.decidedAt ? t(`${daysAgo(r.decidedAt)}d ago`, `منذ ${daysAgo(r.decidedAt)} يوم`) : ""}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </Card>
               );
             })}
-          </div>
-        )}
-
-        {pages > 1 && (
-          <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 14 }}>
-            <Btn tokens={tokens} variant="ghost" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-              {t("Previous", "السابق")}
-            </Btn>
-            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: tokens.textMuted, alignSelf: "center" }}>
-              {page} / {pages}
-            </span>
-            <Btn tokens={tokens} variant="ghost" disabled={page >= pages} onClick={() => setPage((p) => p + 1)}>
-              {t("Next", "التالي")}
-            </Btn>
+            {shown.length === 0 && (
+              <Card tokens={tokens} style={{ padding: "26px 18px", textAlign: "center" }}>
+                <div style={{ fontFamily: bFont, fontSize: 13, color: tokens.textMuted }}>
+                  {filter === "pending"
+                    ? t("Nothing waiting — every request has been decided.", "لا شيء معلق — كل الطلبات تم البت فيها.")
+                    : t("No requests under this filter yet.", "لا طلبات تحت هذا الفلتر بعد.")}
+                </div>
+              </Card>
+            )}
           </div>
         )}
       </AsyncGate>
 
       <Drawer
-        open={Boolean(openRequest)}
-        onClose={() => setOpenRequest(null)}
-        title={openRequest?.student ? `${openRequest.student.firstName} ${openRequest.student.lastName}` : ""}
-        subtitle={openRequest?.student?.email ?? ""}
+        open={open !== null}
+        onClose={() => setOpenId(null)}
         tokens={tokens}
         lang={lang}
+        title={open ? `${studentName(open)} → ${courseLabel(open)}` : ""}
+        subtitle={open?.student?.email}
       >
-        {openRequest && (
+        {open && (
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <div style={{ border: `1px solid ${tokens.cardBorder}`, borderRadius: 10, background: tokens.card, padding: "12px 14px" }}>
-              <div style={{ fontFamily: bFont, fontWeight: 700, fontSize: 12.5, color: tokens.textPrimary, marginBottom: 6 }}>
-                {t("Course", "المقرر")}
-              </div>
-              <div style={{ fontFamily: bFont, fontSize: 13, color: tokens.textSecondary }}>
-                {openRequest.course ? `${openRequest.course.code ?? ""} — ${openRequest.course.title}` : "—"}
-              </div>
-              <div style={{ fontFamily: bFont, fontSize: 11.5, color: tokens.textFaint, marginTop: 4 }}>
-                {new Date(openRequest.createdAt).toLocaleString(lang === "ar" ? "ar-EG" : "en-GB")}
-              </div>
-              {openRequest.studentNote ? (
-                <div style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textSecondary, marginTop: 8, lineHeight: 1.7, borderTop: `1px dashed ${tokens.cardBorder}`, paddingTop: 8 }}>
-                  {t("Student's note:", "ملاحظة الطالب:")} “{openRequest.studentNote}”
-                </div>
-              ) : null}
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
+              {open.course?.code && <Chip tokens={tokens} tone="slate">{open.course.code}</Chip>}
+              {statusChip(open.status)}
             </div>
 
-            {openRequest.hasProof ? (
-              <div style={{ border: `1px dashed ${tokens.cardBorder}`, borderRadius: 10, padding: "12px 14px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                  <div style={{ fontFamily: bFont, fontWeight: 700, fontSize: 12.5, color: tokens.textPrimary }}>
-                    {t("Proof attachment", "الإثبات المرفق")}
-                  </div>
-                  <Chip tokens={tokens}>{openRequest.proofFileName}</Chip>
-                </div>
-                {!proof && !proofError ? (
-                  <div style={{ fontFamily: bFont, fontSize: 12, color: tokens.textMuted }}>{t("Loading proof…", "جاري تحميل الإثبات…")}</div>
-                ) : null}
-                {proofError ? (
-                  <div style={{ fontFamily: bFont, fontSize: 12, color: tokens.gap }}>{proofError}</div>
-                ) : null}
-                {proof?.mimeType === "application/pdf" ? (
-                  <Btn
-                    tokens={tokens}
-                    variant="ghost"
-                    onClick={() => {
-                      const bytes = Uint8Array.from(atob(proof.data), (c) => c.charCodeAt(0));
-                      const url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
-                      window.open(url, "_blank", "noopener");
-                    }}
-                  >
-                    {t("Open PDF in a new tab", "افتحي الـ PDF في تاب جديد")}
-                  </Btn>
-                ) : proof?.data ? (
-                  <img
-                    src={`data:${proof.mimeType};base64,${proof.data}`}
-                    alt={proof.fileName}
-                    style={{ maxWidth: "100%", borderRadius: 8, border: `1px solid ${tokens.cardBorder}`, display: "block" }}
-                  />
-                ) : null}
-                {proof?.size ? (
-                  <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: tokens.textFaint, marginTop: 6 }}>
-                    {proof.mimeType} · {Math.round(proof.size / 1024)} KB
-                  </div>
-                ) : null}
+            <div style={{ background: tokens.inset, border: `1px solid ${tokens.cardBorder}`, borderRadius: 10, padding: "10px 12px" }}>
+              <div style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "0.09em", color: tokens.textMuted, marginBottom: 7 }}>
+                {t("STUDENT STATEMENT", "بيان الطالب")}
               </div>
-            ) : (
-              <div style={{ fontFamily: bFont, fontSize: 12, color: tokens.textFaint }}>
-                {t("No proof attached to this request.", "مفيش إثبات مرفق بالطلب ده.")}
-              </div>
-            )}
+              <p style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textPrimary, margin: 0, lineHeight: 1.7 }}>{open.studentNote || t("(no written statement)", "(بدون بيان مكتوب)")}</p>
+            </div>
 
-            {openRequest.status === "PENDING" ? (
-              <>
-                <Field tokens={tokens} lang={lang} label={t("Decision note — required when rejecting, optional when approving", "ملاحظة القرار — إجبارية عند الرفض، اختيارية عند القبول")}>
-                  <textarea
-                    value={decisionNote}
-                    onChange={(event) => setDecisionNote(event.target.value)}
-                    placeholder={t("e.g. section capacity is full this term", "مثال: السعة مكتملة هذا الفصل")}
-                    rows={3}
-                    style={{ ...textareaStyle(tokens, bFont), width: "100%", lineHeight: 1.7 }}
-                  />
-                </Field>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <Btn tokens={tokens} disabled={busy} full onClick={() => decide("APPROVED")}>
-                    {busy ? t("Deciding…", "جاري البت…") : t("Approve — enroll now", "قبول — سجّل الآن")}
-                  </Btn>
-                  <Btn
-                    tokens={tokens}
-                    variant="ghost"
-                    disabled={busy}
-                    full
-                    onClick={() => decide("REJECTED")}
-                  >
-                    {t("Reject (reason required)", "رفض (السبب إجباري)")}
-                  </Btn>
+            <div>
+              <div style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "0.09em", color: tokens.textMuted, marginBottom: 7 }}>
+                {t("PROOF ATTACHMENTS", "مرفقات الإثبات")}
+              </div>
+              {open.hasProof ? (
+                <div style={{ border: `1px solid ${tokens.cardBorder}`, borderRadius: 10, overflow: "hidden" }}>
+                  <div style={{ padding: "14px", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, background: tokens.inset, borderBottom: `1px dashed ${tokens.cardBorder}` }}>
+                    {(open.proofMimeType ?? "").startsWith("image/") ? <IconImageAttach size={22} color={tokens.textFaint} /> : <IconDoc size={22} color={tokens.textFaint} />}
+                    <span style={{ fontFamily: MONO, fontSize: 10.5, color: tokens.textFaint }}>
+                      {(open.proofMimeType ?? "").startsWith("image/") ? t("attached image", "صورة مرفقة") : t("attached document", "مستند مرفق")}
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", padding: "9px 12px", flexDirection: isRtl ? "row-reverse" : "row" }}>
+                    {(open.proofMimeType ?? "").startsWith("image/") ? <IconImageAttach size={13} color={tokens.textSecondary} /> : <IconDoc size={13} color={tokens.textSecondary} />}
+                    <span style={{ fontFamily: MONO, fontSize: 11.5, color: tokens.textPrimary, direction: "ltr", flex: 1 }}>{open.proofFileName}</span>
+                    <Btn tokens={tokens} lang={lang} variant="ghost" disabled={proofBusy} style={{ padding: "6px 10px", fontSize: 11.5, flexShrink: 0 }} onClick={downloadProof}>
+                      {t("Download", "تنزيل")}
+                    </Btn>
+                  </div>
                 </div>
-              </>
-            ) : (
-              <div style={{ border: `1px solid ${tokens.cardBorder}`, borderRadius: 10, background: tokens.card, padding: "12px 14px" }}>
-                <Chip tokens={tokens} tone={openRequest.status === "APPROVED" ? "mastered" : "gap"} style={{ marginBottom: 8 }}>
-                  {openRequest.status === "APPROVED" ? t("approved", "اتقبل") : t("rejected", "اترفض")}
-                </Chip>
-                <div style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textSecondary, marginTop: 6, lineHeight: 1.7 }}>
-                  {openRequest.decisionNote ? `“${openRequest.decisionNote}”` : t("No note recorded.", "بلا ملاحظة مسجلة.")}
-                </div>
-                <div style={{ fontFamily: bFont, fontSize: 11, color: tokens.textFaint, marginTop: 6 }}>
-                  {openRequest.decidedAt ? new Date(openRequest.decidedAt).toLocaleString(lang === "ar" ? "ar-EG" : "en-GB") : ""}
-                </div>
+              ) : (
+                <div style={{ fontFamily: bFont, fontSize: 12, color: tokens.textFaint }}>{t("No proof attachment on this request.", "لا يوجد مرفق إثبات في هذا الطلب.")}</div>
+              )}
+              <p style={{ fontFamily: bFont, fontSize: 11, color: tokens.textFaint, margin: "8px 0 0", lineHeight: 1.6 }}>
+                {t(
+                  "Attachments come from the student-affairs exception flow — deciding without reviewing them is possible but discouraged.",
+                  "المرفقات مصدرها مسار استثناءات شؤون الطلاب — يمكن البت دون مراجعتها لكنه غير مستحسن.",
+                )}
+              </p>
+            </div>
+
+            <Field tokens={tokens} lang={lang} label={t("Decision note", "ملاحظة القرار")} hint={t("Optional for acceptance — required for rejection so the student knows why.", "اختيارية للقبول — إلزامية للرفض حتى يعرف الطالب السبب.")}>
+              <textarea
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                rows={3}
+                style={{ ...textareaStyle(tokens, bFont) }}
+                placeholder={t("e.g. Exception verified against student-affairs records.", "مثال: تم التحقق من الاستثناء من سجلات شؤون الطلاب.")}
+              />
+            </Field>
+
+            <div style={{ display: "flex", gap: 8, flexDirection: isRtl ? "row-reverse" : "row" }}>
+              <ConfirmBtn
+                tokens={tokens}
+                lang={lang}
+                variant="primary"
+                label={t("Accept — enroll in course", "قبول — تسجيل في المقرر")}
+                confirmLabel={t("Click again to accept", "اضغط للتأكيد للقبول")}
+                onConfirm={() => decide("APPROVED")}
+              />
+              <ConfirmBtn
+                tokens={tokens}
+                lang={lang}
+                variant="soft"
+                disabled={!noteOk}
+                label={t("Reject with reason", "رفض مع السبب")}
+                confirmLabel={t("Click again to reject", "اضغط للتأكيد للرفض")}
+                onConfirm={() => decide("REJECTED")}
+              />
+            </div>
+            {!noteOk && (
+              <div style={{ display: "flex", gap: 6, alignItems: "center", flexDirection: isRtl ? "row-reverse" : "row" }}>
+                <IconBan size={12} color={tokens.textFaint} />
+                <span style={{ fontFamily: bFont, fontSize: 11, color: tokens.textFaint }}>
+                  {t("Write the note above to unlock rejection.", "اكتب الملاحظة بالأعلى لتفعيل زر الرفض.")}
+                </span>
               </div>
             )}
+            <div style={{ display: "flex", gap: 6, alignItems: "center", flexDirection: isRtl ? "row-reverse" : "row" }}>
+              <IconCheck size={12} color={tokens.textFaint} />
+              <span style={{ fontFamily: bFont, fontSize: 11, color: tokens.textFaint, lineHeight: 1.6 }}>
+                {t("The decision records the proof reference in the audit log and notifies the student instantly.", "القرار يسجل مرجع الإثبات في التدقيق ويُشعر الطالب لحظيًا.")}
+              </span>
+            </div>
           </div>
         )}
       </Drawer>
