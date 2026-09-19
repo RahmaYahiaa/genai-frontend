@@ -42,3 +42,23 @@ export function applyOfficerTemplate(userId, templateId) {
 export function setOfficerScopes(userId, keys) {
   return api(`/admin/officers/${userId}/scopes`, { method: "PATCH", body: { keys } });
 }
+
+export function stageImport(fileName, rows) {
+  return api("/admin/imports", { method: "POST", body: { fileName, rows } });
+}
+
+export function listImports() {
+  return api("/admin/imports");
+}
+
+export function confirmImport(batchId) {
+  return api(`/admin/imports/${batchId}/confirm`, { method: "POST" });
+}
+
+export function discardImport(batchId) {
+  return api(`/admin/imports/${batchId}`, { method: "DELETE" });
+}
+
+export function listInvitations(status) {
+  return api(status ? `/admin/invitations?status=${status}` : "/admin/invitations");
+}

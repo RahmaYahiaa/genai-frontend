@@ -26,6 +26,7 @@ import StudentCoursePage from "@/pages/StudentCoursePage";
 import AdminHealthPage from "@/pages/admin/AdminHealthPage";
 import AdminUsersPage from "@/pages/admin/AdminUsersPage";
 import AdminOfficersPage from "@/pages/admin/AdminOfficersPage";
+import AdminBulkImportPage from "@/pages/admin/AdminBulkImportPage";
 import AppShell from "@/components/AppShell";
 import "./App.css";
 
@@ -50,6 +51,7 @@ const PAGES = {
   [SCREENS.ADMIN]: AdminHealthPage,
   [SCREENS.ADMIN_USERS]: AdminUsersPage,
   [SCREENS.ADMIN_OFFICERS]: AdminOfficersPage,
+  [SCREENS.ADMIN_IMPORT]: AdminBulkImportPage,
 };
 
 function AppContent() {
