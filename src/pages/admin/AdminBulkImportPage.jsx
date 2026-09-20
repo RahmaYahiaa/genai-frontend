@@ -28,7 +28,7 @@ function parseCsv(text) {
       const parts = line.split(/[,\t;]/).map((p) => p.trim());
       const [firstName = "", lastName = "", email = "", roleRaw = "", coursesRaw = ""] = parts;
       const lowered = roleRaw.toLowerCase();
-      const role = lowered === "doctor" ? "doctor" : lowered === "student" ? "student" : "";
+      const role = lowered === "doctor" || lowered === "instructor" ? "instructor" : lowered === "student" ? "student" : "";
       const courseCodes = coursesRaw ? coursesRaw.split(/[+|]/).map((c) => c.trim().toUpperCase()).filter(Boolean) : [];
       return { firstName, lastName, email, role, courseCodes };
     });

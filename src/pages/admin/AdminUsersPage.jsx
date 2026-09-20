@@ -8,11 +8,12 @@ import { IconEye, IconShield, IconCheck, IconWarning } from "@/components/Icons"
 import { listUsers, setUserActive, changeUserRole, setAcademicNumber } from "@/services/admin";
 import { demoMode } from "@/services/auth";
 import { useAdmin } from "@/store/admin-context";
-import { KIND_LABELS } from "@/constants/admin";
+import { KIND_LABELS, BACKEND_ROLE_TO_KIND } from "@/constants/admin";
 import OfficerScopeCard from "@/components/admin/OfficerScopeCard";
 
 const MONO = "'JetBrains Mono', monospace";
 const KIND_KEYS = ["all", "student", "doctor", "officer"];
+const kindOf = (role) => BACKEND_ROLE_TO_KIND[role] ?? "student";
 
 export default function AdminUsersPage({ state }) {
   const tokens = tk(state.dark);
@@ -42,7 +43,7 @@ export default function AdminUsersPage({ state }) {
   const departments = useMemo(() => [...new Set(users.map((u) => u.department).filter(Boolean))], [users]);
 
   const shown = users.filter((u) => {
-    if (kindFilter !== "all" && u.role !== kindFilter) return false;
+    if (kindFilter !== "all" && kindOf(u.role) !== kindFilter) return false;
     if (departmentFilter !== "all" && u.department !== departmentFilter) return false;
     if (statusFilter === "active" && !u.isActive) return false;
     if (statusFilter === "inactive" && u.isActive) return false;
@@ -55,6 +56,7 @@ export default function AdminUsersPage({ state }) {
   });
 
   const openUser = users.find((u) => u.id === openUserId) ?? null;
+  const openKind = openUser ? kindOf(openUser.role) : "student";
 
   const patchUser = (id, patch) => setData((prev) => (Array.isArray(prev) ? prev.map((u) => (u.id === id ? { ...u, ...patch } : u)) : prev));
 
@@ -210,7 +212,7 @@ export default function AdminUsersPage({ state }) {
 
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {shown.map((user) => {
-                const kind = user.role === "institution_admin" ? "officer" : user.role === "doctor" ? "doctor" : "student";
+                const kind = kindOf(user.role);
                 const custom = Array.isArray(user.permissions) && user.permissions.length > 0;
                 const isSuper = user.isSuperAdmin === true || (admin.me?.user?.email === user.email && admin.isSuperAdmin && kind === "officer");
                 return (
@@ -275,7 +277,7 @@ export default function AdminUsersPage({ state }) {
                 <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
                     <Chip tokens={tokens}>
-                      {lang === "ar" ? KIND_LABELS[openUser.role === "institution_admin" ? "officer" : openUser.role].ar : KIND_LABELS[openUser.role === "institution_admin" ? "officer" : openUser.role].en}
+                      {lang === "ar" ? KIND_LABELS[openKind].ar : KIND_LABELS[openKind].en}
                     </Chip>
                     {(openUser.isSuperAdmin || (admin.me?.user?.email === openUser.email && admin.isSuperAdmin)) && (
                       <Chip tokens={tokens} tone="primary">{t("Super admin", "سوبر أدمن")}</Chip>
@@ -292,7 +294,7 @@ export default function AdminUsersPage({ state }) {
                     label={
                       openUser.role === "student"
                         ? t("Academic number (optional)", "الرقم الأكاديمي (اختياري)")
-                        : openUser.role === "doctor" || openUser.role === "institution_admin"
+                        : openKind === "doctor" || openKind === "officer"
                           ? t("Employee number (optional)", "الرقم الوظيفي (اختياري)")
                           : t("Number", "الرقم")
                     }
@@ -321,7 +323,7 @@ export default function AdminUsersPage({ state }) {
                         style={{ ...inputStyle(tokens, bFont), cursor: "pointer" }}
                       >
                         <option value="student">{t("Student", "طالب")}</option>
-                        <option value="doctor">{t("Doctor", "دكتور")}</option>
+                        <option value="instructor">{t("Doctor", "دكتور")}</option>
                         <option value="institution_admin">{t("Officer", "مسؤول")}</option>
                       </select>
                     </Field>
