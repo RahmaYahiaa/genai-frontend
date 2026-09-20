@@ -138,3 +138,11 @@ export async function listMyEnrollmentRequests({ status, page = 1, limit = 20 } 
   const result = await apiFull(`/courses/enrollment-requests/my?${params.toString()}`);
   return { items: result.data ?? [], meta: result.meta };
 }
+
+export async function createCourse(payload) {
+  return api("/courses", { method: "POST", body: payload });
+}
+
+export async function getCreationPolicy() {
+  return api("/courses/creation-policy");
+}

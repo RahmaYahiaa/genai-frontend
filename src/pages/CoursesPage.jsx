@@ -1,15 +1,15 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import useAsync from "@/hooks/useAsync";
 import useMediaQuery from "@/hooks/useMediaQuery";
 import { fetchCourses } from "@/services/api";
-import { listCourses, createPersonalCourse } from "@/services/courses";
+import { listCourses, createPersonalCourse, getCreationPolicy } from "@/services/courses";
 import { demoMode } from "@/services/auth";
 import { apiErrorText } from "@/services/http";
 import { tk, headingFont, bodyFont } from "@/constants/tokens";
 import { SCREENS } from "@/constants/routes";
 import { Card, Chip, Bar, AsyncGate, Btn } from "@/components/ui";
-import { Modal, inputStyle, toast, bFontFor } from "@/components/ModuleUI";
-import { IconPlus } from "@/components/Icons";
+import { AlertStrip, Modal, inputStyle, toast, bFontFor } from "@/components/ModuleUI";
+import { IconPlus, IconGlobe } from "@/components/Icons";
 import { useInstructorModule } from "@/store/InstructorProvider";
 
 export default function CoursesPage({ state, dispatch }) {
@@ -34,7 +34,18 @@ export default function CoursesPage({ state, dispatch }) {
     ? data?.items ?? []
     : [...(data?.items ?? []).filter((c) => !personal.some((p) => p.id === c.id)), ...personal];
 
-  const canCreate = !real || state.user?.accountType === "individual";
+  const [policy, setPolicy] = useState(null);
+  useEffect(() => {
+    if (!real || state.user?.accountType !== "individual") return undefined;
+    let alive = true;
+    getCreationPolicy()
+      .then((p) => { if (alive) setPolicy(p); })
+      .catch(() => null);
+    return () => { alive = false; };
+  }, [real, state.user?.accountType]);
+
+  const canCreate = !real || (state.user?.accountType === "individual" && policy?.canCreatePersonal !== false);
+  const personalPaused = real && state.user?.accountType === "individual" && policy?.canCreatePersonal === false;
 
   const createCourse = async () => {
     const title = newTitle.trim();
@@ -81,6 +92,20 @@ export default function CoursesPage({ state, dispatch }) {
           </Btn>
         )}
       </div>
+
+      {personalPaused && (
+        <AlertStrip
+          tokens={tokens}
+          lang={lang}
+          tone="slate"
+          icon={<IconGlobe size={15} color={tokens.noEvidence} />}
+          title={t("Self-study courses are for independent accounts", "مقررات الدراسة الذاتية للحسابات المستقلة")}
+          body={t(
+            "Your email belongs to a registered institution, so personal course creation is paused — browse your institution catalog and request to join its courses instead.",
+            "بريدك تابع لمؤسسة مسجلة، فإنشاء المقررات الشخصية متوقف — تصفّح كتالوج مؤسستك واطلب الانضمام لمقرراتها بدلًا من ذلك."
+          )}
+        />
+      )}
 
       <AsyncGate tokens={tokens} lang={lang} loading={loading} error={error} reload={reload} label={t("Loading courses…", "جاري تحميل المقررات…")}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 300px), 1fr))", gap: 14 }}>

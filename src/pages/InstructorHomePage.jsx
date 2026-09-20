@@ -1,15 +1,16 @@
 import { demoMode } from "@/services/auth";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import useAsync from "@/hooks/useAsync";
 import { tk, MONO } from "@/constants/tokens";
 import useMediaQuery from "@/hooks/useMediaQuery";
 import { useInstructorModule } from "@/store/InstructorProvider";
 import { getInstructorHome, getCourseAnalytics, getCoverageGaps } from "@/services/analytics";
-import { listEnrollments } from "@/services/courses";
+import { listEnrollments, getCreationPolicy, createCourse } from "@/services/courses";
 import { AsyncGate } from "@/components/ui";
 import { bFontFor, hFontFor } from "@/components/ModuleUI";
+import { Modal, Field, inputStyle, textareaStyle, toast } from "@/components/ModuleUI";
 import { SCREENS } from "@/constants/routes";
-import { IconWarning, IconClipboard } from "@/components/Icons";
+import { IconWarning, IconClipboard, IconPlus, IconCheck } from "@/components/Icons";
 import { MISCONCEPTIONS, latestAttempt, approvedMaterials, INSTRUCTOR_COURSE_IDS } from "@/data/instructorModule";
 function DemoInstructorHomePage({ state, dispatch }) {
   const { state: mod } = useInstructorModule();
@@ -203,7 +204,14 @@ function RealInstructorHome({ state, dispatch }) {
   const hFont = hFontFor(lang);
   const bFont = bFontFor(lang);
 
+  const [createOpen, setCreateOpen] = useState(false);
+  const [code, setCode] = useState("");
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [creating, setCreating] = useState(false);
+
   const load = useCallback(async () => {
+    const policy = await getCreationPolicy().catch(() => null);
     const home = await getInstructorHome();
     const list = home?.courses ?? [];
     const entries = await Promise.all(
@@ -224,9 +232,34 @@ function RealInstructorHome({ state, dispatch }) {
         ];
       }),
     );
-    return { courses: list, byId: Object.fromEntries(entries) };
+    return { courses: list, byId: Object.fromEntries(entries), policy };
   }, []);
   const { data, loading, error, reload } = useAsync(load);
+
+  const canCreate = data?.policy?.allowDoctorCourseCreation === true;
+  const canSubmitCode = code.trim().length > 0 && title.trim().length > 0;
+
+  const submitCreate = async () => {
+    if (!canSubmitCode || creating) return;
+    setCreating(true);
+    try {
+      await createCourse({
+        code: code.trim().toUpperCase(),
+        title: title.trim(),
+        ...(description.trim() ? { description: description.trim() } : {}),
+      });
+      setCreateOpen(false);
+      setCode("");
+      setTitle("");
+      setDescription("");
+      toast(t("Course created — the institution already sees it, waiting for its first materials.", "أُنشئ المقرر — يظهر لدى الإدارة الآن بانتظار مواده الأولى."));
+      reload();
+    } catch (err) {
+      toast(err?.message ?? t("Could not create the course.", "تعذّر إنشاء المقرر."));
+    } finally {
+      setCreating(false);
+    }
+  };
 
   const courses = [...(data?.courses ?? [])].sort(
     (a, b) => (b.pendingReviewCount - a.pendingReviewCount) || (b.fastTrackCount - a.fastTrackCount),
@@ -344,6 +377,23 @@ function RealInstructorHome({ state, dispatch }) {
                 </div>
               );
             })}
+            {canCreate && (
+              <button
+                type="button"
+                onClick={() => setCreateOpen(true)}
+                style={{ background: tokens.card, border: `1.5px dashed ${tokens.cardBorder}`, borderRadius: 12, padding: "18px 20px", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, cursor: "pointer", flexDirection: isRtl ? "row-reverse" : "row", textAlign: isRtl ? "right" : "left" }}
+              >
+                <span style={{ display: "inline-flex", width: 34, height: 34, borderRadius: 9, background: tokens.primaryLight, border: `1px solid ${tokens.citationBorder}`, alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <IconPlus size={16} color={tokens.primary} />
+                </span>
+                <span style={{ fontFamily: hFont, fontWeight: 600, fontSize: 14, color: tokens.textPrimary }}>
+                  {t("New course", "مقرر جديد")}
+                </span>
+                <span style={{ fontFamily: bFont, fontSize: 11.5, color: tokens.textFaint, lineHeight: 1.6, maxWidth: 220 }}>
+                  {t("Your institution lets doctors create course shells — the admin sees each one the moment it exists.", "مؤسستك تسمح لك بإنشاء مقررات داخل قسمك — تظهر للإدارة فور إنشائها.")}
+                </span>
+              </button>
+            )}
           </div>
         )}
         {data && (
@@ -352,6 +402,50 @@ function RealInstructorHome({ state, dispatch }) {
           </p>
         )}
       </AsyncGate>
+
+      <Modal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        tokens={tokens}
+        lang={lang}
+        title={t("Create a new course", "إنشاء مقرر جديد")}
+        subtitle={t("A course shell inside your department — materials are uploaded from Content Studio afterwards.", "هيكل مقرر داخل قسمك — المواد تُرفع لاحقًا من استوديو المحتوى.")}
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <Field
+            tokens={tokens}
+            lang={lang}
+            label={t("Course code", "كود المقرر")}
+            required
+            hint={t("The first digit encodes the year — students see the year chip from the code (e.g. CS310 → year 3).", "أول رقم في الكود يحمل السنة — الطلاب يرون شريحة السنة من الكود (مثال: CS310 → سنة ٣).")}
+          >
+            <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} style={{ ...inputStyle(tokens, bFont), direction: "ltr", textAlign: "left" }} placeholder="CS310" />
+          </Field>
+          <Field tokens={tokens} lang={lang} label={t("Course title", "اسم المقرر")} required>
+            <input value={title} onChange={(e) => setTitle(e.target.value)} style={{ ...inputStyle(tokens, bFont) }} placeholder={t("e.g. Mobile Application Development", "مثال: تطوير تطبيقات المحمول")} />
+          </Field>
+          <Field tokens={tokens} lang={lang} label={t("Description (optional)", "الوصف (اختياري)")}>
+            <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} style={{ ...textareaStyle(tokens, bFont) }} placeholder={t("One line shown to students in the institution catalog.", "سطر واحد يظهر للطلاب في كتالوج المؤسسة.")} />
+          </Field>
+          <div style={{ display: "flex", gap: 6, alignItems: "center", flexDirection: isRtl ? "row-reverse" : "row" }}>
+            <IconCheck size={12} color={tokens.textFaint} />
+            <span style={{ fontFamily: bFont, fontSize: 11, color: tokens.textFaint, lineHeight: 1.6 }}>
+              {t(
+                "The new shell shows up in institution analytics as a course without materials until your first approved upload.",
+                "المقرر الجديد يظهر في تحليلات المؤسسة كمقرر بلا مواد حتى ترفع أول محتوى معتمد.",
+              )}
+            </span>
+          </div>
+          <button
+            type="button"
+            disabled={!canSubmitCode || creating}
+            onClick={submitCreate}
+            style={{ width: "100%", padding: "11px 0", fontSize: 13.5, justifyContent: "center", borderRadius: 9, border: "none", background: tokens.primaryBtn, color: "#fff", fontFamily: hFont, fontWeight: 600, cursor: canSubmitCode && !creating ? "pointer" : "not-allowed", opacity: canSubmitCode && !creating ? 1 : 0.55 }}
+          >
+            {creating ? t("Creating…", "جاري الإنشاء…") : t("Create course", "إنشاء المقرر")}
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }
