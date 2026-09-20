@@ -3,7 +3,7 @@ import useAsync from "@/hooks/useAsync";
 import { tk, bodyFont } from "@/constants/tokens";
 import { AsyncGate } from "@/components/ui";
 import { AlertStrip, Btn, Card, Chip, ConfirmBtn, Drawer, Field, PillTabs, textareaStyle, toast, bFontFor, hFontFor } from "@/components/ModuleUI";
-import { IconInbox, IconDoc, IconImageAttach, IconCheck, IconBan, IconClock, IconEye, IconShield } from "@/components/Icons";
+import { IconInbox, IconDoc, IconImageAttach, IconCheck, IconBan, IconClock, IconEye, IconShield, IconDownload } from "@/components/Icons";
 import { listRequests, getRequestProof, decideRequest } from "@/services/admin";
 import { demoMode } from "@/services/auth";
 import { useAdmin } from "@/store/admin-context";
@@ -33,6 +33,9 @@ export default function AdminRequestsPage({ state }) {
   const [note, setNote] = useState("");
   const [counts, setCounts] = useState({ pending: 0, accepted: 0, rejected: 0 });
   const [proofBusy, setProofBusy] = useState(false);
+  const [proofView, setProofView] = useState(null);
+  const [decisionBusy, setDecisionBusy] = useState(null);
+  const [decisionError, setDecisionError] = useState("");
 
   const statusParam = FILTERS.find((f) => f.id === filter).status;
   const fetchList = useCallback(async () => {
@@ -72,12 +75,70 @@ export default function AdminRequestsPage({ state }) {
         ? <Chip tokens={tokens} tone="primary">{t("Accepted", "مقبول")}</Chip>
         : <Chip tokens={tokens} tone="violet">{t("Rejected", "مرفوض")}</Chip>;
 
+  const decodeProofBytes = (payload) => {
+    const raw = payload?.data;
+    if (raw?.type === "Buffer" && Array.isArray(raw.data)) return new Uint8Array(raw.data);
+    if (typeof raw === "string" && raw.length > 0) {
+      const binary = window.atob(raw.replace(/\s+/g, ""));
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+      return bytes;
+    }
+    return null;
+  };
+
+  const proofToView = (proof) => {
+    const bytes = decodeProofBytes(proof);
+    if (!bytes) return { kind: "unsupported", fileName: proof?.fileName ?? "" };
+    const blob = new Blob([bytes], { type: proof.mimeType || "application/octet-stream" });
+    const url = URL.createObjectURL(blob);
+    return {
+      kind: (proof.mimeType ?? "").startsWith("image/")
+        ? "image"
+        : proof.mimeType === "application/pdf"
+          ? "pdf"
+          : "download",
+      url,
+      fileName: proof.fileName,
+      mimeType: proof.mimeType,
+    };
+  };
+
+  useEffect(() => {
+    let revokedUrl = null;
+    if (!open || !open.hasProof) {
+      setProofView(null);
+      return undefined;
+    }
+    let alive = true;
+    setProofBusy(true);
+    getRequestProof(open.id)
+      .then((proof) => {
+        if (!alive) return;
+        const view = proofToView(proof);
+        if (view.url) revokedUrl = view.url;
+        setProofView(view);
+        setProofBusy(false);
+      })
+      .catch((err) => {
+        if (alive) {
+          setProofView({ kind: "error", message: err?.message ?? "" });
+          setProofBusy(false);
+        }
+      });
+    return () => {
+      alive = false;
+      if (revokedUrl) URL.revokeObjectURL(revokedUrl);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open?.id]);
+
   const downloadProof = async () => {
     if (!open) return;
     setProofBusy(true);
     try {
       const proof = await getRequestProof(open.id);
-      const bytes = proof?.data?.type === "Buffer" ? new Uint8Array(proof.data.data) : null;
+      const bytes = decodeProofBytes(proof);
       if (!bytes) throw new Error(t("Proof payload was not readable.", "محتوى الإثبات غير قابل للقراءة."));
       const blob = new Blob([bytes], { type: proof.mimeType || "application/octet-stream" });
       const url = URL.createObjectURL(blob);
@@ -94,7 +155,9 @@ export default function AdminRequestsPage({ state }) {
   };
 
   const decide = (decision) => {
-    if (!open) return;
+    if (!open || decisionBusy) return;
+    setDecisionBusy(decision);
+    setDecisionError("");
     decideRequest(open.id, decision, note.trim() || undefined)
       .then(() => {
         toast(decision === "APPROVED"
@@ -103,7 +166,10 @@ export default function AdminRequestsPage({ state }) {
         setOpenId(null);
         reload();
       })
-      .catch((err) => toast(err?.message ?? t("Could not record the decision.", "تعذر تسجيل القرار.")));
+      .catch((err) => {
+        setDecisionError(err?.message ?? t("Could not record the decision.", "تعذر تسجيل القرار."));
+      })
+      .finally(() => setDecisionBusy(null));
   };
 
   if (demo) {
@@ -280,23 +346,50 @@ export default function AdminRequestsPage({ state }) {
             </div>
 
             <div>
-              <div style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "0.09em", color: tokens.textMuted, marginBottom: 7 }}>
-                {t("PROOF ATTACHMENTS", "مرفقات الإثبات")}
+              <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "space-between", marginBottom: 7, flexDirection: isRtl ? "row-reverse" : "row" }}>
+                <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "0.09em", color: tokens.textMuted }}>
+                  {t("PROOF ATTACHMENTS", "مرفقات الإثبات")}
+                </span>
+                {open.hasProof && (
+                  <button
+                    type="button"
+                    disabled={proofBusy}
+                    onClick={downloadProof}
+                    title={t("Download the proof file", "تنزيل ملف الإثبات")}
+                    aria-label={t("Download the proof file", "تنزيل ملف الإثبات")}
+                    style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 30, height: 30, borderRadius: 8, border: `1px solid ${tokens.cardBorder}`, background: tokens.card, cursor: proofBusy ? "not-allowed" : "pointer", opacity: proofBusy ? 0.5 : 1 }}
+                  >
+                    <IconDownload size={14} color={tokens.textSecondary} />
+                  </button>
+                )}
               </div>
               {open.hasProof ? (
                 <div style={{ border: `1px solid ${tokens.cardBorder}`, borderRadius: 10, overflow: "hidden" }}>
-                  <div style={{ padding: "14px", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, background: tokens.inset, borderBottom: `1px dashed ${tokens.cardBorder}` }}>
-                    {(open.proofMimeType ?? "").startsWith("image/") ? <IconImageAttach size={22} color={tokens.textFaint} /> : <IconDoc size={22} color={tokens.textFaint} />}
-                    <span style={{ fontFamily: MONO, fontSize: 10.5, color: tokens.textFaint }}>
-                      {(open.proofMimeType ?? "").startsWith("image/") ? t("attached image", "صورة مرفقة") : t("attached document", "مستند مرفق")}
-                    </span>
-                  </div>
+                  {proofBusy && !proofView ? (
+                    <div style={{ padding: "22px 14px", textAlign: "center", fontFamily: bFont, fontSize: 12, color: tokens.textMuted, background: tokens.inset }}>
+                      {t("Loading the proof preview…", "جاري تحميل معاينة الإثبات…")}
+                    </div>
+                  ) : proofView?.kind === "image" ? (
+                    <div style={{ background: tokens.inset, borderBottom: `1px dashed ${tokens.cardBorder}`, padding: 10, textAlign: "center" }}>
+                      <img src={proofView.url} alt={proofView.fileName} style={{ maxWidth: "100%", maxHeight: 320, borderRadius: 6, display: "inline-block" }} />
+                    </div>
+                  ) : proofView?.kind === "pdf" ? (
+                    <div style={{ background: tokens.inset, borderBottom: `1px dashed ${tokens.cardBorder}` }}>
+                      <iframe title={proofView.fileName} src={proofView.url} style={{ width: "100%", height: 380, border: "none", display: "block" }} />
+                    </div>
+                  ) : (
+                    <div style={{ padding: "16px 14px", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, background: tokens.inset, borderBottom: `1px dashed ${tokens.cardBorder}` }}>
+                      {(open.proofMimeType ?? "").startsWith("image/") ? <IconImageAttach size={22} color={tokens.textFaint} /> : <IconDoc size={22} color={tokens.textFaint} />}
+                      <span style={{ fontFamily: MONO, fontSize: 10.5, color: tokens.textFaint }}>
+                        {proofView?.kind === "error"
+                          ? (proofView.message || t("Preview failed — use the download button.", "فشلت المعاينة — استخدم زر التنزيل."))
+                          : t("Preview not available for this type — download opens the original.", "المعاينة غير متاحة لهذا النوع — التنزيل يفتح الأصل.")}
+                      </span>
+                    </div>
+                  )}
                   <div style={{ display: "flex", gap: 8, alignItems: "center", padding: "9px 12px", flexDirection: isRtl ? "row-reverse" : "row" }}>
                     {(open.proofMimeType ?? "").startsWith("image/") ? <IconImageAttach size={13} color={tokens.textSecondary} /> : <IconDoc size={13} color={tokens.textSecondary} />}
                     <span style={{ fontFamily: MONO, fontSize: 11.5, color: tokens.textPrimary, direction: "ltr", flex: 1 }}>{open.proofFileName}</span>
-                    <Btn tokens={tokens} lang={lang} variant="ghost" disabled={proofBusy} style={{ padding: "6px 10px", fontSize: 11.5, flexShrink: 0 }} onClick={downloadProof}>
-                      {t("Download", "تنزيل")}
-                    </Btn>
                   </div>
                 </div>
               ) : (
@@ -320,12 +413,24 @@ export default function AdminRequestsPage({ state }) {
               />
             </Field>
 
+            {decisionError && (
+              <AlertStrip
+                tokens={tokens}
+                lang={lang}
+                tone="violet"
+                icon={<IconShield size={14} color={tokens.gap} />}
+                title={t("The decision was not recorded", "لم يُسجل القرار")}
+                body={decisionError}
+              />
+            )}
+
             <div style={{ display: "flex", gap: 8, flexDirection: isRtl ? "row-reverse" : "row" }}>
               <ConfirmBtn
                 tokens={tokens}
                 lang={lang}
-                variant="primary"
-                label={t("Accept — enroll in course", "قبول — تسجيل في المقرر")}
+                variant="solid"
+                disabled={decisionBusy !== null}
+                label={decisionBusy === "APPROVED" ? t("Accepting…", "جاري القبول…") : t("Accept — enroll in course", "قبول — تسجيل في المقرر")}
                 confirmLabel={t("Click again to accept", "اضغط للتأكيد للقبول")}
                 onConfirm={() => decide("APPROVED")}
               />
@@ -333,8 +438,8 @@ export default function AdminRequestsPage({ state }) {
                 tokens={tokens}
                 lang={lang}
                 variant="soft"
-                disabled={!noteOk}
-                label={t("Reject with reason", "رفض مع السبب")}
+                disabled={!noteOk || decisionBusy !== null}
+                label={decisionBusy === "REJECTED" ? t("Rejecting…", "جاري الرفض…") : t("Reject with reason", "رفض مع السبب")}
                 confirmLabel={t("Click again to reject", "اضغط للتأكيد للرفض")}
                 onConfirm={() => decide("REJECTED")}
               />
