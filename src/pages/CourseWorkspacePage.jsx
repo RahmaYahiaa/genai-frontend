@@ -50,7 +50,7 @@ export default function CourseWorkspacePage({ state, dispatch }) {
                 </h1>
                 <p style={{ fontSize: 13, color: tokens.textMuted, margin: 0, fontFamily: bFont, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
                   {real ? (
-                    <span>{course.description ?? (lang === "ar" ? "مقرر مؤسسي — إدارة التكليفات والمواد من هنا." : "Institutional course — manage assignments and materials from here.")}</span>
+                    course.description ? <span>{course.description}</span> : null
                   ) : (
                     <span>
                       {course.instructor} · {course.enrolled} {lang === "ar" ? "طالباً" : "students"}

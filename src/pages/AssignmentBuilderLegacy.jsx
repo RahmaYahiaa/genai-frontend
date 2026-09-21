@@ -291,8 +291,8 @@ export default function AssignmentBuilderPage({ state, dispatch }) {
           </h1>
           <p style={{ fontSize: 13, color: tokens.textMuted, margin: 0, fontFamily: bFont }}>
             {lang === "ar"
-              ? "التكليفات المنشورة تبدأ مفتوحة وتبقى مفتوحة حتى تغلقها."
-              : "Published assignments start Open and stay open until you close them."}
+              ? "بعد النشر يبقى التسليم مفتوحًا حتى تغلقه بنفسك."
+              : "Once published, submissions stay open until you close them."}
           </p>
         </div>
       </div>
@@ -319,8 +319,8 @@ export default function AssignmentBuilderPage({ state, dispatch }) {
                 </div>
                 <div style={{ fontFamily: bFont, fontSize: 11, color: tokens.textMuted, marginTop: 2, lineHeight: 1.55 }}>
                   {lang === "ar"
-                    ? "لن يرى الطالب الدرجة إلا إذا اعتمدتها أو عدّلتها بنفسك وكان هذا الإعداد مفعّلاً لحظة فتحه الصفحة."
-                    : "The student will only see the grade if the submission has been approved/edited by you and this setting is on at the exact moment the student opens the page."}
+                    ? "يرى الطالب الدرجة بعد اعتمادك لها أو تعديلها فقط، وطالما كان هذا الإعداد مفعَّلًا."
+                    : "Students see a grade only after you approve or edit it — and only while this is on."}
                 </div>
               </div>
             </div>
@@ -530,7 +530,7 @@ export default function AssignmentBuilderPage({ state, dispatch }) {
                   <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 6, flexDirection: isRtl ? "row-reverse" : "row" }}>
                     <IconEyeOff size={12} color={tokens.textFaint} />
                     <span style={{ fontFamily: bFont, fontSize: 11, color: tokens.textFaint }}>
-                      {lang === "ar" ? "لا يراها الطالب أبداً. تُستخدم فقط لتحسين دقة التقييم." : "Never visible to the student. Used only to improve AI grading accuracy."}
+                      {lang === "ar" ? "لا يراها الطالب — تساعد فقط في تحسين دقة التصحيح الذكي." : "Only you see this — it just makes AI grading more accurate."}
                     </span>
                   </div>
                 </div>
@@ -545,7 +545,7 @@ export default function AssignmentBuilderPage({ state, dispatch }) {
                     style={textareaStyle(tokens, bFont)}
                     className="genai-input"
                   />
-                  {caption(lang === "ar" ? "نص حر في هذه المرحلة — ليس جدول درجات." : "Free text in this phase — not a scored criteria table.")}
+                  {caption(lang === "ar" ? "سطر واحد لكل معيار — كنص عادي." : "One line per criterion, as plain text.")}
                 </div>
               </div>
             </Card>
@@ -567,8 +567,8 @@ export default function AssignmentBuilderPage({ state, dispatch }) {
           {accuracyEmpty && (
             <div style={{ fontFamily: bFont, fontSize: 11.5, color: tokens.textMuted, lineHeight: 1.6, padding: "10px 14px", background: tokens.inset, borderRadius: 10, border: `1px solid ${tokens.cardBorder}`, textAlign: isRtl ? "right" : "left" }}>
               {lang === "ar"
-                ? "سيعمل النظام حتى بدون إجابة مرجعية أو روبرك، لكن بثقة أقل — وإن لم توجد مواد كافية للموضوع فستذهب الإجابات مباشرة إلى مراجعتك اليدوية."
-                : "The system will still work, but with lower confidence — and if there's not enough course material, it will go straight to your manual review."}
+                ? "سيستمر التصحيح الذكي لكن بثقة أقل — وإذا قلّت مواد الموضوع فستُحال الإجابات مباشرة إلى مراجعتك اليدوية."
+                : "AI still grades, but with less confidence — thin course material goes straight to your manual review."}
             </div>
           )}
 

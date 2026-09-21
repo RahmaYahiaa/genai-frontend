@@ -86,7 +86,7 @@ export default function ContentStudioPage({ state }) {
       setDraft(generateDraft(type, topicLabel, course.id, length, tone, extra));
       setDraftType(type);
       setBusy(false);
-      toast(lang === "ar" ? "تم توليد المسودة — راجعيها وعدّليها قبل أي نشر." : "Draft generated — review and edit before anything is published.");
+      toast(lang === "ar" ? "أُنشئت المسودة — راجعها وعدّلها قبل أي نشر." : "Draft generated — review and edit it before publishing.");
     }, 900);
   };
 
@@ -226,7 +226,7 @@ export default function ContentStudioPage({ state }) {
         wrapText(ctx, `NARRATION: ${sc.narration}`, 40, 310, 880, 36);
         ctx.fillStyle = tokens.textFaint;
         ctx.font = "400 20px monospace";
-        ctx.fillText(`${course.id} · content studio storyboard`, 40, 500);
+        ctx.fillText(`${course.id} · generated storyboard preview`, 40, 500);
       };
       drawScene(scenes[0], 0);
       rec.start();
@@ -290,12 +290,12 @@ export default function ContentStudioPage({ state }) {
       <div style={{ marginBottom: 20, textAlign: isRtl ? "right" : "left" }}>
         <h1 style={{ fontFamily: hFont, fontWeight: 700, fontSize: mobile ? 19 : 22, color: tokens.textPrimary, letterSpacing: "-0.025em", margin: "0 0 3px", display: "flex", gap: 10, alignItems: "center", flexDirection: isRtl ? "row-reverse" : "row" }}>
           <IconSparkle size={18} color={tokens.primary} />
-          {lang === "ar" ? "استوديو المحتوى" : "Content Studio"}
+          {lang === "ar" ? "صانع المحتوى" : "Content Builder"}
         </h1>
         <p style={{ fontSize: 13, color: tokens.textMuted, margin: 0, fontFamily: bFont }}>
           {lang === "ar"
-            ? "ولّدي محتوى تعليمياً بأي صيغة — على أي موضوع، سواء من خريطة المقرر أو موضوع حر تكتبينه بنفسك."
-            : "Generate teaching content in any modality — on any topic, course-mapped or free-form."}
+            ? "ولِّد محتوى تعليميًا بأي صيغة — لأي موضوع، من خريطة المقرر أو موضوع حرّ تكتبه بنفسك."
+            : "Generate teaching content in any form — for any topic, course-mapped or free-form."}
         </p>
       </div>
 
@@ -419,7 +419,7 @@ export default function ContentStudioPage({ state }) {
 
               <div style={{ display: "flex", gap: 10, marginTop: 14, flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
                 <Btn tokens={tokens} lang={lang} variant="soft"
-                  onClick={() => { if (topicId !== "__custom") { addMaterial(course.id, topicId, `[studio] ${topicLabel} — ${TYPES.find((t) => t.id === draftType)?.en}`); toast(lang === "ar" ? "أُضيفت كمادة قيد الاعتماد في تغطية المقرر." : "Filed as pending material in the course coverage list."); } else { toast(lang === "ar" ? "الموضوع الحر لا يُضاف لتغطية المقرر — احفظيه كمسودة." : "Free-form topics cannot join course coverage — kept as draft."); } }}
+                  onClick={() => { if (topicId !== "__custom") { addMaterial(course.id, topicId, `[AI draft] ${topicLabel} — ${TYPES.find((t) => t.id === draftType)?.en}`); toast(lang === "ar" ? "أُضيفت كمادة قيد الاعتماد في تغطية المقرر." : "Filed as pending material in the course coverage list."); } else { toast(lang === "ar" ? "الموضوع الحر لا يُضاف لتغطية المقرر — احفظه كمسودة." : "Free-form topics cannot join course coverage — kept as draft."); } }}
                   disabled={topicId === "__custom" || topicId === ""}>
                   {lang === "ar" ? "إضافة لمواد المقرر (قيد الاعتماد)" : "Add to course materials (pending)"}
                 </Btn>
@@ -457,12 +457,12 @@ export default function ContentStudioPage({ state }) {
                 <IconSparkle size={18} color={tokens.primary} />
               </div>
               <div style={{ fontFamily: hFont, fontWeight: 600, fontSize: 15, color: tokens.textPrimary, marginBottom: 4 }}>
-                {lang === "ar" ? "اخترى موضوعاً وصيغة وابدأى التوليد" : "Pick a topic and a modality to start"}
+                {lang === "ar" ? "اختر موضوعًا وصيغة وابدأ التوليد" : "Pick a topic and a format to start"}
               </div>
               <div style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textMuted, lineHeight: 1.6 }}>
                 {lang === "ar"
-                  ? "كل الناتج مسودات قابلة للتحرير تمر على عينك أولاً — لا شيء يصل للطلاب بدون نشر صريح."
-                  : "Everything lands as an editable draft under your eye first — nothing reaches students without an explicit publish."}
+                  ? "يصل كل ناتج كمسودة قابلة للتعديل — ولا يصل شيء إلى الطلاب إلا بعد نقرك نشر."
+                  : "Everything is generated as an editable draft — nothing reaches students until you publish."}
               </div>
             </Card>
           )}

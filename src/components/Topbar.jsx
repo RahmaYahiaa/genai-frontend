@@ -28,8 +28,8 @@ export default function Topbar({ state, dispatch, role, onMenu }) {
       : role === "instructor"
       ? state.courseId
         ? lang === "ar"
-          ? `لوحة تحكم المدرّس — ${state.courseId}`
-          : `Instructor Dashboard — ${state.courseId}`
+          ? "مساحة المقرر"
+          : "Course workspace"
         : lang === "ar"
           ? "لوحة تحكم المدرّس"
           : "Instructor Dashboard"

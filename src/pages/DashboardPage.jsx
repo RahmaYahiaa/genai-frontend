@@ -11,6 +11,7 @@ import { SCREENS } from "@/constants/routes";
 import { TASK_KIND_LABELS } from "@/data/student";
 import { Card, Btn, Chip, Bar, Stat, AsyncGate } from "@/components/ui";
 import MasteryBar from "@/components/MasteryBar";
+import LinkInvitationBanner from "@/components/LinkInvitationBanner";
 
 const TASK_TONE = { diagnostic: "primary", practice: "default", reassessment: "mastered", assignment: "primary" };
 
@@ -217,6 +218,7 @@ function RealDashboardPage({ state, dispatch }) {
 
   return (
     <div style={{ padding: mobile ? 16 : 28, maxWidth: 1080, margin: "0 auto", fontFamily: bodyFont(lang), direction: lang === "ar" ? "rtl" : "ltr" }}>
+      {data && <LinkInvitationBanner state={state} />}
       <AsyncGate tokens={tokens} lang={lang} loading={loading} error={error} reload={reload} label={t("Loading your dashboard…", "جاري تحميل لوحتك…")}>
         {data && <DashboardInner data={data} tokens={tokens} lang={lang} t={t} dispatch={dispatch} />}
       </AsyncGate>

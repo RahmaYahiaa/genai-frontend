@@ -267,7 +267,7 @@ function DemoInstructorStudentsPage({ state, dispatch }) {
             {lang === "ar" ? "الطلاب" : "Students"}
           </h1>
           <p style={{ fontSize: 13, color: tokens.textMuted, margin: 0, fontFamily: bFont }}>
-            {course.id} · {roster.length} {lang === "ar" ? "طالباً في السجل" : "students on record"} · {lang === "ar" ? "عرض للقراءة فقط — القيد والملفات الدراسية مسؤولية الإدارة" : "read-only — enrolment is registrar-owned"}
+            {course.id} · {roster.length} {lang === "ar" ? "طالب" : "students"} · {lang === "ar" ? "للعرض فقط — إدارة القيد لدى المؤسسة" : "view only — enrolment is handled by the institution"}
           </p>
         </div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
@@ -533,7 +533,7 @@ function RealInstructorStudents({ state }) {
   async function copyExport() {
     try {
       await navigator.clipboard.writeText(exportText());
-      toast(t("Roster copied.", "اتنسخ الكشف."));
+      toast(t("Roster copied.", "تم نسخ الكشف."));
     } catch {
       toast(t("Select the text and copy manually (Ctrl+C).", "حدّد النص وانسخه يدوياً (Ctrl+C)."));
     }
@@ -569,7 +569,7 @@ function RealInstructorStudents({ state }) {
           {[
             { l: t("SUBMISSIONS", "تسليمات"), v: `${s.stats.subs}`, c: tokens.textPrimary },
             { l: t("PENDING NOW", "معلّق الآن"), v: `${s.stats.pending}`, c: s.stats.pending > 0 ? tokens.primary : tokens.textPrimary },
-            { l: t("DECIDED", "معتمد"), v: `${s.stats.decided}`, c: tokens.textPrimary },
+            { l: t("DECIDED", "تم البت"), v: `${s.stats.decided}`, c: tokens.textPrimary },
             { l: t("AVG FINAL", "متوسط النهائي"), v: s.avg === null ? "—" : `${s.avg}%`, c: s.avg === null ? tokens.textFaint : masteryColor(masteryLevel(s.avg, true), tokens) },
           ].map((tile) => (
             <div key={tile.l} style={{ background: tokens.card, border: `1px solid ${tokens.cardBorder}`, borderRadius: 12, padding: "14px 16px" }}>
@@ -581,11 +581,11 @@ function RealInstructorStudents({ state }) {
 
         <Card tokens={tokens} style={{ padding: "6px 20px", marginBottom: 14 }}>
           <div style={{ fontFamily: hFont, fontWeight: 600, fontSize: 15, color: tokens.textPrimary, letterSpacing: "-0.02em", padding: "14px 0 10px" }}>
-            {t("Submission history in this course", "سجل التسليمات في المقرر ده")}
+            {t("Submission history in this course", "سجل التسليمات في هذا المقرر")}
           </div>
           {s.stats.rows.length === 0 ? (
             <div style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textFaint, padding: "0 0 16px" }}>
-              {t("No submissions in this course yet.", "مفيش تسليمات في المقرر ده لسه.")}
+              {t("No submissions in this course yet.", "لا توجد تسليمات في هذا المقرر بعد.")}
             </div>
           ) : (
             <div style={{ overflowX: "auto" }}>
@@ -627,7 +627,7 @@ function RealInstructorStudents({ state }) {
           )}
         </Card>
         <p style={{ fontFamily: bFont, fontSize: 11.5, color: tokens.textFaint, margin: 0, lineHeight: 1.6, textAlign: isRtl ? "right" : "left" }}>
-          {t("Topic-level mastery and remedial history are computed from the learner's own sessions and are not part of the instructor roster yet.", "إتقان المواضيع وسجل المحتوى العلاجي بيتحسب من جلسات المتعلم نفسه ومش جزء من كشف المدرّس لسه.")}
+          {t("Topic-level mastery and remedial history are computed from the learner's own sessions and are not part of the instructor roster yet.", "يُحتسب إتقان الموضوعات وسجل المحتوى العلاجي من جلسات المتعلم نفسه، ولا يدخلان في قائمة المدرّس بعد.")}
         </p>
       </div>
     );
@@ -642,7 +642,7 @@ function RealInstructorStudents({ state }) {
             {t("Students", "الطلاب")}
           </h1>
           <p style={{ fontSize: 13, color: tokens.textMuted, margin: 0, fontFamily: bFont }}>
-            {courseLabel(selectedCourse) || "—"} · {students.length} {t("students on record", "طالباً في السجل")} · {t("read-only — enrolment is registrar-owned", "عرض للقراءة فقط — القيد مسؤولية الإدارة")}
+            {courseLabel(selectedCourse) || "—"} · {students.length} {t("students", "طالب")} · {t("view only — enrolment is handled by the institution", "للعرض فقط — إدارة القيد لدى المؤسسة")}
           </p>
         </div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
@@ -659,11 +659,11 @@ function RealInstructorStudents({ state }) {
       </div>
 
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16, flexDirection: isRtl ? "row-reverse" : "row" }}>
-        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t("Search name or email…", "دور بالاسم أو الإيميل…")} style={{ ...inputStyle(tokens, bFont), width: mobile ? "100%" : 220 }} className="genai-input" />
+        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t("Search name or email…", "ابحث بالاسم أو البريد الإلكتروني…")} style={{ ...inputStyle(tokens, bFont), width: mobile ? "100%" : 220 }} className="genai-input" />
         <select value={fWork} onChange={(event) => setFWork(event.target.value)} style={{ ...inputStyle(tokens, bFont), cursor: "pointer", width: mobile ? "calc(50% - 5px)" : 170 }} className="genai-input">
           <option value="all">{t("Any open work", "كل الحالات")}</option>
           <option value="pending">{t("Has pending submission", "لديه تسليم معلّق")}</option>
-          <option value="decided">{t("Has decided work", "لديه قرارات معتمدة")}</option>
+          <option value="decided">{t("Has decided work", "لديه تسليمات تم البت فيها")}</option>
           <option value="none">{t("No submissions", "لا تسليمات")}</option>
         </select>
         <select value={fBand} onChange={(event) => setFBand(event.target.value)} style={{ ...inputStyle(tokens, bFont), cursor: "pointer", width: mobile ? "calc(50% - 5px)" : 160 }} className="genai-input">
@@ -684,7 +684,7 @@ function RealInstructorStudents({ state }) {
           rosterAsync.reload();
           statsAsync.reload();
         }}
-        label={t("Loading roster…", "جاري تحميل الكشف…")}
+        label={t("Loading roster…", "جارٍ تحميل الكشف…")}
       >
         <Card tokens={tokens} style={{ padding: "6px 20px" }}>
           <div style={{ overflowX: "auto" }}>
@@ -694,7 +694,7 @@ function RealInstructorStudents({ state }) {
                   <Th tokens={tokens}>{t("STUDENT", "الطالب")}</Th>
                   <Th tokens={tokens} align="right">{t("SUBMISSIONS", "تسليمات")}</Th>
                   <Th tokens={tokens} align="right">{t("PENDING", "معلّق")}</Th>
-                  <Th tokens={tokens} align="right">{t("DECIDED", "معتمد")}</Th>
+                  <Th tokens={tokens} align="right">{t("DECIDED", "تم البت")}</Th>
                   <Th tokens={tokens}>{t("AVG FINAL", "متوسط النهائي")}</Th>
                   <Th tokens={tokens} align="right">{t("ACTION", "إجراء")}</Th>
                 </tr>
@@ -736,7 +736,7 @@ function RealInstructorStudents({ state }) {
                 {filtered.length === 0 && (
                   <tr><td colSpan={6} style={{ padding: "22px 10px", fontFamily: bFont, fontSize: 12.5, color: tokens.textFaint, textAlign: "center" }}>
                     {students.length === 0
-                      ? t("No enrolled students in this course yet.", "مفيش طلاب مقيدين في المقرر ده لسه.")
+                      ? t("No enrolled students in this course yet.", "لا يوجد طلاب مقيدون في هذا المقرر بعد.")
                       : t("No students match the current filters.", "لا طلاب مطابقين للفلاتر الحالية.")}
                   </td></tr>
                 )}
@@ -748,7 +748,7 @@ function RealInstructorStudents({ state }) {
 
       <Modal open={exportOpen} onClose={() => setExportOpen(false)} tokens={tokens} lang={lang} width={600}
         title={t("Export student roster", "تصدير سجل الطلاب")}
-        subtitle={t(`CSV of the current filters — ${filtered.length} students`, `CSV بالفلاتر الحالية — ${filtered.length} طالب`)}>
+        subtitle={t(`CSV of the current filters — ${filtered.length} students`, `CSV للفلاتر الحالية — ${filtered.length} طالب`)}>
         <pre style={{ fontFamily: MONO, fontSize: 11, lineHeight: 1.65, color: tokens.textSecondary, background: tokens.inset, border: `1px solid ${tokens.cardBorder}`, borderRadius: 10, padding: "14px 16px", margin: 0, maxHeight: 300, overflow: "auto", whiteSpace: "pre-wrap", textAlign: "left", direction: "ltr", userSelect: "text" }}>{exportText()}</pre>
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 14, flexWrap: "wrap" }}>
           <Btn tokens={tokens} lang={lang} variant="soft" onClick={() => void copyExport()}>

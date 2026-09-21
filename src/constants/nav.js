@@ -38,7 +38,7 @@ export const STUDENT_NAV_BOTTOM = [
 export const INSTRUCTOR_NAV = [
   { id: SCREENS.INSTRUCTOR_HOME, en: "My Courses", ar: "مقرراتي", Icon: IconCourses },
   { id: SCREENS.INSTRUCTOR_STUDENTS, en: "Students", ar: "الطلاب", Icon: IconUsers },
-  { id: SCREENS.CONTENT_STUDIO, en: "Content Studio", ar: "استوديو المحتوى", Icon: IconSparkle },
+  { id: SCREENS.CONTENT_STUDIO, en: "Content Builder", ar: "صانع المحتوى", Icon: IconSparkle },
 ];
 
 export const ADMIN_NAV = [
@@ -57,7 +57,9 @@ export function navForRole(role, accountType) {
   if (role === "instructor") return INSTRUCTOR_NAV;
   if (role === "admin") return ADMIN_NAV;
   if (accountType === "individual") {
-    return STUDENT_NAV.filter((item) => item.id !== SCREENS.STUDENT_ASSIGNMENTS);
+    // Individual accounts have no institution catalog and no institutional assignments —
+    // both entries appear only after linking flips accountType to "institutional".
+    return STUDENT_NAV.filter((item) => item.id !== SCREENS.STUDENT_ASSIGNMENTS && item.id !== SCREENS.BROWSE_COURSES);
   }
   return STUDENT_NAV;
 }

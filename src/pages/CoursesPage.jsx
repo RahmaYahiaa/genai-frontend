@@ -99,11 +99,11 @@ export default function CoursesPage({ state, dispatch }) {
           lang={lang}
           tone="slate"
           icon={<IconGlobe size={15} color={tokens.noEvidence} />}
-          title={t("Self-study courses are for independent accounts", "مقررات الدراسة الذاتية للحسابات المستقلة")}
+          title={t("Self-study courses are for independent accounts", "مقررات الدراسة الذاتية متاحة للحسابات المستقلة")}
           body={t(
-            "Your email belongs to a registered institution, so personal course creation is paused — browse your institution catalog and request to join its courses instead.",
-            "بريدك تابع لمؤسسة مسجلة، فإنشاء المقررات الشخصية متوقف — تصفّح كتالوج مؤسستك واطلب الانضمام لمقرراتها بدلًا من ذلك."
-          )}
+              "Your email belongs to a registered institution, so personal course creation is paused. When your university sends a linking invitation it lands at the top of your Dashboard — accept it and the institution catalog opens for your account.",
+               "بريدك الإلكتروني تابع لمؤسسة مسجّلة، لذا توقّف إنشاء المقررات الذاتية. حين ترسل جامعتك دعوة ربط، تظهر أعلى لوحة التحكم — اقبليها وينفتح كتالوج المؤسسة لحسابك."
+           )}
         />
       )}
 

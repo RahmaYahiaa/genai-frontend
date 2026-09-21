@@ -1,12 +1,12 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useAsync from "@/hooks/useAsync";
 import { tk, bodyFont } from "@/constants/tokens";
 import { AsyncGate } from "@/components/ui";
 import { AlertStrip, Btn, Card, Chip, Drawer, Field, inputStyle, textareaStyle, toast, bFontFor, hFontFor } from "@/components/ModuleUI";
-import { IconBookOpen, IconAnchor, IconCheck, IconWarning, IconPlus, IconX, IconDoc, IconImageAttach, IconClock, IconInbox, IconShield } from "@/components/Icons";
+import { IconBookOpen, IconCheck, IconWarning, IconPlus, IconX, IconDoc, IconImageAttach, IconClock, IconInbox, IconShield } from "@/components/Icons";
+import { SCREENS } from "@/constants/routes";
 import { listInstitutionCatalog, catalogEnroll, requestCourseEnrollment, listMyEnrollmentRequests } from "@/services/courses";
-import { listMyLinkInvitations, respondToLinkInvitation } from "@/services/linking";
-import { applyAuthData, demoMode } from "@/services/auth";
+import { demoMode } from "@/services/auth";
 
 const MONO = "'JetBrains Mono', monospace";
 const FILE_TO_KIND = (name) => (/\.(png|jpe?g|gif|webp|bmp)$/i.test(name) ? "image" : "file");
@@ -56,9 +56,14 @@ export default function StudentBrowseCoursesPage({ state, dispatch }) {
   const [drawerCourse, setDrawerCourse] = useState(null);
   const [reason, setReason] = useState("");
   const [proof, setProof] = useState(null);
-  const [linkDismissed, setLinkDismissed] = useState(false);
   const [busyKey, setBusyKey] = useState(null);
   const fileRef = useRef(null);
+
+  // Personal accounts never see this screen: the nav hides it and any stray
+  // navigation lands back on the Dashboard (where the linking consent banner lives).
+  useEffect(() => {
+    if (!demo && personalOnly) dispatch({ type: "NAVIGATE", screen: SCREENS.DASHBOARD });
+  }, [demo, personalOnly, dispatch]);
 
   const fetchCatalog = useCallback(async () => {
     if (!institutional) return { items: [] };
@@ -68,22 +73,16 @@ export default function StudentBrowseCoursesPage({ state, dispatch }) {
   const fetchAll = useCallback(async () => {
     const catalog = await fetchCatalog();
     let requests = { items: [] };
-    let linkInvitations = [];
     if (institutional) {
       const res = await listMyEnrollmentRequests({ page: 1, limit: 20 });
       requests = { items: res?.items ?? [] };
     }
-    if (personalOnly) {
-      linkInvitations = await listMyLinkInvitations().catch(() => []);
-    }
-    return { catalog: catalog?.items ?? [], requests: requests.items, linkInvitations: Array.isArray(linkInvitations) ? linkInvitations : [] };
-  }, [fetchCatalog, institutional, personalOnly]);
+    return { catalog: catalog?.items ?? [], requests: requests.items };
+  }, [fetchCatalog, institutional]);
 
   const { data, loading, error, reload } = useAsync(fetchAll);
   const catalog = data?.catalog ?? [];
   const myRequests = data?.requests ?? [];
-  const linkInvitations = data?.linkInvitations ?? [];
-  const activeInvitation = linkInvitations[0] ?? null;
 
   const requestFor = (code) => myRequests.find((r) => (r.course?.code ?? "") === code && r.status === "PENDING") ?? null;
 
@@ -153,20 +152,6 @@ export default function StudentBrowseCoursesPage({ state, dispatch }) {
     }
   };
 
-  const acceptLink = async () => {
-    if (!activeInvitation) return;
-    setBusyKey("link");
-    try {
-      const result = await respondToLinkInvitation(activeInvitation.id, "accept");
-      if (result?.tokens) applyAuthData(result);
-      toast(t("Linked — your account is now institutional with its history preserved. Reloading…", "رُبط الحساب — أصبح مؤسسيًا بمحفوظاته. جاري تحديث الجلسة…"));
-      window.setTimeout(() => window.location.reload(), 900);
-    } catch (err) {
-      toast(err?.message ?? t("Could not complete the linking.", "تعذّر إتمام الربط."));
-      setBusyKey(null);
-    }
-  };
-
   const courseAction = (course) => {
     if (course.enrolled) {
       return <Chip tokens={tokens} tone="primary">{t("Enrolled", "مسجل")}</Chip>;
@@ -231,66 +216,6 @@ export default function StudentBrowseCoursesPage({ state, dispatch }) {
             )}
           />
         </div>
-      )}
-
-      {personalOnly && !linkDismissed && activeInvitation && (
-        <Card tokens={tokens} style={{ padding: "14px 16px", marginBottom: 14, borderColor: tokens.citationBorder }}>
-          <div style={{ display: "flex", gap: 12, alignItems: "flex-start", flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
-            <span style={{ flexShrink: 0, marginTop: 2 }}><IconAnchor size={16} color={tokens.primary} /></span>
-            <div style={{ flex: 1, minWidth: 220 }}>
-              <div style={{ fontFamily: bFont, fontWeight: 600, fontSize: 13.5, color: tokens.textPrimary }}>
-                {t("Your university invites you to link your account", "جامعتك تدعوك لربط حسابك")}
-              </div>
-              <div style={{ fontFamily: bFont, fontSize: 12, color: tokens.textMuted, marginTop: 5, lineHeight: 1.7 }}>
-                {t(
-                  `${activeInvitation.institutionName} invites this personal account to become institutional — your courses and history come along whole, and you become visible to your faculty. Nothing changes until you say yes.`,
-                  `${activeInvitation.institutionName} تدعو حسابك الفردي ليصبح مؤسسيًا — مقرراتك ومحفوظاتك تنتقل كاملة وتصبحين ظاهرة لكليتك. لا شيء يتغير حتى توافقي.`,
-                )}
-              </div>
-            </div>
-            <div style={{ display: "flex", gap: 8, flexShrink: 0, flexDirection: isRtl ? "row-reverse" : "row" }}>
-              <Btn tokens={tokens} lang={lang} disabled={busyKey === "link"} style={{ padding: "9px 14px", fontSize: 12.5 }} onClick={acceptLink}>
-                <IconCheck size={13} color="#fff" />
-                {t("Accept linking", "أوافق على الربط")}
-              </Btn>
-              <Btn tokens={tokens} lang={lang} variant="ghost" style={{ padding: "9px 14px", fontSize: 12.5 }} onClick={() => setLinkDismissed(true)}>
-                {t("Later", "لاحقًا")}
-              </Btn>
-            </div>
-          </div>
-        </Card>
-      )}
-
-      {personalOnly && !linkDismissed && !activeInvitation && (
-        <Card tokens={tokens} style={{ padding: "14px 16px", marginBottom: 14 }}>
-          <div style={{ display: "flex", gap: 12, alignItems: "center", flexDirection: isRtl ? "row-reverse" : "row" }}>
-            <span style={{ flexShrink: 0 }}><IconAnchor size={16} color={tokens.textFaint} /></span>
-            <span style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textSecondary, lineHeight: 1.65 }}>
-              {t(
-                "No linking invitation on your account right now — when your university sends one, the consent banner lands here.",
-                "لا دعوة ربط على حسابك الآن — حين ترسل جامعتك واحدة، يظهر شريط الموافقة هنا.",
-              )}
-            </span>
-          </div>
-        </Card>
-      )}
-
-      {personalOnly && (
-        <Card tokens={tokens} style={{ padding: "12px 14px", marginBottom: 16 }}>
-          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
-            <IconWarning size={14} color={tokens.gap} />
-            <span style={{ fontFamily: bFont, fontSize: 12, color: tokens.textSecondary, flex: 1, minWidth: 240, lineHeight: 1.65 }}>
-              {t(
-                "Creating new personal courses is paused for accounts on institution-approved domains — the path forward is linking, not another private lane.",
-                "إنشاء مقررات شخصية جديدة متوقف للحسابات على نطاقات معتمدة مؤسسيًا — فالطريق الصحيح هو الربط لا مسار خاص جديد.",
-              )}
-            </span>
-            <Btn tokens={tokens} lang={lang} variant="ghost" disabled style={{ padding: "8px 13px", fontSize: 12, flexShrink: 0 }}>
-              <IconPlus size={13} color={tokens.textFaint} />
-              {t("New personal course", "مقرر شخصي جديد")}
-            </Btn>
-          </div>
-        </Card>
       )}
 
       {institutional && (

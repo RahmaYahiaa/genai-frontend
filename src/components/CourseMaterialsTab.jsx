@@ -185,7 +185,7 @@ function DemoMaterialsTab({ state, courseId }) {
               </div>
               {t.materials.length === 0 ? (
                 <div style={{ fontFamily: bFont, fontSize: 12, color: tokens.textFaint, paddingTop: 4 }}>
-                  {lang === "ar" ? "لا مواد لهذا الموضوع بعد — ارفعي من الأعلى." : "No materials for this topic yet — upload above."}
+                  {lang === "ar" ? "لا توجد مواد هنا بعد." : "No materials here yet."}
                 </div>
               ) : mats.length === 0 ? (
                 <div style={{ fontFamily: bFont, fontSize: 12, color: tokens.textFaint, paddingTop: 4 }}>
@@ -354,7 +354,7 @@ function RealMaterialsTab({ state, courseId }) {
   };
 
   return (
-    <AsyncGate tokens={tokens} lang={lang} loading={loading} error={error} reload={reload} label={t("Loading materials…", "جاري تحميل المواد…")}>
+    <AsyncGate tokens={tokens} lang={lang} loading={loading} error={error} reload={reload} label={t("Loading materials…", "جارٍ تحميل المواد…")}>
       <div style={{ direction: isRtl ? "rtl" : "ltr" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, marginBottom: 16, flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
           <div style={{ textAlign: isRtl ? "right" : "left" }}>
@@ -362,7 +362,7 @@ function RealMaterialsTab({ state, courseId }) {
               {t("Course Materials", "مواد المقرر")}
             </h2>
             <p style={{ fontFamily: bFont, fontSize: 13, color: tokens.textMuted, margin: 0 }}>
-              {t("Trusted sources grouped under their topics — ready materials feed the AI.", "مصادر موثوقة مجمعة تحت مواضيعها — المواد الجاهزة بتغذي الذكاء الاصطناعي.")}
+              {t("Upload sources for each topic — only ready ones feed the AI.", "ارفع مصادر لكل موضوع — لا يصل إلى الذكاء الاصطناعي إلا الجاهز منها.")}
             </p>
           </div>
           <Chip tokens={tokens} tone={readyTotal ? "primary" : "slate"}>
@@ -374,7 +374,7 @@ function RealMaterialsTab({ state, courseId }) {
           <Card tokens={tokens} style={{ padding: "14px 18px", marginBottom: 16 }}>
             <div style={{ display: "flex", gap: 8, alignItems: "center", fontFamily: bFont, fontSize: 12.5, fontWeight: 600, color: tokens.textPrimary, marginBottom: 10, flexDirection: isRtl ? "row-reverse" : "row" }}>
               <IconWarning size={14} color={tokens.gap} />
-              {t("Topics with no ready materials yet", "مواضيع بدون مواد جاهزة لسه")}
+              {t("Topics missing materials", "مواضيع تحتاج إلى مواد")}
             </div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
               {gaps.map((topic) => (
@@ -467,12 +467,12 @@ function RealMaterialsTab({ state, courseId }) {
                     {ready === 0 && group.id !== "none" && <IconWarning size={13} color={tokens.gap} />}
                   </div>
                   <span style={{ fontFamily: MONO, fontSize: 10.5, color: tokens.textMuted }}>
-                    {ready} {t("ready", "جاهزة")} · {processing} {t("processing", "تجهيز")}
+                    {ready} {t("ready", "جاهزة")}{processing > 0 ? ` · ${processing} ${t("processing", "قيد التجهيز")}` : ""}
                   </span>
                 </div>
                 {group.items.length === 0 ? (
                   <div style={{ fontFamily: bFont, fontSize: 12, color: tokens.textFaint, paddingTop: 4 }}>
-                    {t("No materials for this topic yet — upload above.", "لا مواد لهذا الموضوع بعد — ارفع من الأعلى.")}
+                    {t("Nothing uploaded for this topic yet.", "لم تُرفع مواد لهذا الموضوع بعد.")}
                   </div>
                 ) : mats.length === 0 ? (
                   <div style={{ fontFamily: bFont, fontSize: 12, color: tokens.textFaint, paddingTop: 4 }}>

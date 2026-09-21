@@ -57,7 +57,7 @@ function RealAssignmentsTab({ state, dispatch, courseId }) {
             {t("Assignments", "التكليفات")}
           </h2>
           <p style={{ fontFamily: bFont, fontSize: 13, color: tokens.textMuted, margin: 0 }}>
-            {t("Every assignment in this course. Open stays open until you close it.", "كل تكليف في هذا المقرر. المفتوح يبقى مفتوحاً حتى تغلقه بنفسك.")}
+            {t("All course assignments — you control when submissions open and close.", "جميع تكليفات المقرر — وأنت المتحكم في فتح التسليم وإغلاقه.")}
           </p>
         </div>
         <Btn tokens={tokens} lang={lang} onClick={() => openBuilder(undefined)} style={mobile ? { width: "100%" } : undefined}>
@@ -111,15 +111,13 @@ function RealAssignmentsTab({ state, dispatch, courseId }) {
                       </div>
                       <div style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textMuted, display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
                         <span>
-                          {assignment.showGradeToStudent
-                            ? t("Grade visible to students", "الدرجة ظاهرة للطلاب")
-                            : t("Grade hidden from students", "الدرجة مخفية عن الطلاب")}
-                        </span>
-                        <span>·</span>
-                        <span>
-                          {assignment.showFeedbackToStudent
-                            ? t("feedback visible", "الفيدباك ظاهر")
-                            : t("feedback hidden", "الفيدباك مخفي")}
+                          {assignment.showGradeToStudent && assignment.showFeedbackToStudent
+                            ? t("Students see grade + feedback", "يرى الطلاب الدرجة والملاحظات")
+                            : assignment.showGradeToStudent
+                              ? t("Students see the grade only", "يرى الطلاب الدرجة فقط")
+                              : assignment.showFeedbackToStudent
+                                ? t("Students see feedback only", "يرى الطلاب الملاحظات فقط")
+                                : t("Students see nothing yet", "لا يظهر للطلاب أي شيء بعد")}
                         </span>
                       </div>
                     </div>
@@ -154,8 +152,6 @@ function RealAssignmentsTab({ state, dispatch, courseId }) {
           </div>
         )}
       </AsyncGate>
-
-
     </>
   );
 }

@@ -277,7 +277,7 @@ function RealInstructorHome({ state, dispatch }) {
           {t("Instructor Workspace", "مساحة المدرّس")}
         </h1>
         <p style={{ fontSize: 13, color: tokens.textMuted, margin: 0, fontFamily: bFont }}>
-          {t("All your courses in one view, ordered by urgency.", "كل مقرراتك في عرض واحد، مرتّبة حسب الإلحاح.")}
+          {t("Your courses, ranked by what needs you first.", "جميع مقرراتك في مكان واحد — الأكثر أهمية يظهر أولًا.")}
         </p>
       </div>
 
@@ -292,8 +292,8 @@ function RealInstructorHome({ state, dispatch }) {
             </div>
             <div style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textMuted }}>
               {courses.length === 0
-                ? t("You are not staffed on any course yet — create one from My Courses.", "لسه مش مشارك في أي مقرر — أنشئ واحد من «مقرراتي».")
-                : t("Everything is handled — new submissions will surface here as they arrive.", "كل شيء معالَج — التسليمات الجديدة هتظهر هنا أول ما توصل.")}
+                ? t("You are not staffed on any course yet — create one from My Courses.", "لم تُضاف إلى أي مقرر بعد — يمكنك إنشاء مقرر من هنا مباشرة.")
+                : t("Everything is handled — new submissions will surface here as they arrive.", "كل شيء مُنجَز — ستظهر التسليمات الجديدة هنا فور وصولها.")}
             </div>
           </div>
         )}
@@ -301,7 +301,7 @@ function RealInstructorHome({ state, dispatch }) {
           <div style={{ background: tokens.primaryLight, border: `1px solid ${tokens.primary}33`, borderRadius: 12, padding: "20px 24px", marginBottom: 20, display: "flex", alignItems: mobile ? "stretch" : "center", justifyContent: "space-between", gap: 18, flexWrap: "wrap", flexDirection: mobile ? "column" : isRtl ? "row-reverse" : "row" }}>
             <div style={{ textAlign: isRtl ? "right" : "left" }}>
               <div style={{ fontFamily: MONO, fontSize: 10, color: tokens.textMuted, letterSpacing: "0.1em", marginBottom: 8 }}>
-                {t("NEEDS YOUR ATTENTION", "يحتاج انتباهك")}
+                {t("NEEDS YOUR ATTENTION", "يستدعي انتباهك")}
               </div>
               <div style={{ fontFamily: hFont, fontWeight: 700, fontSize: mobile ? 20 : 24, color: tokens.textPrimary, letterSpacing: "-0.03em", marginBottom: 4 }}>
                 {pendingTotal} {t("pending submissions", "تسليماً بانتظار المراجعة")}
@@ -341,29 +341,21 @@ function RealInstructorHome({ state, dispatch }) {
                       {course.title}
                     </div>
                     <div style={{ fontFamily: bFont, fontSize: 12, color: tokens.textMuted }}>
-                      {detail.enrolled} {t("students", "طالباً")} · {course.fastTrackCount} {t("quick-ready", "جاهز سريعاً")}
+                        {detail.enrolled} {t("students", "طالب")} · {course.fastTrackCount} {t("ready to approve", "جاهز للاعتماد")}
                     </div>
                   </div>
 
                   <div style={{ display: "flex", flexDirection: "column", gap: 7, textAlign: isRtl ? "right" : "left" }}>
-                    {detail.gaps > 0 ? (
+                    {detail.gaps > 0 && (
                       <div style={{ display: "flex", alignItems: "center", gap: 7, fontFamily: bFont, fontSize: 12, color: tokens.gap, flexDirection: isRtl ? "row-reverse" : "row" }}>
                         <IconWarning size={13} color={tokens.gap} />
-                        {detail.gaps} {t("topics with no assignment coverage", "موضوع بلا تغطية في التكليفات")}
-                      </div>
-                    ) : (
-                      <div style={{ fontFamily: bFont, fontSize: 12, color: tokens.textFaint }}>
-                        {t("All topics covered by assignments", "كل المواضيع مغطاة بتكليفات")}
+                        {detail.gaps} {t("topics still have no assignment", "موضوع يحتاج إلى تكليف")}
                       </div>
                     )}
-                    {detail.processing > 0 ? (
+                    {detail.processing > 0 && (
                       <div style={{ display: "flex", alignItems: "center", gap: 7, fontFamily: bFont, fontSize: 12, color: tokens.gap, flexDirection: isRtl ? "row-reverse" : "row" }}>
                         <IconWarning size={13} color={tokens.gap} />
-                        {detail.processing} {t("materials still processing", "مواد لسه بتتم معالجتها")}
-                      </div>
-                    ) : (
-                      <div style={{ fontFamily: bFont, fontSize: 12, color: tokens.textFaint }}>
-                        {t("All materials ready", "كل المواد جاهزة")}
+                        {detail.processing} {t("materials still processing", "مادة قيد التجهيز")}
                       </div>
                     )}
                   </div>
@@ -372,7 +364,7 @@ function RealInstructorHome({ state, dispatch }) {
                     onClick={() => openWorkspace(course.courseId)}
                     style={{ marginTop: "auto", width: "100%", padding: "9px 0", borderRadius: 8, border: `1px solid ${tokens.primary}44`, background: tokens.primaryLight, color: tokens.primary, fontFamily: bFont, fontWeight: 600, fontSize: 12.5, cursor: "pointer" }}
                   >
-                    {t("Open workspace", "افتح مساحة العمل")}
+                    {t("Open workspace", "فتح مساحة العمل")}
                   </button>
                 </div>
               );
@@ -381,25 +373,22 @@ function RealInstructorHome({ state, dispatch }) {
               <button
                 type="button"
                 onClick={() => setCreateOpen(true)}
-                style={{ background: tokens.card, border: `1.5px dashed ${tokens.cardBorder}`, borderRadius: 12, padding: "18px 20px", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, cursor: "pointer", flexDirection: isRtl ? "row-reverse" : "row", textAlign: isRtl ? "right" : "left" }}
+                style={{ background: tokens.card, border: `1.5px dashed ${tokens.cardBorder}`, borderRadius: 12, padding: "18px 20px", display: "flex", alignItems: "center", gap: 12, cursor: "pointer", flexDirection: isRtl ? "row-reverse" : "row", textAlign: isRtl ? "right" : "left", width: "100%", minHeight: 92 }}
               >
                 <span style={{ display: "inline-flex", width: 34, height: 34, borderRadius: 9, background: tokens.primaryLight, border: `1px solid ${tokens.citationBorder}`, alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   <IconPlus size={16} color={tokens.primary} />
                 </span>
-                <span style={{ fontFamily: hFont, fontWeight: 600, fontSize: 14, color: tokens.textPrimary }}>
-                  {t("New course", "مقرر جديد")}
-                </span>
-                <span style={{ fontFamily: bFont, fontSize: 11.5, color: tokens.textFaint, lineHeight: 1.6, maxWidth: 220 }}>
-                  {t("Your institution lets doctors create course shells — the admin sees each one the moment it exists.", "مؤسستك تسمح لك بإنشاء مقررات داخل قسمك — تظهر للإدارة فور إنشائها.")}
+                <span style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0, flex: 1 }}>
+                  <span style={{ fontFamily: hFont, fontWeight: 600, fontSize: 14, color: tokens.textPrimary, whiteSpace: "nowrap" }}>
+                    {t("New course", "مقرر جديد")}
+                  </span>
+                  <span style={{ fontFamily: bFont, fontSize: 11.5, color: tokens.textFaint, lineHeight: 1.6 }}>
+                    {t("Your institution lets doctors create course shells — the admin sees each one the moment it exists.", "مؤسستك تسمح لك بإنشاء مقررات داخل قسمك — تظهر للإدارة فور إنشائها.")}
+                  </span>
                 </span>
               </button>
             )}
           </div>
-        )}
-        {data && (
-          <p style={{ fontFamily: bFont, fontSize: 11, color: tokens.textFaint, margin: "14px 0 0", textAlign: isRtl ? "right" : "left" }}>
-            {t("Snapshots recompute automatically after every finalized submission.", "اللقطات بتتحسب من جديد تلقائياً بعد كل تسليم معتمد.")}
-          </p>
         )}
       </AsyncGate>
 
@@ -409,7 +398,7 @@ function RealInstructorHome({ state, dispatch }) {
         tokens={tokens}
         lang={lang}
         title={t("Create a new course", "إنشاء مقرر جديد")}
-        subtitle={t("A course shell inside your department — materials are uploaded from Content Studio afterwards.", "هيكل مقرر داخل قسمك — المواد تُرفع لاحقًا من استوديو المحتوى.")}
+        subtitle={t("A course shell inside your department — materials are uploaded afterwards from Content Builder.", "بنية مقرر جديد داخل قسمك — تُرفع المواد لاحقًا من «صانع المحتوى».")}
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <Field
@@ -417,7 +406,7 @@ function RealInstructorHome({ state, dispatch }) {
             lang={lang}
             label={t("Course code", "كود المقرر")}
             required
-            hint={t("The first digit encodes the year — students see the year chip from the code (e.g. CS310 → year 3).", "أول رقم في الكود يحمل السنة — الطلاب يرون شريحة السنة من الكود (مثال: CS310 → سنة ٣).")}
+            hint={t("The first digit encodes the year — students see the year chip from the code (e.g. CS310 → year 3).", "يعبّر أول رقم في الكود عن السنة — يظهر للطلاب كشارة سنة (مثال: CS310 ‏← سنة 3).")}
           >
             <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} style={{ ...inputStyle(tokens, bFont), direction: "ltr", textAlign: "left" }} placeholder="CS310" />
           </Field>
@@ -432,7 +421,7 @@ function RealInstructorHome({ state, dispatch }) {
             <span style={{ fontFamily: bFont, fontSize: 11, color: tokens.textFaint, lineHeight: 1.6 }}>
               {t(
                 "The new shell shows up in institution analytics as a course without materials until your first approved upload.",
-                "المقرر الجديد يظهر في تحليلات المؤسسة كمقرر بلا مواد حتى ترفع أول محتوى معتمد.",
+                "يظهر المقرر الجديد في تحليلات المؤسسة كمقرر دون مواد حتى رَفعك أول محتوى معتمد.",
               )}
             </span>
           </div>
@@ -442,7 +431,7 @@ function RealInstructorHome({ state, dispatch }) {
             onClick={submitCreate}
             style={{ width: "100%", padding: "11px 0", fontSize: 13.5, justifyContent: "center", borderRadius: 9, border: "none", background: tokens.primaryBtn, color: "#fff", fontFamily: hFont, fontWeight: 600, cursor: canSubmitCode && !creating ? "pointer" : "not-allowed", opacity: canSubmitCode && !creating ? 1 : 0.55 }}
           >
-            {creating ? t("Creating…", "جاري الإنشاء…") : t("Create course", "إنشاء المقرر")}
+            {creating ? t("Creating…", "جارٍ الإنشاء…") : t("Create course", "إنشاء المقرر")}
           </button>
         </div>
       </Modal>
