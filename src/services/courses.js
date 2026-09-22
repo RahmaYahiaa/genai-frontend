@@ -11,6 +11,8 @@ export function mapCourse(course) {
     institutionId: course.institutionId ?? null,
     isActive: course.isActive ?? true,
     staff: course.staff ?? [],
+    departmentId: course.departmentId ?? null,
+    semesterId: course.semesterId ?? null,
     topics: (course.topics ?? []).map((topic) => ({
       id: topic.id,
       label: { en: topic.title, ar: topic.title },
@@ -145,4 +147,12 @@ export async function createCourse(payload) {
 
 export async function getCreationPolicy() {
   return api("/courses/creation-policy");
+}
+
+export async function addCourseStaff(courseId, { userId, role }) {
+  return api(`/courses/${courseId}/staff`, { method: "POST", body: { userId, role } });
+}
+
+export async function removeCourseStaff(courseId, userId) {
+  return api(`/courses/${courseId}/staff/${userId}`, { method: "DELETE" });
 }

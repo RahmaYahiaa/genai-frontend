@@ -25,6 +25,7 @@ import StudentAssignmentsPage from "@/pages/StudentAssignmentsLegacy";
 import StudentAssignmentPage from "@/pages/StudentAssignmentLegacy";
 import StudentCoursePage from "@/pages/StudentCoursePage";
 import AdminHealthPage from "@/pages/admin/AdminHealthPage";
+import AdminCoursesPage from "@/pages/admin/AdminCoursesPage";
 import AdminUsersPage from "@/pages/admin/AdminUsersPage";
 import AdminOfficersPage from "@/pages/admin/AdminOfficersPage";
 import AdminBulkImportPage from "@/pages/admin/AdminBulkImportPage";
@@ -56,6 +57,7 @@ const PAGES = {
   [SCREENS.REASSESSMENT]: ReassessmentPage,
   [SCREENS.PROFILE]: ProfilePage,
   [SCREENS.ADMIN]: AdminHealthPage,
+  [SCREENS.ADMIN_COURSES]: AdminCoursesPage,
   [SCREENS.ADMIN_USERS]: AdminUsersPage,
   [SCREENS.ADMIN_OFFICERS]: AdminOfficersPage,
   [SCREENS.ADMIN_IMPORT]: AdminBulkImportPage,

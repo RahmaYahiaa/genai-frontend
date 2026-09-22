@@ -43,6 +43,7 @@ export const INSTRUCTOR_NAV = [
 
 export const ADMIN_NAV = [
   { id: SCREENS.ADMIN, en: "Institution Health", ar: "صحة المؤسسة", Icon: IconGlobe },
+  { id: SCREENS.ADMIN_COURSES, en: "Courses", ar: "المقررات", Icon: IconBookOpen },
   { id: SCREENS.ADMIN_USERS, en: "Users", ar: "المستخدمون", Icon: IconUsers, gate: "users.view" },
   { id: SCREENS.ADMIN_OFFICERS, en: "Officers & Permissions", ar: "المسؤولون والصلاحيات", Icon: IconSparkle, gate: "super" },
   { id: SCREENS.ADMIN_IMPORT, en: "Bulk Invitations", ar: "الإدخال الجماعي", Icon: IconClipboard, gate: "bulk.import" },

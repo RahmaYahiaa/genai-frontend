@@ -13,6 +13,7 @@ export const SCREENS = Object.freeze({
   PROFILE: "profile",
   INSTRUCTOR: "instructor",
   ADMIN: "admin",
+  ADMIN_COURSES: "admin-courses",
   ADMIN_USERS: "admin-users",
   ADMIN_OFFICERS: "admin-officers",
   ADMIN_IMPORT: "admin-import",
