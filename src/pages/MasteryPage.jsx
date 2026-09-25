@@ -1,8 +1,6 @@
 import { demoMode } from "@/services/auth";
-import { useCallback, useState } from "react";
-import { listCourses } from "@/services/courses";
-import { getLearnerModel } from "@/services/learning";
-import { CourseSelect } from "@/components/SessionSolver";
+import { useState } from "react";
+import { getMyLearning, recordConceptReview } from "@/services/learning";
 import useAsync from "@/hooks/useAsync";
 import useMediaQuery from "@/hooks/useMediaQuery";
 import { fetchMastery } from "@/services/api";
@@ -124,39 +122,100 @@ function MasteryInner({ courses, tokens, lang, t, dispatch }) {
 }
 const pctOf = (value) => (value == null ? 0 : value <= 1 ? Math.round(value * 100) : Math.round(value));
 
+const NEXT_ACTION_LABELS = {
+  build_foundation: { en: "Build the foundations first", ar: "ابنِ الأساسات أولًا" },
+  reinforce: { en: "Reinforce weak concepts", ar: "عزّز المفاهيم الضعيفة" },
+  resolve_misconceptions: { en: "Resolve misconceptions", ar: "صحّح المفاهيم الخاطئة" },
+  fill_prerequisites: { en: "Fill prerequisite gaps", ar: "سدّ الفجوات التأسيسية" },
+  progress: { en: "Keep progressing", ar: "واصل التقدّم" },
+};
+
+const PRIORITY_LABELS = {
+  low: { en: "Low", ar: "منخفضة" },
+  medium: { en: "Medium", ar: "متوسطة" },
+  high: { en: "High", ar: "مرتفعة" },
+};
+
+function ReviewQueue({ queue, tokens, lang, t, onReviewed }) {
+  const [busyConcept, setBusyConcept] = useState(null);
+  const [error, setError] = useState(null);
+  if (!queue.length) return null;
+  async function review(item, remembered) {
+    if (busyConcept) return;
+    setBusyConcept(item.concept);
+    setError(null);
+    try {
+      await recordConceptReview(item.concept, remembered);
+      onReviewed();
+    } catch (e) {
+      setError(e?.message ?? "review failed");
+    } finally {
+      setBusyConcept(null);
+    }
+  }
+  return (
+    <Card tokens={tokens} style={{ marginBottom: 14 }}>
+      <div style={{ fontWeight: 700, fontSize: 14, color: tokens.textPrimary, marginBottom: 10 }}>
+        {t("Spaced review queue (SM-2)", "جدول المراجعة المتباعدة (SM-2)")}
+      </div>
+      {error && (
+        <div style={{ fontSize: 12, color: tokens.danger ?? "#b33", marginBottom: 8 }}>{error}</div>
+      )}
+      {queue.map((item) => (
+        <div
+          key={item.concept}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 8,
+            padding: "10px 0",
+            borderTop: `1px solid ${tokens.cardBorder}`,
+            flexWrap: "wrap",
+          }}
+        >
+          <div style={{ flex: 1, minWidth: 180 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: tokens.textPrimary }}>{item.concept}</div>
+            <div style={{ fontSize: 11, color: tokens.textFaint, marginTop: 2 }}>
+              {t("Due", "مستحقة")}: {item.due_date ? new Date(item.due_date).toLocaleDateString(lang === "ar" ? "ar-EG" : "en-GB") : "—"}
+              {" · "}
+              {t("Interval", "الفاصل")}: {item.interval_days ?? "—"} {t("days", "يوم")}
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            <Btn tokens={tokens} variant="soft" disabled={busyConcept === item.concept} onClick={() => review(item, true)}>
+              {busyConcept === item.concept ? t("Saving…", "جارٍ الحفظ…") : t("Remembered", "تذكرت")}
+            </Btn>
+            <Btn tokens={tokens} variant="ghost" disabled={busyConcept === item.concept} onClick={() => review(item, false)}>
+              {t("Forgot", "لم أتذكر")}
+            </Btn>
+          </div>
+        </div>
+      ))}
+    </Card>
+  );
+}
+
 function RealMasteryPage({ state, dispatch }) {
   const tokens = tk(state.dark);
   const lang = state.lang;
   const t = (en, ar) => (lang === "ar" ? ar : en);
   const mobile = useMediaQuery("(max-width: 760px)");
-  const [courseId, setCourseId] = useState("");
-  const loadCourses = useCallback(() => listCourses(), []);
-  const coursesAsync = useAsync(loadCourses);
-  const courses = coursesAsync.data?.items ?? [];
-  const effectiveCourseId = courseId || courses[0]?.id || null;
-  const loadModel = useCallback(
-    () => (effectiveCourseId ? getLearnerModel(effectiveCourseId).catch(() => null) : Promise.resolve(null)),
-    [effectiveCourseId],
-  );
-  const modelAsync = useAsync(loadModel);
-  const selected = courses.find((course) => course.id === effectiveCourseId) ?? null;
-  const mastery = modelAsync.data?.mastery ?? [];
-  const overview = modelAsync.data?.overview ?? null;
-  const mapped = selected
-    ? [
-        {
-          id: selected.code ?? selected.title?.en ?? selected.id,
-          title: { en: selected.title?.en ?? selected.title ?? "", ar: selected.title?.ar ?? selected.title ?? "" },
-          overall: pctOf(overview?.overallAverageScore),
-          topics: mastery.map((row) => ({
-            id: row.topicId,
-            label: { en: row.title ?? "", ar: row.title ?? "" },
-            pct: pctOf(row.averageScore),
-            evidence: row.evidenceCount ?? 0,
-          })),
-        },
-      ]
-    : [];
+  // The AI learning engine is the single source of truth for concept mastery,
+  // next actions, study plans and the spaced-repetition queue.
+  const learningAsync = useAsync(getMyLearning);
+  const data = learningAsync.data;
+
+  const profile = data?.profile ?? {};
+  const conceptMastery = profile.concept_mastery ?? {};
+  const concepts = Object.entries(conceptMastery).map(([concept, mastery]) => ({
+    concept,
+    pct: pctOf(mastery),
+  })).sort((a, b) => a.pct - b.pct);
+  const nextAction = data?.next_action ?? null;
+  const studyPlan = data?.study_plan ?? [];
+  const reviewQueue = data?.review_queue ?? [];
+  const emptyMastery = concepts.length === 0;
 
   return (
     <div style={{ padding: mobile ? 16 : 28, maxWidth: 1080, margin: "0 auto", fontFamily: bodyFont(lang), direction: lang === "ar" ? "rtl" : "ltr" }}>
@@ -164,30 +223,100 @@ function RealMasteryPage({ state, dispatch }) {
         {t("Topics & Mastery", "المواضيع والإتقان")}
       </h1>
       <p style={{ margin: "0 0 20px", fontSize: 12.5, color: tokens.textMuted }}>
-        {t("Every level is backed by evidence — no guesses.", "كل مستوى مدعوم بأدلة — لا تخمين.")}
+        {t(
+          "Mastery, next actions and reviews come from the AI learning engine — evidence-backed, never guessed.",
+          "الإتقان والخطوات التالية والمراجعات مصدرها محرك التعلّم الذكي — مبني على الأدلة وليس التخمين.",
+        )}
       </p>
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
-        <CourseSelect courses={courses} value={effectiveCourseId ?? ""} onChange={setCourseId} tokens={tokens} lang={lang} placeholder={t("Choose course…", "اختار مقرر…")} />
-      </div>
       <AsyncGate
         tokens={tokens}
         lang={lang}
-        loading={coursesAsync.loading || modelAsync.loading}
-        error={coursesAsync.error ?? modelAsync.error}
-        reload={() => {
-          coursesAsync.reload();
-          modelAsync.reload();
-        }}
-        label={t("Loading mastery map…", "جاري تحميل خريطة الإتقان…")}
+        loading={learningAsync.loading}
+        error={learningAsync.error}
+        reload={learningAsync.reload}
+        label={t("Loading your learning state…", "جارٍ تحميل حالة تعلّمك…")}
       >
-        {mapped.length === 0 ? (
-          <Card tokens={tokens} style={{ padding: "16px 18px" }}>
-            <p style={{ fontFamily: bodyFont(lang), fontSize: 12.5, color: tokens.textMuted, margin: 0, lineHeight: 1.7 }}>
-              {t("No institutional courses yet — mastery appears once you are enrolled.", "لسه مفيش مقررات مؤسسية — الإتقان بيظهر أول ما تتقيد.")}
-            </p>
-          </Card>
-        ) : (
-          <MasteryInner courses={mapped} tokens={tokens} lang={lang} t={t} dispatch={dispatch} />
+        {data && (
+          <>
+            {nextAction && (
+              <Card tokens={tokens} style={{ marginBottom: 14 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 6 }}>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: tokens.textPrimary }}>
+                    {NEXT_ACTION_LABELS[nextAction.action]?.[lang] ?? nextAction.action}
+                  </div>
+                  {nextAction.priority && (
+                    <Chip tokens={tokens} tone={nextAction.priority === "high" ? "gap" : "slate"}>
+                      {PRIORITY_LABELS[nextAction.priority]?.[lang] ?? nextAction.priority}
+                    </Chip>
+                  )}
+                </div>
+                {nextAction.reason && (
+                  <div style={{ fontSize: 12.5, color: tokens.textSecondary, lineHeight: 1.7, marginBottom: 8 }}>{nextAction.reason}</div>
+                )}
+                {(nextAction.target_concepts ?? []).length > 0 && (
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {nextAction.target_concepts.map((concept) => (
+                      <Chip key={concept} tokens={tokens} tone="primary">{concept}</Chip>
+                    ))}
+                  </div>
+                )}
+              </Card>
+            )}
+
+            <ReviewQueue queue={reviewQueue} tokens={tokens} lang={lang} t={t} onReviewed={learningAsync.reload} />
+
+            <Card tokens={tokens} style={{ marginBottom: 14 }}>
+              <div style={{ fontWeight: 700, fontSize: 14, color: tokens.textPrimary, marginBottom: 10 }}>
+                {t("Concept mastery", "إتقان المفاهيم")}
+              </div>
+              {emptyMastery ? (
+                <p style={{ fontSize: 12.5, color: tokens.textMuted, lineHeight: 1.8, margin: 0 }}>
+                  {t(
+                    "No mastery evidence yet. It fills in automatically as the AI engine observes your assessed answers — nothing is assumed without evidence.",
+                    "لا توجد أدلة إتقان بعد. تُملأ تلقائيًا مع ملاحظة محرك الذكاء لإجاباتك التقييمية — لا يُفترض شيء بلا دليل.",
+                  )}
+                </p>
+              ) : (
+                concepts.map((row) => (
+                  <div key={row.concept} style={{ padding: "8px 0", borderTop: `1px solid ${tokens.cardBorder}` }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: tokens.textPrimary }}>{row.concept}</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: tokens.textPrimary, fontFamily: "'JetBrains Mono', monospace" }}>{row.pct}%</span>
+                    </div>
+                    <div style={{ marginTop: 6 }}>
+                      <MasteryBar pct={row.pct} evidence={1} tokens={tokens} height={7} />
+                    </div>
+                  </div>
+                ))
+              )}
+            </Card>
+
+            {studyPlan.length > 0 && (
+              <Card tokens={tokens}>
+                <div style={{ fontWeight: 700, fontSize: 14, color: tokens.textPrimary, marginBottom: 10 }}>
+                  {t("Personal study plan", "خطة المذاكرة الشخصية")}
+                </div>
+                {studyPlan.map((step) => (
+                  <div key={step.title} style={{ padding: "10px 0", borderTop: `1px solid ${tokens.cardBorder}` }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: tokens.textPrimary }}>{step.title}</span>
+                      {step.priority && (
+                        <Chip tokens={tokens} tone="slate">{PRIORITY_LABELS[step.priority]?.[lang] ?? step.priority}</Chip>
+                      )}
+                    </div>
+                    {step.reason && <div style={{ fontSize: 12, color: tokens.textMuted, lineHeight: 1.7, marginTop: 4 }}>{step.reason}</div>}
+                    {(step.recommended_actions ?? []).length > 0 && (
+                      <ul style={{ margin: "6px 0 0", paddingInlineStart: 18, color: tokens.textSecondary, fontSize: 12, lineHeight: 1.8 }}>
+                        {step.recommended_actions.map((action) => (
+                          <li key={action}>{action}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                ))}
+              </Card>
+            )}
+          </>
         )}
       </AsyncGate>
     </div>

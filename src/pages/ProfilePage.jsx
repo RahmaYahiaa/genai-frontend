@@ -1,12 +1,110 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import useAsync from "@/hooks/useAsync";
 import useMediaQuery from "@/hooks/useMediaQuery";
 import { fetchProfile } from "@/services/api";
 import { listCourses } from "@/services/courses";
+import { getAiPreferences, updateAiPreferences } from "@/services/learning";
+import { LANGUAGE_OPTIONS } from "@/services/studyTools";
+import { apiErrorText } from "@/services/http";
+import { inputStyle } from "@/components/ModuleUI";
 import { demoMode } from "@/services/auth";
 import { tk, headingFont, bodyFont } from "@/constants/tokens";
 import { Card, Chip, Bar, AsyncGate, Btn } from "@/components/ui";
 import { signOut } from "@/services/auth";
+
+function AiPreferencesCard({ tokens, lang, t }) {
+  const prefAsync = useAsync(getAiPreferences);
+  const pref = prefAsync.data;
+  const [language, setLanguage] = useState("");
+  const [style, setStyle] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState(null);
+
+  useEffect(() => {
+    if (pref) {
+      setLanguage(pref.preferredLanguage ?? "");
+      setStyle(pref.learningPreference ?? "");
+    }
+  }, [pref]);
+
+  async function save() {
+    if (busy) return;
+    setBusy(true);
+    setNotice(null);
+    try {
+      const body = {};
+      if (language) body.preferredLanguage = language;
+      if (style.trim()) body.learningPreference = style.trim();
+      await updateAiPreferences(body);
+      prefAsync.reload();
+      setNotice({ ok: true, message: t("AI preferences saved.", "تم حفظ تفضيلات الذكاء الاصطناعي.") });
+    } catch (error) {
+      setNotice({ ok: false, message: apiErrorText(error, lang) });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card tokens={tokens} style={{ marginBottom: 14 }}>
+      <div style={{ fontWeight: 700, fontSize: 14, color: tokens.textPrimary, marginBottom: 4 }}>
+        {t("AI learning preferences", "تفضيلات التعلّم بالذكاء الاصطناعي")}
+      </div>
+      <div style={{ fontSize: 11.5, color: tokens.textMuted, marginBottom: 12, lineHeight: 1.7 }}>
+        {t(
+          "Stored in the AI learning engine and applied to the tutor, study tools and reviews.",
+          "تُحفظ في محرك التعلّم الذكي وتُطبّق على المعلّم وأدوات المذاكرة والمراجعات.",
+        )}
+      </div>
+      <AsyncGate tokens={tokens} lang={lang} loading={prefAsync.loading} error={prefAsync.error} reload={prefAsync.reload} label={t("Loading AI preferences…", "جارٍ تحميل التفضيلات…")}>
+        {pref && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+              <label htmlFor="ai-language" style={{ fontSize: 12.5, color: tokens.textSecondary }}>
+                {t("Answer language", "لغة الإجابة")}
+              </label>
+              <select
+                id="ai-language"
+                value={language}
+                onChange={(e) => setLanguage(e.target.value)}
+                style={{ ...inputStyle(tokens, bodyFont(lang)), minWidth: 170, cursor: "pointer" }}
+                className="genai-input"
+              >
+                {LANGUAGE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option[lang]}</option>
+                ))}
+              </select>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+              <label htmlFor="ai-style" style={{ fontSize: 12.5, color: tokens.textSecondary }}>
+                {t("Learning style", "أسلوب التعلّم")}
+              </label>
+              <input
+                id="ai-style"
+                value={style}
+                onChange={(e) => setStyle(e.target.value)}
+                placeholder={t("e.g. step-by-step, visual, direct", "مثال: خطوة بخطوة، بصري، مباشر")}
+                style={{ ...inputStyle(tokens, bodyFont(lang)), minWidth: 230, flex: 1, maxWidth: 300 }}
+                className="genai-input"
+                maxLength={120}
+              />
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <Btn tokens={tokens} onClick={save} disabled={busy || (!language && !style.trim())}>
+                {busy ? t("Saving…", "جارٍ الحفظ…") : t("Save AI preferences", "حفظ التفضيلات")}
+              </Btn>
+              {notice && (
+                <span style={{ fontSize: 12, color: notice.ok ? tokens.mastered : (tokens.danger ?? "#b33") }}>
+                  {notice.message}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+      </AsyncGate>
+    </Card>
+  );
+}
 
 export default function ProfilePage({ state, dispatch }) {
   const tokens = tk(state.dark);
@@ -122,6 +220,8 @@ export default function ProfilePage({ state, dispatch }) {
                   ))}
               </Card>
             </div>
+
+            {real && <AiPreferencesCard tokens={tokens} lang={lang} t={t} />}
 
             <Card tokens={tokens} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
               <div>

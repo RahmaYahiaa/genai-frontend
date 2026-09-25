@@ -248,28 +248,6 @@ function RealDiagnosticPage({ state, dispatch }) {
     }
   }
 
-  // Voice answers: server-side transcription (configured transcription
-  // provider) then the same evaluation pipeline as a text answer.
-  async function answerVoice(questionId, audio) {
-    setBusyQuestion(questionId);
-    setNotice(null);
-    try {
-      await submitDiagnosticAnswer(effectiveCourseId, diagId, {
-        questionId,
-        content: "",
-        responseMode: "voice",
-        audioBase64: audio.audioBase64,
-        audioMimeType: audio.audioMimeType,
-      });
-      diagAsync.reload();
-      listAsync.reload();
-    } catch (err) {
-      setNotice(apiErrorText(err, lang));
-    } finally {
-      setBusyQuestion(null);
-    }
-  }
-
   // "I don't know" (EDUNation parity): missing-knowledge evidence, never a
   // misconception — better data than a lucky guess.
   async function answerIdk(questionId) {
@@ -377,7 +355,6 @@ function RealDiagnosticPage({ state, dispatch }) {
                 busyId={busyQuestion}
                 onSubmit={(questionId, content) => void answer(questionId, content)}
                 onIdk={(questionId) => void answerIdk(questionId)}
-                onVoice={(questionId, audio) => void answerVoice(questionId, audio)}
                 tokens={tokens}
                 lang={lang}
                 mobile={mobile}

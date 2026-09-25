@@ -12,3 +12,5 @@ pnpm-debug.log*
 .idea
 .vscode/*
 !.vscode/extensions.json
+
+__tests__

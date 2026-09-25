@@ -9,10 +9,21 @@ const PORT = Number(process.env.PORT || 3000);
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  esbuild: { jsx: "automatic", jsxImportSource: "react" },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
+  },
+  test: {
+    environment: "jsdom",
+    globals: true,
+    setupFiles: ["./src/__tests__/setup.js"],
+    include: ["src/__tests__/**/*.test.{js,jsx}"],
+    env: {
+      VITE_API_URL: "/api",
+    },
+    css: false,
   },
   server: {
     host: "0.0.0.0",

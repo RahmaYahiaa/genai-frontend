@@ -1,4 +1,26 @@
 import { api } from "@/services/http";
+// ── AI learning engine bridge: user-scoped AI state ───────────────────────
+// These call our backend; no AI-service credentials ever reach the client.
+export function getMyLearning() {
+  return api("/students/me/learning");
+}
+
+export function recordConceptReview(concept, remembered) {
+  return api("/students/me/learning/review", { method: "POST", body: { concept, remembered } });
+}
+
+export function getAiPreferences() {
+  return api("/students/me/ai-preferences");
+}
+
+export function updateAiPreferences(body) {
+  return api("/students/me/ai-preferences", { method: "PATCH", body });
+}
+
+export function getAiHealth() {
+  return api("/students/me/ai-health");
+}
+
 
 export const TUTOR_MODE_LABELS = {
   explanation: { en: "Explanation", ar: "شرح" },
@@ -53,8 +75,11 @@ export function getTutorSession(courseId, sessionId) {
   return api(`/courses/${courseId}/tutor/sessions/${sessionId}`);
 }
 
-export function sendTutorMessage(courseId, sessionId, content) {
-  return api(`/courses/${courseId}/tutor/sessions/${sessionId}/messages`, { method: "POST", body: { content } });
+export function sendTutorMessage(courseId, sessionId, content, materialIds = null) {
+  const body = { content };
+  // EDUNation "Use materials" parity: an explicit student scoping choice.
+  if (Array.isArray(materialIds) && materialIds.length > 0) body.materialIds = materialIds;
+  return api(`/courses/${courseId}/tutor/sessions/${sessionId}/messages`, { method: "POST", body });
 }
 
 export function listPracticeSessions(courseId) {

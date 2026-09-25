@@ -112,6 +112,12 @@ function Chip({ tokens, children, tone = "default", style }) {
       b: tokens.citationBorder,
     },
     violet: { bg: tokens.gapBg, c: tokens.gap, b: tokens.gapBorder },
+    modal: { bg: tokens.gapBg, c: tokens.gap, b: tokens.gapBorder },
+    // Semantic learning tones (same palette as components/ui.Chip) — needed by
+    // the redesigned QuestionFlow/EvaluationCard semantic correctness states.
+    mastered: { bg: tokens.masteredBg, c: tokens.mastered, b: tokens.masteredBorder },
+    gap: { bg: tokens.gapBg, c: tokens.gap, b: tokens.gapBorder },
+    developing: { bg: tokens.developingBg, c: tokens.developing, b: tokens.developingBorder },
     peri: {
       bg: tokens.developingBg,
       c: tokens.developing,

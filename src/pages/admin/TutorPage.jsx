@@ -1,7 +1,7 @@
 import { demoMode } from "@/services/auth";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { listCourses, listMaterials } from "@/services/courses";
-import { listTutorSessions, createTutorSession, getTutorSession, sendTutorMessage as sendLiveTutorMessage, getAiHealth, TUTOR_MODE_LABELS } from "@/services/learning";
+import { listTutorSessions, createTutorSession, getTutorSession, sendTutorMessage as sendLiveTutorMessage, TUTOR_MODE_LABELS } from "@/services/learning";
 import { apiErrorText } from "@/services/http";
 import { CourseSelect, TopicSelect } from "@/components/SessionSolver";
 import { AlertStrip, inputStyle } from "@/components/ModuleUI";
@@ -217,12 +217,6 @@ function RealTutorPage({ state, dispatch }) {
   );
   const listAsync = useAsync(loadList);
   const historyRows = listAsync.data ?? [];
-  // Live AI-engine status (bridge health + LeRna capabilities); silently
-  // degrades when the AI service is offline — the tutor keeps working via
-  // the legacy path and refuses honestly instead of inventing answers.
-  const loadHealth = useCallback(() => getAiHealth().catch(() => null), []);
-  const healthAsync = useAsync(loadHealth);
-  const aiReady = Boolean(healthAsync.data);
   const session = sessionAsync.data;
   const messages = session?.messages ?? [];
   const activeTopicLabel = session?.topicId
@@ -301,17 +295,6 @@ function RealTutorPage({ state, dispatch }) {
           )}
           actions={
             <>
-              {!healthAsync.loading && (
-                <Chip
-                  tokens={tokens}
-                  tone={aiReady ? "mastered" : "gap"}
-                  title={aiReady
-                    ? (healthAsync.data?.capabilities?.languages ?? []).join(" · ")
-                    : t("The AI service is unreachable — answers may be refused honestly", "خدمة الذكاء غير متاحة — قد تُرفض الإجابات بصدق")}
-                >
-                  {aiReady ? t("AI engine ready", "محرك الذكاء جاهز") : t("AI engine offline", "محرك الذكاء غير متاح")}
-                </Chip>
-              )}
               <label style={{ fontSize: 11.5, fontWeight: 600, color: tokens.textMuted, display: "inline-flex", flexDirection: "column", gap: 4 }}>
                 {t("Course", "المقرر")}
                 <CourseSelect courses={courses} value={effectiveCourseId ?? ""} onChange={setCourseId} tokens={tokens} lang={lang} placeholder={t("Choose course…", "اختر مقررًا…")} />
