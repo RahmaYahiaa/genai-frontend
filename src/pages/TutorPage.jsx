@@ -226,7 +226,7 @@ function RealTutorPage({ state, dispatch }) {
   const loadHealth = useCallback(() => getAiHealth().catch(() => null), []);
   const healthAsync = useAsync(loadHealth);
   // The health call itself can succeed while the AI engine has no working model.
-  const aiReady = Boolean(healthAsync.data) && healthAsync.data?.ai_status?.real_generation_ready !== false;
+  const aiReady = Boolean(healthAsync.data) && !healthAsync.data?.fallback && healthAsync.data?.ai_status?.real_generation_ready !== false;
   const session = sessionAsync.data;
   const messages = session?.messages ?? [];
   const activeTopicLabel = session?.topicId

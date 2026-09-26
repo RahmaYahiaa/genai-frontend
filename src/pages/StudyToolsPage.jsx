@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import useStudyCourse from "@/hooks/useStudyCourse";
-import { listCourses } from "@/services/courses";
+import { getCourse, listCourses } from "@/services/courses";
 import {
   KIND_LABELS,
   LANGUAGE_OPTIONS,
   RESOURCE_KINDS,
+  deleteResource,
+  downloadAnyResource,
   downloadResourceFile,
   fetchArtifactDataUri,
   generateResources,
@@ -108,34 +110,7 @@ function ResourceBody({ resource, tokens, lang, t, mobile }) {
   }
 
   if (resource.kind === "flashcards") {
-    return (
-      <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "1fr 1fr", gap: 10 }}>
-        {(c.cards ?? []).map((card, index) => {
-          const open = revealed[index];
-          return (
-            <button
-              key={index}
-              type="button"
-              onClick={() => setRevealed((r) => ({ ...r, [index]: !r[index] }))}
-              style={{
-                textAlign: align,
-                background: open ? tokens.primaryLight : tokens.inset,
-                border: `1px solid ${open ? `${tokens.primary}55` : tokens.cardBorder}`,
-                borderRadius: 10,
-                padding: "10px 12px",
-                cursor: "pointer",
-                minHeight: 64,
-              }}
-            >
-              <div style={{ fontSize: 12.5, fontWeight: 700, color: tokens.textPrimary }}>{card.front}</div>
-              {open && (
-                <div style={{ marginTop: 6, fontSize: 12, color: tokens.textSecondary, lineHeight: 1.7 }}>{card.back}</div>
-              )}
-            </button>
-          );
-        })}
-      </div>
-    );
+    return <FlashcardDeck cards={c.cards ?? []} tokens={tokens} lang={lang} t={t} />;
   }
 
   if (resource.kind === "quiz") {
@@ -274,6 +249,175 @@ function ArtifactActions({ resource, tokens, lang, t, onError, error }) {
   );
 }
 
+// One card at a time: tap to flip between question and answer, then move on.
+function FlashcardDeck({ cards, tokens, lang, t }) {
+  const [index, setIndex] = useState(0);
+  const [flipped, setFlipped] = useState(false);
+  const isRtl = lang === "ar";
+  if (cards.length === 0) return null;
+  const card = cards[Math.min(index, cards.length - 1)];
+  const go = (step) => {
+    setFlipped(false);
+    setIndex((i) => (i + step + cards.length) % cards.length);
+  };
+  const face = {
+    position: "absolute",
+    inset: 0,
+    backfaceVisibility: "hidden",
+    WebkitBackfaceVisibility: "hidden",
+    borderRadius: 16,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "22px 26px",
+    textAlign: "center",
+    boxSizing: "border-box",
+  };
+  return (
+    <div style={{ maxWidth: 560, margin: "0 auto" }}>
+      <div
+        role="button"
+        tabIndex={0}
+        aria-label={flipped ? t("Show question", "اعرض السؤال") : t("Show answer", "اعرض الإجابة")}
+        onClick={() => setFlipped((f) => !f)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setFlipped((f) => !f);
+          }
+        }}
+        style={{ perspective: 1200, cursor: "pointer", height: 230, outline: "none" }}
+      >
+        <div
+          style={{
+            position: "relative",
+            width: "100%",
+            height: "100%",
+            transition: "transform 0.45s ease",
+            transformStyle: "preserve-3d",
+            transform: flipped ? "rotateY(180deg)" : "none",
+          }}
+        >
+          <div style={{ ...face, background: tokens.card, border: `1.5px solid ${tokens.cardBorder}`, boxShadow: "0 6px 20px rgba(15,23,42,0.07)" }}>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", color: tokens.textFaint, marginBottom: 12 }}>
+              {t("QUESTION", "سؤال")}
+            </div>
+            <div style={{ fontSize: 16, fontWeight: 700, lineHeight: 1.6, color: tokens.textPrimary }}>{card.front}</div>
+            <div style={{ marginTop: 16, fontSize: 11.5, color: tokens.textMuted }}>{t("Tap to see the answer", "اضغط لعرض الإجابة")}</div>
+          </div>
+          <div style={{ ...face, transform: "rotateY(180deg)", background: tokens.primaryLight, border: `1.5px solid ${tokens.primary}55` }}>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", color: tokens.primary, marginBottom: 12 }}>
+              {t("ANSWER", "الإجابة")}
+            </div>
+            <div style={{ fontSize: 14, lineHeight: 1.75, color: tokens.textPrimary, overflowY: "auto" }}>{card.back}</div>
+          </div>
+        </div>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 12, direction: isRtl ? "rtl" : "ltr" }}>
+        <Btn tokens={tokens} lang={lang} variant="ghost" onClick={() => go(-1)} style={{ padding: "7px 14px", fontSize: 12.5 }}>
+          {t("Previous", "السابق")}
+        </Btn>
+        <span style={{ fontSize: 12.5, fontWeight: 650, color: tokens.textSecondary }}>
+          {index + 1} / {cards.length}
+        </span>
+        <Btn tokens={tokens} lang={lang} variant="soft" onClick={() => go(1)} style={{ padding: "7px 14px", fontSize: 12.5 }}>
+          {t("Next", "التالي")}
+        </Btn>
+      </div>
+    </div>
+  );
+}
+
+function formatDate(value, lang) {
+  if (!value) return "";
+  try {
+    return new Date(value).toLocaleDateString(lang === "ar" ? "ar-EG" : "en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  } catch {
+    return "";
+  }
+}
+
+// One saved resource: name, date, and open / download / delete actions.
+function ResourceItem({ resource, tokens, lang, t, mobile, defaultOpen, onDeleted }) {
+  const isRtl = lang === "ar";
+  const [open, setOpen] = useState(defaultOpen);
+  const [busy, setBusy] = useState(null);
+  const [error, setError] = useState(null);
+  const [confirming, setConfirming] = useState(false);
+  const name = `${KIND_LABELS[resource.kind]?.[lang] ?? resource.kind} — ${resource.topic}`;
+
+  const download = async () => {
+    setBusy("download");
+    setError(null);
+    try {
+      await downloadAnyResource(resource, lang);
+    } catch {
+      setError(t("Download failed. Try again.", "التنزيل فشل. جرّب تاني."));
+    } finally {
+      setBusy(null);
+    }
+  };
+  const remove = async () => {
+    setBusy("delete");
+    setError(null);
+    try {
+      await deleteResource(resource.id);
+      onDeleted(resource.id);
+    } catch {
+      setError(t("Couldn't delete it. Try again.", "مقدرناش نحذفه. جرّب تاني."));
+      setBusy(null);
+    }
+  };
+
+  const small = { padding: "6px 12px", fontSize: 12 };
+  return (
+    <Card tokens={tokens} style={{ padding: 0, overflow: "hidden" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          style={{ flex: "1 1 220px", minWidth: 0, background: "none", border: "none", padding: 0, cursor: "pointer", textAlign: isRtl ? "right" : "left", fontFamily: bodyFont(lang) }}
+        >
+          <div style={{ fontSize: 13.5, fontWeight: 700, color: tokens.textPrimary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</div>
+          <div style={{ fontSize: 11.5, color: tokens.textFaint, marginTop: 2 }}>
+            {formatDate(resource.createdAt, lang)}
+            {resource.knowledgeSource === "uploaded_material" ? ` · ${t("From your course files", "من ملفات المقرر")}` : ""}
+          </div>
+        </button>
+        <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+          <Btn tokens={tokens} lang={lang} variant="ghost" style={small} onClick={() => setOpen((o) => !o)}>
+            {open ? t("Hide", "إخفاء") : t("Open", "فتح")}
+          </Btn>
+          <Btn tokens={tokens} lang={lang} variant="soft" style={small} disabled={busy !== null} onClick={download}>
+            {busy === "download" ? t("Downloading…", "جارٍ التنزيل…") : t("Download", "تنزيل")}
+          </Btn>
+          {confirming ? (
+            <>
+              <Btn tokens={tokens} lang={lang} variant="ghost" style={{ ...small, color: tokens.danger ?? "#b42318" }} disabled={busy !== null} onClick={remove}>
+                {busy === "delete" ? t("Deleting…", "جارٍ الحذف…") : t("Confirm delete", "تأكيد الحذف")}
+              </Btn>
+              <Btn tokens={tokens} lang={lang} variant="ghost" style={small} disabled={busy !== null} onClick={() => setConfirming(false)}>
+                {t("Cancel", "إلغاء")}
+              </Btn>
+            </>
+          ) : (
+            <Btn tokens={tokens} lang={lang} variant="ghost" style={small} onClick={() => setConfirming(true)}>
+              {t("Delete", "حذف")}
+            </Btn>
+          )}
+        </div>
+      </div>
+      {error && <div style={{ padding: "0 16px 10px", fontSize: 12, color: tokens.danger ?? "#b42318" }}>{error}</div>}
+      {open && (
+        <div style={{ borderTop: `1px solid ${tokens.cardBorder}`, padding: 16 }}>
+          <ResourceBody resource={resource} tokens={tokens} lang={lang} t={t} mobile={mobile} />
+        </div>
+      )}
+    </Card>
+  );
+}
+
 export default function StudyToolsPage({ state }) {
   const tokens = tk(state.dark);
   const lang = state.lang;
@@ -282,16 +426,27 @@ export default function StudyToolsPage({ state }) {
   const mobile = useMediaQuery("(max-width: 760px)");
   const [courseId, setCourseId] = useStudyCourse();
   const [topic, setTopic] = useState("");
-  const [kinds, setKinds] = useState(["summary", "quiz"]);
+  const [kinds, setKinds] = useState(["summary", "flashcards", "quiz"]);
   const [resourceLanguage, setResourceLanguage] = useState("");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState(null);
+  const [freshIds, setFreshIds] = useState([]);
+  const [removed, setRemoved] = useState([]);
 
   const loadCourses = useCallback(() => listCourses(), []);
   const coursesAsync = useAsync(loadCourses);
   const courses = coursesAsync.data?.items ?? [];
   const effectiveCourseId = courseId || courses[0]?.id || null;
-  const course = courses.find((item) => item.id === effectiveCourseId);
+
+  // Course topics feed the topic picker; the student can still type freely.
+  const loadCourse = useCallback(
+    () => (effectiveCourseId ? getCourse(effectiveCourseId).catch(() => null) : Promise.resolve(null)),
+    [effectiveCourseId],
+  );
+  const courseAsync = useAsync(loadCourse);
+  const topics = (courseAsync.data?.topics ?? [])
+    .map((item) => item.label?.[lang] ?? item.label?.en ?? (typeof item.title === "string" ? item.title : ""))
+    .filter(Boolean);
 
   const loadList = useCallback(
     () => (effectiveCourseId ? listResources(effectiveCourseId).catch(() => ({ items: [] })) : Promise.resolve({ items: [] })),
@@ -300,11 +455,13 @@ export default function StudyToolsPage({ state }) {
   const listAsync = useAsync(loadList);
   useEffect(() => {
     listAsync.reload();
+    courseAsync.reload();
     setNotice(null);
+    setFreshIds([]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effectiveCourseId]);
 
-  const history = (listAsync.data?.items ?? []).filter((item) => item.status === "ready");
+  const library = (listAsync.data?.items ?? []).filter((item) => item.status === "ready" && !removed.includes(item.id));
 
   const toggleKind = (kind) =>
     // The API accepts at most 10 kinds per request.
@@ -318,9 +475,18 @@ export default function StudyToolsPage({ state }) {
     setBusy(true);
     setNotice(null);
     try {
-      // One call per batch returns per-kind results; a newly generated batch
-      // is prepended to history via reload.
-      await generateResources(effectiveCourseId, { topic: clean, kinds, language: resourceLanguage || lang });
+      const result = await generateResources(effectiveCourseId, { topic: clean, kinds, language: resourceLanguage || lang });
+      const items = result?.items ?? [];
+      setFreshIds(items.filter((item) => item.status === "ready").map((item) => item.id));
+      const failed = items.filter((item) => item.status !== "ready").map((item) => KIND_LABELS[item.kind]?.[lang] ?? item.kind);
+      if (failed.length) {
+        setNotice(
+          t(
+            `We couldn't create: ${failed.join(", ")}. Try those again in a moment.`,
+            `مقدرناش نعمل: ${failed.join("، ")}. جرّبهم تاني كمان شوية.`,
+          ),
+        );
+      }
       listAsync.reload();
     } catch (err) {
       setNotice(apiErrorText(err, lang));
@@ -329,19 +495,30 @@ export default function StudyToolsPage({ state }) {
     }
   }
 
-  const newBatch = listAsync.data?.items ?? [];
-  const latestBatchId = newBatch[0]?.batchId ?? null;
-  const latest = latestBatchId ? newBatch.filter((item) => item.batchId === latestBatchId) : [];
+  const field = {
+    width: "100%",
+    boxSizing: "border-box",
+    padding: "11px 14px",
+    borderRadius: 10,
+    border: `1.5px solid ${tokens.cardBorder}`,
+    background: tokens.inset,
+    color: tokens.textPrimary,
+    fontSize: 13,
+    outline: "none",
+    fontFamily: bodyFont(lang),
+    textAlign: isRtl ? "right" : "left",
+  };
+  const labelStyle = { display: "block", fontSize: 12, fontWeight: 650, color: tokens.textSecondary, marginBottom: 6 };
 
   return (
-    <div style={{ padding: mobile ? 16 : 28, maxWidth: 1080, margin: "0 auto", fontFamily: bodyFont(lang), direction: isRtl ? "rtl" : "ltr" }}>
+    <div style={{ padding: mobile ? 16 : 28, maxWidth: 920, margin: "0 auto", fontFamily: bodyFont(lang), direction: isRtl ? "rtl" : "ltr" }}>
       <h1 style={{ margin: "0 0 4px", fontSize: mobile ? 19 : 22, fontWeight: 700, letterSpacing: "-0.02em", color: tokens.textPrimary, fontFamily: headingFont(lang) }}>
         {t("Study Tools", "أدوات المذاكرة")}
       </h1>
       <p style={{ margin: "0 0 18px", fontSize: 12.5, color: tokens.textMuted }}>
         {t(
           "Turn any topic into summaries, flashcards, quizzes and more, based on your course.",
-          "حوّل أي موضوع إلى مادة مذاكرة مركّزة، مستندة إلى أدلة مقررك وفجوات تعلّمك الحالية.",
+          "حوّل أي موضوع لملخص وبطاقات مراجعة واختبارات وأكتر، من محتوى مقررك.",
         )}
       </p>
 
@@ -353,64 +530,96 @@ export default function StudyToolsPage({ state }) {
         reload={coursesAsync.reload}
         label={t("Loading study tools…", "جارٍ تحميل أدوات المذاكرة…")}
       >
-        <Card tokens={tokens} style={{ marginBottom: 16 }}>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: 12, flexDirection: isRtl ? "row-reverse" : "row" }}>
-            <CourseSelect courses={courses} value={effectiveCourseId ?? ""} onChange={setCourseId} tokens={tokens} lang={lang} placeholder={t("Choose course…", "اختر مقررًا…")} />
-            <Chip tokens={tokens} tone="primary">{course?.code ?? course?.title?.en ?? ""}</Chip>
+        <Card tokens={tokens} style={{ marginBottom: 22 }}>
+          <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "1fr 1fr", gap: 12, marginBottom: 12 }}>
+            <div>
+              <span style={labelStyle}>{t("Course", "المقرر")}</span>
+              <CourseSelect courses={courses} value={effectiveCourseId ?? ""} onChange={setCourseId} tokens={tokens} lang={lang} placeholder={t("Choose course…", "اختر مقررًا…")} />
+            </div>
+            <div>
+              <label htmlFor="resource-language" style={labelStyle}>{t("Language", "اللغة")}</label>
+              <select
+                id="resource-language"
+                value={resourceLanguage || lang}
+                onChange={(event) => setResourceLanguage(event.target.value)}
+                style={{ ...inputStyle(tokens, bodyFont(lang)), width: "100%", cursor: "pointer" }}
+                className="genai-input"
+              >
+                {LANGUAGE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option[lang]}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
+
+          <label htmlFor="study-topic" style={labelStyle}>{t("Topic", "الموضوع")}</label>
           <input
+            id="study-topic"
+            list="study-topic-options"
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
-            placeholder={t("Topic — e.g. CNN, recursion, SQL joins", "الموضوع — مثال: الشبكات العصبية، العودية، ربط الجداول")}
-            style={{
-              width: "100%",
-              boxSizing: "border-box",
-              padding: "11px 14px",
-              borderRadius: 10,
-              border: `1.5px solid ${tokens.cardBorder}`,
-              background: tokens.inset,
-              color: tokens.textPrimary,
-              fontSize: 13,
-              outline: "none",
-              fontFamily: bodyFont(lang),
-              textAlign: isRtl ? "right" : "left",
-            }}
+            placeholder={topics.length ? t("Choose a topic or type your own", "اختار موضوع أو اكتب موضوعك") : t("Type a topic, e.g. Deadlocks", "اكتب موضوع، مثلاً Deadlocks")}
+            style={field}
+            autoComplete="off"
           />
-          <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "12px 0 4px", flexDirection: isRtl ? "row-reverse" : "row" }}>
-            <label htmlFor="resource-language" style={{ fontSize: 12, color: tokens.textSecondary, fontWeight: 600 }}>
-              {t("Resource language", "لغة المورد")}
-            </label>
-            <select
-              id="resource-language"
-              value={resourceLanguage || lang}
-              onChange={(event) => setResourceLanguage(event.target.value)}
-              style={{ ...inputStyle(tokens, bodyFont(lang)), minWidth: 150, cursor: "pointer" }}
-              className="genai-input"
-            >
-              {LANGUAGE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option[lang]}
-                </option>
+          <datalist id="study-topic-options">
+            {topics.map((name) => (
+              <option key={name} value={name} />
+            ))}
+          </datalist>
+          {topics.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+              {topics.slice(0, 8).map((name) => (
+                <button
+                  key={name}
+                  type="button"
+                  onClick={() => setTopic(name)}
+                  style={{
+                    padding: "4px 10px",
+                    borderRadius: 999,
+                    border: `1px solid ${topic === name ? tokens.primary : tokens.cardBorder}`,
+                    background: topic === name ? tokens.primaryLight : "transparent",
+                    color: topic === name ? tokens.primaryHover : tokens.textSecondary,
+                    fontSize: 11.5,
+                    cursor: "pointer",
+                    fontFamily: bodyFont(lang),
+                  }}
+                >
+                  {name}
+                </button>
               ))}
-            </select>
+            </div>
+          )}
+
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", margin: "16px 0 8px" }}>
+            <span style={{ ...labelStyle, marginBottom: 0 }}>{t("What should we make?", "عايز نعملك إيه؟")}</span>
+            <span style={{ fontSize: 11.5, color: kinds.length >= 10 ? tokens.primary : tokens.textFaint }}>
+              {t(`${kinds.length} of 10 max`, `${kinds.length} من 10 كحد أقصى`)}
+            </span>
           </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, margin: "12px 0", flexDirection: isRtl ? "row-reverse" : "row" }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
             {RESOURCE_KINDS.map((kind) => {
               const active = kinds.includes(kind);
+              const blocked = !active && kinds.length >= 10;
               return (
                 <button
                   key={kind}
                   type="button"
                   onClick={() => toggleKind(kind)}
+                  disabled={blocked}
+                  aria-pressed={active}
                   style={{
                     padding: "7px 13px",
                     borderRadius: 9,
                     border: `1px solid ${active ? tokens.primary : tokens.cardBorder}`,
                     background: active ? tokens.primaryLight : tokens.card,
                     color: active ? tokens.primaryHover : tokens.textSecondary,
+                    opacity: blocked ? 0.45 : 1,
                     fontSize: 12,
                     fontWeight: 650,
-                    cursor: "pointer",
+                    cursor: blocked ? "not-allowed" : "pointer",
                     fontFamily: bodyFont(lang),
                   }}
                 >
@@ -420,7 +629,9 @@ export default function StudyToolsPage({ state }) {
             })}
           </div>
           <Btn tokens={tokens} lang={lang} onClick={generate} disabled={busy || !topic.trim() || kinds.length === 0 || !effectiveCourseId}>
-            {busy ? t(`Creating ${kinds.length} resource${kinds.length > 1 ? "s" : ""}… this can take a minute`, `بنعمل ${kinds.length} … ممكن ياخد دقيقة`) : t("Generate resources", "إنشاء الموارد")}
+            {busy
+              ? t(`Creating ${kinds.length}… this can take a minute`, `بنعمل ${kinds.length}… ممكن ياخد دقيقة`)
+              : t("Create", "إنشاء")}
           </Btn>
           {notice && (
             <div style={{ marginTop: 10 }}>
@@ -429,69 +640,33 @@ export default function StudyToolsPage({ state }) {
           )}
         </Card>
 
-        {busy && (
-          <div style={{ fontSize: 12.5, color: tokens.textMuted, marginBottom: 14 }}>
-            {t("Creating your study resources…", "جارٍ إنشاء موارد المذاكرة…")}
-          </div>
-        )}
-
-        {latest.length > 0 && (
-          <div style={{ marginBottom: 22 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: tokens.textPrimary, marginBottom: 10 }}>
-              {t("Latest batch", "أحدث دفعة")} · {latest[0].topic}
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {latest.map((resource) => (
-                <Card key={resource.id} tokens={tokens}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8, flexDirection: isRtl ? "row-reverse" : "row" }}>
-                    <span style={{ fontSize: 13.5, fontWeight: 700, color: tokens.textPrimary }}>
-                      {KIND_LABELS[resource.kind]?.[lang] ?? resource.kind}
-                    </span>
-                    <div style={{ display: "flex", gap: 6 }}>
-                      {resource.knowledgeSource === "uploaded_material" && (
-                        <Chip tokens={tokens} tone="primary">{t("Grounded in course materials", "مستند إلى مواد المقرر")}</Chip>
-                      )}
-                      {resource.knowledgeSource === "trusted_external" && (
-                        <Chip tokens={tokens} tone="gap">{t("Grounded in verified external sources", "مستند إلى مصادر خارجية موثّقة")}</Chip>
-                      )}
-                      <Chip tokens={tokens} tone={resource.status === "ready" ? "mastered" : "slate"}>
-                        {resource.status === "ready" ? t("Ready", "جاهز") : t("Unavailable", "غير متاح")}
-                      </Chip>
-                    </div>
-                  </div>
-                  <ResourceBody resource={resource} tokens={tokens} lang={lang} t={t} mobile={mobile} />
-                </Card>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div style={{ fontSize: 14, fontWeight: 700, color: tokens.textPrimary, marginBottom: 10 }}>
-          {t("Earlier resources", "موارد سابقة")}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: tokens.textPrimary }}>{t("My resources", "مواردي")}</div>
+          {library.length > 0 && <span style={{ fontSize: 12, color: tokens.textFaint }}>{library.length}</span>}
         </div>
-        {history.filter((item) => item.batchId !== latestBatchId).length === 0 ? (
-          <p style={{ fontSize: 12.5, color: tokens.textFaint }}>
-            {t("Nothing generated yet — pick a topic above.", "لم يُنشأ شيء بعد — اختر موضوعًا بالأعلى.")}
-          </p>
+        {listAsync.loading && listAsync.data == null ? (
+          <p style={{ fontSize: 12.5, color: tokens.textMuted }}>{t("Loading…", "جارٍ التحميل…")}</p>
+        ) : library.length === 0 ? (
+          <Card tokens={tokens} style={{ textAlign: "center", padding: "26px 18px" }}>
+            <div style={{ fontSize: 13.5, fontWeight: 650, color: tokens.textPrimary }}>{t("Nothing here yet", "لسه مفيش حاجة")}</div>
+            <div style={{ fontSize: 12.5, color: tokens.textMuted, marginTop: 4 }}>
+              {t("Pick a topic above and choose what to create.", "اختار موضوع فوق وحدد عايز تعمل إيه.")}
+            </div>
+          </Card>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "1fr 1fr", gap: 10 }}>
-            {history
-              .filter((item) => item.batchId !== latestBatchId)
-              .map((item) => (
-                <Card key={item.id} tokens={tokens} style={{ padding: "12px 14px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexDirection: isRtl ? "row-reverse" : "row" }}>
-                    <div>
-                      <div style={{ fontSize: 12.5, fontWeight: 700, color: tokens.textPrimary }}>{item.topic}</div>
-                      <div style={{ fontSize: 11, color: tokens.textFaint }}>{KIND_LABELS[item.kind]?.[lang] ?? item.kind}</div>
-                    </div>
-                    {item.hasArtifact && (
-                      <Btn tokens={tokens} lang={lang} variant="ghost" style={{ padding: "5px 10px", fontSize: 11 }} onClick={() => downloadResourceFile(item.id).catch(() => {})}>
-                        {t("Download", "تنزيل")}
-                      </Btn>
-                    )}
-                  </div>
-                </Card>
-              ))}
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {library.map((resource) => (
+              <ResourceItem
+                key={resource.id}
+                resource={resource}
+                tokens={tokens}
+                lang={lang}
+                t={t}
+                mobile={mobile}
+                defaultOpen={freshIds[0] === resource.id}
+                onDeleted={(id) => setRemoved((r) => [...r, id])}
+              />
+            ))}
           </div>
         )}
       </AsyncGate>

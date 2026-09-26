@@ -5,7 +5,7 @@ import { listCourses } from "@/services/courses";
 import { startDiagnostic, getDiagnostic, submitDiagnosticAnswer, listDiagnostics } from "@/services/learning";
 import { apiErrorText } from "@/services/http";
 import { QuestionFlow } from "@/components/SessionSolver";
-import { StudyPage, StartPanel, Field, Segmented, PrimaryButton, SecondaryButton, TextButton, Notice, LoadingBlock, ErrorBlock, EmptyBlock, PastAttempts, ResultPanel, STATUS, summarize } from "@/components/study/StudyKit";
+import { StudyPage, StartPanel, Field, NumberStepper, PrimaryButton, SecondaryButton, TextButton, Notice, LoadingBlock, ErrorBlock, EmptyBlock, PastAttempts, ResultPanel, STATUS, summarize } from "@/components/study/StudyKit";
 import { IconDiagnostic } from "@/components/Icons";
 import { AlertStrip, inputStyle } from "@/components/ModuleUI";
 import useAsync from "@/hooks/useAsync";
@@ -313,8 +313,8 @@ function RealDiagnosticPage({ state, dispatch }) {
             body={t("You'll get questions from each topic in this course. Answer in your own words — if you don't know, just say so. It takes about 10 minutes.", "هتجيلك أسئلة من كل موضوع في المقرر. جاوب بأسلوبك، ولو مش عارف قول كده عادي. بياخد حوالي ١٠ دقايق.")}
             primary={<PrimaryButton tokens={tokens} busy={busy} disabled={!effectiveCourseId} onClick={() => void start()}>{busy ? t("Preparing your questions…", "بنجهّز أسئلتك…") : t("Start level check", "ابدأ اختبار المستوى")}</PrimaryButton>}
           >
-            <Field tokens={tokens} label={t("Questions per topic", "عدد الأسئلة لكل موضوع")} hint={t("More questions give a more accurate result.", "أسئلة أكتر = نتيجة أدق.")}>
-              <Segmented tokens={tokens} value={perTopic} onChange={setPerTopic} ariaLabel={t("Questions per topic", "عدد الأسئلة لكل موضوع")} options={[1, 2, 3, 4, 5].map((v) => ({ value: v, label: String(v) }))} />
+            <Field tokens={tokens} label={t("Questions per topic", "عدد الأسئلة لكل موضوع")}>
+              <NumberStepper tokens={tokens} value={perTopic} onChange={setPerTopic} min={1} max={10} ariaLabel={t("Questions per topic", "عدد الأسئلة لكل موضوع")} hint={t("Type a number from 1 to 10, or use the buttons.", "اكتب رقم من 1 لـ 10، أو استخدم الأزرار.")} />
             </Field>
           </StartPanel>
           <PastAttempts tokens={tokens} lang={lang} rows={historyRows}

@@ -164,13 +164,15 @@ export default function StudentBrowseCoursesPage({ state, dispatch }) {
     }
     return (
       <span style={{ display: "inline-flex", gap: 8, flexShrink: 0, flexDirection: isRtl ? "row-reverse" : "row" }}>
+{course.canSelfEnroll ? (
         <Btn tokens={tokens} lang={lang} variant="soft" disabled={busyKey !== null} style={{ padding: "8px 14px", fontSize: 12.5 }} onClick={() => enroll(course)}>
           <IconCheck size={13} color={tokens.primary} />
           {t("Enroll now", "سجّل الآن")}
         </Btn>
+        ) : null}
         <Btn tokens={tokens} lang={lang} variant="ghost" disabled={busyKey !== null} style={{ padding: "8px 14px", fontSize: 12.5 }} onClick={() => openDrawer(course)}>
           <IconDoc size={13} color={tokens.textSecondary} />
-          {t("Request with proof", "اطلب بإثبات")}
+          {t("Send request", "ابعت طلب")}
         </Btn>
       </span>
     );
@@ -211,8 +213,8 @@ export default function StudentBrowseCoursesPage({ state, dispatch }) {
             tone="peri"
             icon={<IconBookOpen size={14} color={tokens.primary} />}
             title={t(
-              "Courses of your faculty — most enroll instantly. Out-of-scope access files a proof-backed exception: the admin opens it with your statement, decides, and you are notified.",
-              "مقررات كليتك — الأغلبية تسجل فورًا. الوصول خارج النطاق يُطلب استثناءً مدعوم بإثبات: الإدارة تفتحه مع بيانك وتبت فيه ويصلك إشعار.",
+              "Courses of your year can be joined right away. For any other course, send a request and the admin will review it.",
+              "مقررات سنتك تقدر تسجل فيها على طول. أي مقرر تاني ابعت طلب والإدارة هتراجعه.",
             )}
           />
         </div>
@@ -239,7 +241,7 @@ export default function StudentBrowseCoursesPage({ state, dispatch }) {
                 </div>
                 <select value={yearFilter} onChange={(e) => setYearFilter(e.target.value)} style={{ ...inputStyle(tokens, bFont), cursor: "pointer" }}>
                   <option value="all">{t("All years", "كل السنوات")}</option>
-                  {[1, 2, 3, 4, 5, 6].map((y) => (
+                  {[1, 2, 3, 4].map((y) => (
                     <option key={y} value={y}>{t(`Year ${y}`, `السنة ${y}`)}</option>
                   ))}
                 </select>
@@ -286,9 +288,9 @@ export default function StudentBrowseCoursesPage({ state, dispatch }) {
 
             <div>
               <SectionHeading
-                title={t("My out-of-year requests", "طلباتي خارج السنة")}
+                title={t("My requests", "طلباتي")}
                 subtitle={myRequests.length
-                  ? t("Reload after the admin decides — the status below moves.", "أعد التحميل بعد بت الإدارة — الحالة بالأسفل تتحرك.")
+                  ? t("You'll see the admin's decision here.", "هتلاقي قرار الإدارة هنا.")
                   : t("Nothing yet — request any course outside your year from above.", "لا شيء بعد — اطلبي أي مقرر خارج سنتك من الأعلى.")}
                 tokens={tokens}
                 hFont={hFont}

@@ -105,3 +105,53 @@ export async function fetchArtifactDataUri(resourceId) {
     reader.readAsDataURL(blob);
   });
 }
+
+export function deleteResource(resourceId) {
+  return api(`/learning-resources/${resourceId}`, { method: "DELETE" });
+}
+
+// Plain-text export of any text resource so every kind can be downloaded.
+export function resourceToMarkdown(resource, lang = "en") {
+  const c = resource.content ?? {};
+  const label = KIND_LABELS[resource.kind]?.[lang] ?? resource.kind;
+  const out = [`# ${label}: ${resource.topic}`, ""];
+  if (typeof c.text === "string") out.push(c.text);
+  if (c.title) out.push(`## ${c.title}`, "");
+  (c.points ?? []).forEach((p) => out.push(`- ${p}`));
+  if (c.takeaway) out.push("", `**${lang === "ar" ? "الخلاصة" : "Key takeaway"}:** ${c.takeaway}`);
+  (c.sections ?? []).forEach((s) => {
+    out.push("", `### ${s.heading}`);
+    (s.bullets ?? []).forEach((b) => out.push(`- ${b}`));
+  });
+  (c.cards ?? []).forEach((card, i) => out.push("", `**${i + 1}. ${card.front}**`, "", card.back));
+  (c.questions ?? []).forEach((q, i) => {
+    out.push("", `**${i + 1}. ${q.question}**`);
+    (q.options ?? []).forEach((o, j) => out.push(`${String.fromCharCode(65 + j)}) ${o}`));
+    if (Number.isInteger(q.answerIndex)) {
+      out.push("", `${lang === "ar" ? "الإجابة" : "Answer"}: ${String.fromCharCode(65 + q.answerIndex)}${q.why ? ` — ${q.why}` : ""}`);
+    }
+  });
+  if (c.code) out.push("", "```" + (c.language ?? ""), c.code, "```", "", c.explanation ?? "");
+  return out.join("\n");
+}
+
+export function downloadTextFile(text, fileName) {
+  const blob = new Blob([text], { type: "text/markdown;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
+// Downloads any resource: generated files as-is, everything else as Markdown.
+export async function downloadAnyResource(resource, lang = "en") {
+  if (resource.hasArtifact) return downloadResourceFile(resource.id);
+  const safeTopic = String(resource.topic ?? "topic").replace(/[^\p{L}\p{N}]+/gu, "-").slice(0, 40);
+  const name = `${resource.kind}-${safeTopic}.md`;
+  downloadTextFile(resourceToMarkdown(resource, lang), name);
+  return name;
+}

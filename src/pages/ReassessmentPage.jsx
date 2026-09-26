@@ -5,7 +5,7 @@ import { listCourses } from "@/services/courses";
 import { listReassessments, createReassessment, getReassessment, submitReassessmentAnswer, getLearningGain } from "@/services/learning";
 import { apiErrorText } from "@/services/http";
 import { QuestionFlow } from "@/components/SessionSolver";
-import { StudyPage, StartPanel, Panel, Field, Select, Segmented, PrimaryButton, SecondaryButton, TextButton, Notice, LoadingBlock, ErrorBlock, EmptyBlock, PastAttempts, ResultPanel, StatusText, STATUS, summarize } from "@/components/study/StudyKit";
+import { StudyPage, StartPanel, Panel, Field, Select, NumberStepper, PrimaryButton, SecondaryButton, TextButton, Notice, LoadingBlock, ErrorBlock, EmptyBlock, PastAttempts, ResultPanel, StatusText, STATUS, summarize } from "@/components/study/StudyKit";
 import { IconReassessment } from "@/components/Icons";
 import { AlertStrip, inputStyle } from "@/components/ModuleUI";
 import useAsync from "@/hooks/useAsync";
@@ -305,7 +305,7 @@ function RealReassessmentPage({ state, dispatch }) {
               <Select tokens={tokens} value={topicId} onChange={setTopicId} options={topicOptions} placeholder={t("Choose a topic", "اختار موضوع")} ariaLabel={t("Topic", "الموضوع")} />
             </Field>
             <Field tokens={tokens} label={t("Number of questions", "عدد الأسئلة")}>
-              <Segmented tokens={tokens} value={count} onChange={setCount} ariaLabel={t("Number of questions", "عدد الأسئلة")} options={[1, 2, 3, 4, 5].map((v) => ({ value: v, label: String(v) }))} />
+              <NumberStepper tokens={tokens} value={count} onChange={setCount} min={1} max={10} ariaLabel={t("Number of questions", "عدد الأسئلة")} hint={t("Type a number from 1 to 10, or use the buttons.", "اكتب رقم من 1 لـ 10، أو استخدم الأزرار.")} />
             </Field>
           </StartPanel>
 

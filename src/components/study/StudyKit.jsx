@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { headingFont, bodyFont } from "@/constants/tokens";
 
 /**
@@ -154,6 +154,53 @@ export function Segmented({ tokens, value, onChange, options, ariaLabel }) {
           </button>
         );
       })}
+    </div>
+  );
+}
+
+// Number picker: type a value or use the - / + buttons. Clamped to [min, max].
+export function NumberStepper({ tokens, value, onChange, min = 1, max = 10, ariaLabel, hint }) {
+  const [draft, setDraft] = useState(String(value));
+  useEffect(() => setDraft(String(value)), [value]);
+  const clamp = (n) => Math.min(max, Math.max(min, n));
+  const commit = (raw) => {
+    const n = parseInt(String(raw).replace(/[^0-9]/g, ""), 10);
+    const next = Number.isFinite(n) ? clamp(n) : value;
+    setDraft(String(next));
+    if (next !== value) onChange(next);
+  };
+  const btn = (disabled) => ({
+    width: 40,
+    height: 40,
+    border: "none",
+    background: "transparent",
+    color: disabled ? tokens.textFaint : tokens.textPrimary,
+    fontSize: 20,
+    lineHeight: 1,
+    cursor: disabled ? "not-allowed" : "pointer",
+    fontFamily: "inherit",
+  });
+  return (
+    <div>
+      <div style={{ display: "inline-flex", alignItems: "center", borderRadius: 12, background: tokens.inset, border: `1px solid ${tokens.cardBorder}`, direction: "ltr" }}>
+        <button type="button" aria-label="-" disabled={value <= min} onClick={() => onChange(clamp(value - 1))} style={btn(value <= min)}>−</button>
+        <input
+          type="text"
+          inputMode="numeric"
+          aria-label={ariaLabel}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value.replace(/[^0-9]/g, "").slice(0, 2))}
+          onBlur={(e) => commit(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") commit(e.currentTarget.value);
+            if (e.key === "ArrowUp") { e.preventDefault(); onChange(clamp(value + 1)); }
+            if (e.key === "ArrowDown") { e.preventDefault(); onChange(clamp(value - 1)); }
+          }}
+          style={{ width: 52, height: 40, border: "none", borderInline: `1px solid ${tokens.cardBorder}`, background: tokens.card, color: tokens.textPrimary, textAlign: "center", fontSize: 15, fontWeight: 650, outline: "none", fontFamily: "inherit" }}
+        />
+        <button type="button" aria-label="+" disabled={value >= max} onClick={() => onChange(clamp(value + 1))} style={btn(value >= max)}>+</button>
+      </div>
+      {hint && <div style={{ fontSize: 12, color: tokens.textMuted, marginTop: 6 }}>{hint}</div>}
     </div>
   );
 }
