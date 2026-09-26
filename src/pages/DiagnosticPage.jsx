@@ -328,6 +328,7 @@ function RealDiagnosticPage({ state, dispatch }) {
           questions={diag.questions ?? []}
           evaluations={evaluations}
           answeredIds={answeredIds}
+          responses={Object.fromEntries((diag?.answers ?? []).map((a) => [a.questionId, a.responseText ?? ""]))}
           busyId={busyQuestion}
           onSubmit={(questionId, content) => void answer(questionId, content)}
           onIdk={(questionId) => void answerIdk(questionId)}

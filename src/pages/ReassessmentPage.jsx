@@ -276,6 +276,7 @@ function RealReassessmentPage({ state, dispatch }) {
           questions={session.questions ?? []}
           evaluations={evaluations}
           answeredIds={answeredIds}
+          responses={Object.fromEntries((session?.answers ?? []).map((a) => [a.questionId, a.responseText ?? ""]))}
           busyId={busyQuestion}
           onSubmit={(questionId, content) => void answer(questionId, content)}
           tokens={tokens}

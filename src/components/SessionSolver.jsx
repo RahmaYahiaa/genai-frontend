@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { bFontFor, inputStyle } from "@/components/ModuleUI";
 import { Panel, PrimaryButton, TextButton, STATUS, normCorrectness } from "@/components/study/StudyKit";
+import { IconChevronLeft, IconChevronRight } from "@/components/Icons";
 
 /**
  * Voice answers (diagnostic): records with MediaRecorder and submits as
@@ -94,10 +95,11 @@ export function EvaluationCard({ evaluation, tokens, lang }) {
 
 // One question at a time. Props are unchanged from the previous list-based
 // flow, so every page keeps its exact submit / "I don't know" / voice calls.
-export function QuestionFlow({ questions, evaluations, answeredIds, busyId, onSubmit, onIdk = null, onVoice = null, tokens, lang, mobile, doneNote }) {
+export function QuestionFlow({ questions, evaluations, answeredIds, responses = {}, busyId, onSubmit, onIdk = null, onVoice = null, tokens, lang, mobile, doneNote }) {
   const t = (en, ar) => (lang === "ar" ? ar : en);
   const [texts, setTexts] = useState({});
   const [viewIndex, setViewIndex] = useState(null);
+  const [reviewing, setReviewing] = useState(false);
   const voice = useVoiceRecorder();
   const voiceSupported = Boolean(onVoice) && typeof navigator !== "undefined" && Boolean(navigator.mediaDevices?.getUserMedia) && typeof MediaRecorder !== "undefined";
   const total = questions.length;
@@ -107,12 +109,49 @@ export function QuestionFlow({ questions, evaluations, answeredIds, busyId, onSu
   const index = viewIndex ?? (allDone ? total - 1 : Math.max(0, firstOpen));
   const question = questions[index];
 
+  const answerOf = (q) => responses[q.id] ?? texts[q.id] ?? "";
+  const isRtl = lang === "ar";
+  const PrevIcon = isRtl ? IconChevronRight : IconChevronLeft;
+  const NextIcon = isRtl ? IconChevronLeft : IconChevronRight;
+
+  if (reviewing) {
+    return (
+      <div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, gap: 12 }}>
+          <span style={{ fontSize: 15, fontWeight: 650, color: tokens.textPrimary }}>{t("Your answers", "إجاباتك")}</span>
+          <TextButton tokens={tokens} onClick={() => setReviewing(false)}>{doneNote ? t("Back to results", "رجوع للنتيجة") : t("Back", "رجوع")}</TextButton>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {questions.map((q, i) => {
+            const done = answeredIds.includes(q.id);
+            const ans = answerOf(q);
+            return (
+              <Panel key={q.id} tokens={tokens} padding={mobile ? 18 : 24}>
+                <div style={{ fontSize: 12.5, fontWeight: 600, color: tokens.textMuted, marginBottom: 6 }}>{t(`Question ${i + 1} of ${total}`, `سؤال ${i + 1} من ${total}`)}</div>
+                <div style={{ fontSize: 15.5, fontWeight: 600, lineHeight: 1.6, color: tokens.textPrimary, marginBottom: 12 }}>{q.prompt}</div>
+                <div style={{ fontSize: 12.5, fontWeight: 600, color: tokens.textSecondary, marginBottom: 6 }}>{t("Your answer", "إجابتك")}</div>
+                <div style={{ padding: "12px 14px", borderRadius: 10, background: tokens.inset, border: `1px solid ${tokens.cardBorder}`, fontSize: 14.5, lineHeight: 1.6, color: ans ? tokens.textPrimary : tokens.textMuted, whiteSpace: "pre-wrap" }}>
+                  {ans || (done ? t("Marked as not known yet", "اتسجّلت إنك لسه مش عارفها") : t("Not answered", "ما اتجاوبش"))}
+                </div>
+                <EvaluationCard evaluation={evaluations[q.id] ?? null} tokens={tokens} lang={lang} />
+              </Panel>
+            );
+          })}
+        </div>
+        <div style={{ textAlign: "center", marginTop: 16 }}>
+          <TextButton tokens={tokens} onClick={() => { setReviewing(false); window.scrollTo?.({ top: 0, behavior: "smooth" }); }}>{doneNote ? t("Back to results", "رجوع للنتيجة") : t("Back", "رجوع")}</TextButton>
+        </div>
+      </div>
+    );
+  }
+
   if (allDone && viewIndex == null && doneNote) {
     return (
       <div>
         {doneNote}
-        <div style={{ textAlign: "center", marginTop: 14 }}>
-          <TextButton tokens={tokens} onClick={() => setViewIndex(0)}>{t("Review your answers", "راجع إجاباتك")}</TextButton>
+        <div style={{ display: "flex", justifyContent: "center", gap: 18, marginTop: 14, flexWrap: "wrap" }}>
+          <TextButton tokens={tokens} onClick={() => setReviewing(true)}>{t("Review your answers", "راجع إجاباتك")}</TextButton>
+          <TextButton tokens={tokens} muted onClick={() => setViewIndex(0)}>{t("Go through them one by one", "راجعهم واحد واحد")}</TextButton>
         </div>
       </div>
     );
@@ -123,12 +162,27 @@ export function QuestionFlow({ questions, evaluations, answeredIds, busyId, onSu
   const recording = voice.recordingId === question.id;
   const text = texts[question.id] ?? "";
   const nextOpen = questions.findIndex((q, i) => i > index && !answeredIds.includes(q.id));
+  const navBtn = (off) => ({
+    width: 32, height: 32, borderRadius: 9, display: "inline-flex", alignItems: "center", justifyContent: "center", padding: 0,
+    border: `1px solid ${tokens.cardBorder}`, background: tokens.card, cursor: off ? "default" : "pointer", opacity: off ? 0.5 : 1,
+  });
 
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, gap: 12 }}>
-        <span style={{ fontSize: 13.5, fontWeight: 600, color: tokens.textPrimary }}>{t(`Question ${index + 1} of ${total}`, `سؤال ${index + 1} من ${total}`)}</span>
-        <span style={{ fontSize: 13, color: tokens.textMuted }}>{t(`${answeredCount} answered`, `${answeredCount} اتجاوبت`)}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <button type="button" aria-label={t("Previous question", "السؤال اللي قبله")} title={t("Previous question", "السؤال اللي قبله")} disabled={index === 0} onClick={() => setViewIndex(index - 1)} style={navBtn(index === 0)}>
+            <PrevIcon size={16} color={index === 0 ? tokens.textFaint : tokens.textPrimary} />
+          </button>
+          <span style={{ fontSize: 13.5, fontWeight: 600, color: tokens.textPrimary, minWidth: 96, textAlign: "center" }}>{t(`Question ${index + 1} of ${total}`, `سؤال ${index + 1} من ${total}`)}</span>
+          <button type="button" aria-label={t("Next question", "السؤال اللي بعده")} title={t("Next question", "السؤال اللي بعده")} disabled={index >= total - 1} onClick={() => setViewIndex(index + 1)} style={navBtn(index >= total - 1)}>
+            <NextIcon size={16} color={index >= total - 1 ? tokens.textFaint : tokens.textPrimary} />
+          </button>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <span style={{ fontSize: 13, color: tokens.textMuted }}>{t(`${answeredCount} answered`, `${answeredCount} اتجاوبت`)}</span>
+          {answeredCount > 0 && <TextButton tokens={tokens} onClick={() => setReviewing(true)}>{t("All answers", "كل الإجابات")}</TextButton>}
+        </div>
       </div>
       <div role="tablist" aria-label={t("Questions", "الأسئلة")} style={{ display: "flex", gap: 6, marginBottom: 18 }}>
         {questions.map((q, i) => {
@@ -142,8 +196,16 @@ export function QuestionFlow({ questions, evaluations, answeredIds, busyId, onSu
 
       <Panel tokens={tokens} padding={mobile ? 20 : 28}>
         <div style={{ fontSize: mobile ? 16 : 17, fontWeight: 600, lineHeight: 1.6, color: tokens.textPrimary, marginBottom: 16 }}>{question.prompt}</div>
+        {answered ? (
+          <div>
+            <div style={{ fontSize: 12.5, fontWeight: 600, color: tokens.textSecondary, marginBottom: 6 }}>{t("Your answer", "إجابتك")}</div>
+            <div style={{ padding: "12px 14px", borderRadius: 10, background: tokens.inset, border: `1px solid ${tokens.cardBorder}`, fontSize: 14.5, lineHeight: 1.6, color: answerOf(question) ? tokens.textPrimary : tokens.textMuted, whiteSpace: "pre-wrap" }}>
+              {answerOf(question) || t("Marked as not known yet", "اتسجّلت إنك لسه مش عارفها")}
+            </div>
+          </div>
+        ) : (
         <textarea
-          value={answered ? text || "" : text}
+          value={text}
           disabled={answered || busy}
           aria-label={t("Your answer", "إجابتك")}
           onChange={(e) => setTexts((prev) => ({ ...prev, [question.id]: e.target.value }))}
@@ -151,6 +213,7 @@ export function QuestionFlow({ questions, evaluations, answeredIds, busyId, onSu
           placeholder={answered ? t("Your answer was saved.", "إجابتك اتحفظت.") : t("Type your answer here…", "اكتب إجابتك هنا…")}
           style={{ width: "100%", boxSizing: "border-box", minHeight: 120, padding: "12px 14px", borderRadius: 10, border: `1px solid ${tokens.cardBorder}`, background: answered ? tokens.inset : tokens.card, color: tokens.textPrimary, fontSize: 14.5, lineHeight: 1.6, fontFamily: "inherit", resize: "vertical", outline: "none" }}
         />
+        )}
 
         {!answered && (
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginTop: 14, flexWrap: "wrap" }}>
