@@ -1,9 +1,12 @@
 import { demoMode } from "@/services/auth";
+import useStudyCourse from "@/hooks/useStudyCourse";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { listCourses, listMaterials } from "@/services/courses";
 import { listTutorSessions, createTutorSession, getTutorSession, sendTutorMessage as sendLiveTutorMessage, getAiHealth, TUTOR_MODE_LABELS } from "@/services/learning";
 import { apiErrorText } from "@/services/http";
-import { CourseSelect, TopicSelect } from "@/components/SessionSolver";
+import { CoursePicker, Panel, IconTile, PrimaryButton, SecondaryButton, TextButton, Notice, LoadingBlock, ErrorBlock, EmptyBlock, Spinner as KitSpinner } from "@/components/study/StudyKit";
+import { IconTutor } from "@/components/Icons";
+import { SCREENS } from "@/constants/routes";
 import { AlertStrip, inputStyle } from "@/components/ModuleUI";
 import useAsync from "@/hooks/useAsync";
 import useMediaQuery from "@/hooks/useMediaQuery";
@@ -155,7 +158,7 @@ function DemoTutorPage({ state }) {
           </Btn>
         </div>
         <div style={{ marginTop: 8, fontSize: 10.5, color: tokens.textFaint, textAlign: "center" }}>
-          {t("Answers use approved course materials only — with citing sources.", "الإجابات تستخدم مواد المقرر المعتمدة فقط — مع الإحالة للمصادر.")}
+          {t("Answers use your course materials, with sources.", "الإجابات تستخدم مواد المقرر المعتمدة فقط — مع الإحالة للمصادر.")}
         </div>
       </div>
     </div>
@@ -167,7 +170,7 @@ function RealTutorPage({ state, dispatch }) {
   const t = (en, ar) => (lang === "ar" ? ar : en);
   const mobile = useMediaQuery("(max-width: 760px)");
   const isRtl = lang === "ar";
-  const [courseId, setCourseId] = useState("");
+  const [courseId, setCourseId] = useStudyCourse();
   const [sessionId, setSessionId] = useState("");
   const [topicId, setTopicId] = useState("");
   const [mode, setMode] = useState("explanation");
@@ -222,7 +225,8 @@ function RealTutorPage({ state, dispatch }) {
   // the legacy path and refuses honestly instead of inventing answers.
   const loadHealth = useCallback(() => getAiHealth().catch(() => null), []);
   const healthAsync = useAsync(loadHealth);
-  const aiReady = Boolean(healthAsync.data);
+  // The health call itself can succeed while the AI engine has no working model.
+  const aiReady = Boolean(healthAsync.data) && healthAsync.data?.ai_status?.real_generation_ready !== false;
   const session = sessionAsync.data;
   const messages = session?.messages ?? [];
   const activeTopicLabel = session?.topicId
@@ -244,7 +248,7 @@ function RealTutorPage({ state, dispatch }) {
       if (!activeId) {
         const chosen = preferredTopicId || topicId || topics[0]?.id;
         if (!chosen) {
-          setNotice(t("Pick a topic first so the tutor knows where to look.", "اختر موضوعًا أولًا حتى يعرف المعلم أين يبحث."));
+          setNotice(t("Choose a topic first so the tutor knows where to look.", "اختر موضوعًا أولًا حتى يعرف المعلم أين يبحث."));
           return;
         }
         const created = await createTutorSession(effectiveCourseId, { topicId: chosen, mode });
@@ -259,12 +263,16 @@ function RealTutorPage({ state, dispatch }) {
       const message = String(err?.message ?? "");
       const abstained = err?.status === 422 || /insufficient|trusted material|trusted external/i.test(message);
       setNotice(
-        abstained
+        abstained && selectedMaterialIds.length > 0
+          ? t("The file you chose doesn't cover this. Pick \"All course files\" or ask something else.", "الملف اللي اخترته مافيهوش ده. اختار \"كل ملفات المقرر\" أو اسأل حاجة تانية.")
+          : abstained
           ? t(
-              "No trusted source (course material or verified external academic source) is close enough to answer this safely. Try rephrasing, or ask about a topic covered by your materials.",
-              "لا توجد مصادر موثوقة (من مواد المقرر أو من مصادر أكاديمية خارجية موثّقة) قريبة بما يكفي للإجابة بأمان. حاول إعادة الصياغة، أو اسأل عن موضوع تغطيه المواد.",
+              "I couldn't find a reliable answer to that, either in your course or in trusted academic sources. Try asking it a different way.",
+              "مالقيتش إجابة موثوقة لده، لا في مقررك ولا في المصادر الأكاديمية الموثوقة. جرّب تسأل بطريقة تانية.",
             )
-          : apiErrorText(err, lang),
+          : err?.status === 503 || err?.status >= 500 || !err?.status
+            ? t("The tutor couldn't answer right now. Please try again in a moment.", "المعلم مقدرش يجاوب دلوقتي. جرّب تاني كمان شوية.")
+            : apiErrorText(err, lang),
       );
       sessionAsync.reload();
     } finally {
@@ -272,8 +280,7 @@ function RealTutorPage({ state, dispatch }) {
     }
   };
 
-  const askTopic = (topic) => ask(`${t("Explain", "اشرح")} ${topic.label?.[lang] ?? topic.label?.en}`, topic.id);
-
+  
   // Suggested opening prompts (only on an empty chat) — they feed the exact
   // same ask() pipe as the composer, so nothing here is a mock.
   const suggestedPrompts = [
@@ -283,328 +290,157 @@ function RealTutorPage({ state, dispatch }) {
     { label: t("Summarize what matters for revision", "لخّص لي أهم ما في المراجعة"), topicId: null },
   ].filter(Boolean);
 
+  const topicName = (id) => topics.find((topic) => topic.id === id)?.label?.[lang] ?? topics.find((topic) => topic.id === id)?.label?.en ?? "";
+  const smallSelect = { height: 32, padding: "0 10px", borderRadius: 8, border: `1px solid ${tokens.cardBorder}`, background: tokens.card, color: tokens.textSecondary, fontSize: 12.5, fontFamily: "inherit", cursor: "pointer", maxWidth: 200 };
+  const column = { maxWidth: 780, width: "100%", margin: "0 auto", padding: mobile ? "0 16px" : "0 32px", boxSizing: "border-box" };
+
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", fontFamily: bodyFont(lang), direction: isRtl ? "rtl" : "ltr" }}>
-      <div style={{ padding: mobile ? "16px 16px 0" : "20px 28px 0", maxWidth: 860, width: "100%", margin: "0 auto" }}>
-        <LearningHeader
-          tokens={tokens}
-          lang={lang}
-          mobile={mobile}
-          journeyCurrent="tutor"
-          dispatch={dispatch}
-          kicker={activeTopicLabel ?? t("Step 2 · Understand", "الخطوة 2 · افهم")}
-          kickerTone={activeTopicLabel ? "primary" : "primary"}
-          title={t("AI Tutor", "المعلم الذكي")}
-          subtitle={t(
-            "Ask anything about the current topic — answers come from approved course materials, and from verified external academic sources when materials are not enough.",
-            "اسأل أي سؤال عن الموضوع الحالي — الإجابات مستمدة من مواد المقرر المعتمدة، ومن مصادر أكاديمية خارجية موثّقة عند عدم كفاية المواد.",
-          )}
-          actions={
-            <>
-              {!healthAsync.loading && (
-                <Chip
-                  tokens={tokens}
-                  tone={aiReady ? "mastered" : "gap"}
-                  title={aiReady
-                    ? (healthAsync.data?.capabilities?.languages ?? []).join(" · ")
-                    : t("The AI service is unreachable — answers may be refused honestly", "خدمة الذكاء غير متاحة — قد تُرفض الإجابات بصدق")}
-                >
-                  {aiReady ? t("AI engine ready", "محرك الذكاء جاهز") : t("AI engine offline", "محرك الذكاء غير متاح")}
-                </Chip>
-              )}
-              <label style={{ fontSize: 11.5, fontWeight: 600, color: tokens.textMuted, display: "inline-flex", flexDirection: "column", gap: 4 }}>
-                {t("Course", "المقرر")}
-                <CourseSelect courses={courses} value={effectiveCourseId ?? ""} onChange={setCourseId} tokens={tokens} lang={lang} placeholder={t("Choose course…", "اختر مقررًا…")} />
-              </label>
-              <Btn tokens={tokens} lang={lang} variant="ghost" style={{ padding: "8px 14px", fontSize: 12, alignSelf: "flex-end" }} onClick={() => setShowHistory((v) => !v)}>
-                {showHistory ? t("Hide sessions", "إخفاء الجلسات") : t("Sessions", "الجلسات")}
-              </Btn>
-              {sessionId && (
-                <Btn tokens={tokens} lang={lang} variant="soft" style={{ padding: "8px 14px", fontSize: 12, alignSelf: "flex-end" }} onClick={() => { setSessionId(""); setNotice(null); }}>
-                  {t("New chat", "محادثة جديدة")}
-                </Btn>
-              )}
-            </>
-          }
-        />
-        {notice && <div style={{ marginBottom: 10 }}><AlertStrip tokens={tokens} lang={lang} tone="violet" icon={<span style={{ fontSize: 12 }}>!</span>} title={notice} /></div>}
+      <div style={{ ...column, paddingTop: mobile ? 16 : 24, paddingBottom: 12 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+            <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: tokens.textPrimary, fontFamily: headingFont(lang) }}>{t("AI Tutor", "المعلم الذكي")}</h1>
+            <CoursePicker tokens={tokens} lang={lang} courses={courses} value={effectiveCourseId ?? ""} onChange={setCourseId} />
+          </div>
+          <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+            {historyRows.length > 0 && <TextButton tokens={tokens} muted onClick={() => setShowHistory((v) => !v)}>{showHistory ? t("Close history", "اقفل السجل") : t("Past chats", "المحادثات السابقة")}</TextButton>}
+            {sessionId && <SecondaryButton tokens={tokens} style={{ height: 36, padding: "0 14px", fontSize: 13 }} onClick={() => { setSessionId(""); setNotice(null); }}>{t("New chat", "محادثة جديدة")}</SecondaryButton>}
+          </div>
+        </div>
+        {activeTopicLabel && <div style={{ fontSize: 13, color: tokens.textMuted, marginTop: 6 }}>{t("Topic", "الموضوع")}: {activeTopicLabel}</div>}
       </div>
 
-      <AsyncGate
-        tokens={tokens}
-        lang={lang}
-        loading={coursesAsync.loading || sessionAsync.loading}
-        error={coursesAsync.error ?? sessionAsync.error}
-        reload={() => { coursesAsync.reload(); sessionAsync.reload(); }}
-        label={t("Opening your tutor…", "جاري فتح المعلم…")}
-      >
+      <div style={column}>
+        {notice && <Notice tokens={tokens} tone="warning">{notice}</Notice>}
         {showHistory && (
-          <div style={{ padding: mobile ? "0 16px 12px" : "0 28px 12px", maxWidth: 860, width: "100%", margin: "0 auto" }}>
-            <SessionHistoryList
-              rows={historyRows}
-              tokens={tokens}
-              lang={lang}
-              isRtl={isRtl}
-              mobile={mobile}
-              emptyLabel={t("No tutor sessions yet.", "لا توجد جلسات معلم بعد.")}
-              emptyHint={t("Ask one of the suggested questions below to open your first session.", "اسأل أحد الأسئلة المقترحة أدناه لتفتح أول جلسة لك.")}
-              onOpen={(row) => { setSessionId(row.id); setShowHistory(false); }}
-              renderTitle={(row) => topics.find((topic) => topic.id === row.topicId)?.label?.[lang] ?? row.topicId}
-              statusTone={() => "primary"}
-              statusLabel={(row) => (lang === "ar" ? TUTOR_MODE_LABELS[row.mode]?.ar ?? row.mode : TUTOR_MODE_LABELS[row.mode]?.en ?? row.mode)}
-              renderMeta={(row) => <span>{row.messageCount} {t("messages", "رسالة")}</span>}
-            />
-          </div>
+          <Panel tokens={tokens} padding={0} style={{ marginBottom: 16, overflow: "hidden" }}>
+            {historyRows.map((row, i) => (
+              <button key={row.id} type="button" className="genai-row" onClick={() => { setSessionId(row.id); setShowHistory(false); }}
+                style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, width: "100%", textAlign: "inherit", padding: "12px 18px", background: "none", border: "none", borderTop: i ? `1px solid ${tokens.cardBorder}` : "none", cursor: "pointer", fontFamily: "inherit" }}>
+                <span style={{ fontSize: 14, fontWeight: 600, color: tokens.textPrimary }}>{topicName(row.topicId) || t("Chat", "محادثة")}</span>
+                <span style={{ fontSize: 12.5, color: tokens.textMuted }}>{row.messageCount} {t("messages", "رسالة")}</span>
+              </button>
+            ))}
+          </Panel>
         )}
+      </div>
 
-        <div style={{ flex: 1, overflowY: "auto", padding: mobile ? "6px 16px 14px" : "6px 28px 14px", maxWidth: 860, width: "100%", margin: "0 auto" }}>
-          {messages.length === 0 && !typing && (
-            <div style={{ marginBottom: 14 }}>
-              <div
-                style={{
-                  maxWidth: "88%",
-                  background: tokens.inset,
-                  border: `1px solid ${tokens.cardBorder}`,
-                  borderRadius: 14,
-                  ...(isRtl ? { borderTopLeftRadius: 4 } : { borderTopLeftRadius: 14, borderTopRightRadius: 14, borderBottomRightRadius: 4 }),
-                  padding: "12px 16px",
-                  marginBottom: 12,
-                }}
-              >
-                <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: tokens.textFaint, marginBottom: 6 }}>
-                  {t("AI Tutor", "المعلم الذكي")}
-                </div>
-                <div style={{ fontSize: 13.5, lineHeight: 1.75, color: tokens.textPrimary, textAlign: isRtl ? "right" : "left" }}>
-                  {t("Ask me anything about your course — answers come from approved materials, and from verified external academic sources when needed.", "اسألني أي سؤال عن مقررك — الإجابات مستمدة من مواده المعتمدة، ومن مصادر أكاديمية خارجية موثّقة عند الحاجة.")}
-                </div>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6, maxWidth: 560 }}>
-                <div style={{ fontSize: 11, fontWeight: 650, color: tokens.textFaint, textAlign: isRtl ? "right" : "left" }}>
-                  {t("Start with a suggestion:", "ابدأ بأحد الاقتراحات:")}
-                </div>
-                {suggestedPrompts.map((prompt) => (
-                  <button
-                    key={prompt.label}
-                    type="button"
-                    disabled={typing}
-                    onClick={() => void ask(prompt.label, prompt.topicId)}
-                    style={{
-                      textAlign: isRtl ? "right" : "left",
-                      padding: "9px 13px",
-                      borderRadius: 10,
-                      border: `1px solid ${tokens.cardBorder}`,
-                      background: tokens.card,
-                      color: tokens.textSecondary,
-                      fontSize: 12.5,
-                      fontWeight: 550,
-                      cursor: typing ? "not-allowed" : "pointer",
-                      fontFamily: bodyFont(lang),
-                    }}
-                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = tokens.primary; e.currentTarget.style.color = tokens.primary; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = tokens.cardBorder; e.currentTarget.style.color = tokens.textSecondary; }}
-                  >
-                    {prompt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {messages.map((m) => (
-            <div key={m.id} style={{ display: "flex", justifyContent: m.role === "student" ? "flex-end" : "flex-start", marginBottom: 12 }}>
-              <div
-                role={m.role === "tutor" ? "article" : undefined}
-                aria-label={m.role === "student" ? t("You said", "أنت قلت") : t("The tutor answered", "أجاب المعلم")}
-                style={{
-                  maxWidth: mobile ? "90%" : "80%",
-                  background: m.role === "student" ? tokens.primaryLight : tokens.inset,
-                  border: `1px solid ${m.role === "student" ? `${tokens.primary}33` : tokens.cardBorder}`,
-                  borderRadius: 14,
-                  padding: "11px 15px",
-                  ...(m.role === "student"
-                    ? (isRtl ? { borderTopLeftRadius: 4 } : { borderTopRightRadius: 4 })
-                    : (isRtl ? { borderTopRightRadius: 4 } : { borderTopLeftRadius: 4 })),
-                }}
-              >
-                <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.05em", textTransform: "uppercase", color: m.role === "student" ? tokens.primary : tokens.textFaint, marginBottom: 5, textAlign: isRtl ? "right" : "left" }}>
-                  {m.role === "student" ? t("You", "أنت") : t("AI Tutor", "المعلم الذكي")}
-                </div>
-                <div style={{ fontSize: 13.5, lineHeight: 1.7, color: tokens.textPrimary, whiteSpace: "pre-wrap", textAlign: isRtl ? "right" : "left" }}>{m.content}</div>
-                {m.role === "tutor" && m.grounding === "external_trusted" && (
-                  <div style={{ marginTop: 7 }}>
-                    <Chip tokens={tokens} tone="gap">
-                      {t("Grounded in verified external academic sources", "مستند إلى مصادر أكاديمية خارجية موثّقة")}
-                    </Chip>
-                  </div>
-                )}
-                {m.role === "tutor" && m.evidenceLimitation && (
-                  <div
-                    style={{
-                      marginTop: 8,
-                      padding: "9px 11px",
-                      borderRadius: 9,
-                      background: tokens.inset,
-                      border: `1px dashed ${tokens.cardBorder}`,
-                      fontSize: 11.5,
-                      lineHeight: 1.7,
-                      color: tokens.textMuted,
-                      textAlign: isRtl ? "right" : "left",
-                    }}
-                  >
-                    {t("Evidence limitation:", "حدود الأدلة:")} {m.evidenceLimitation}
-                  </div>
-                )}
-                {(m.citations ?? []).length > 0 && (
-                  <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6 }}>
-                    {m.citations.slice(0, 4).map((c, index) =>
-                      c.sourceUrl ? (
-                        <a
-                          key={`ext-${index}`}
-                          href={c.sourceUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          title={`${c.sourceTitle ?? ""} — ${c.sourceUrl}`}
-                          style={{
-                            fontFamily: "'JetBrains Mono', monospace",
-                            fontSize: 10,
-                            padding: "4px 9px",
-                            borderRadius: 6,
-                            background: tokens.citationBg,
-                            border: `1px solid ${tokens.citationBorder}`,
-                            color: tokens.citation,
-                            textDecoration: "none",
-                          }}
-                        >
-                          ↗ {(c.sourceDomain ?? c.sourceTitle ?? c.sourceUrl).slice(0, 42)}
-                        </a>
-                      ) : (
-                        <span
-                          key={c.chunkId ?? `mat-${index}`}
-                          title={c.snippet ?? ""}
-                          style={{
-                            fontFamily: "'JetBrains Mono', monospace",
-                            fontSize: 10,
-                            padding: "4px 9px",
-                            borderRadius: 6,
-                            background: tokens.citationBg,
-                            border: `1px solid ${tokens.citationBorder}`,
-                            color: tokens.citation,
-                          }}
-                        >
-                          {(c.snippet ?? "").slice(0, 40)}
-                        </span>
-                      ),
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
-          {typing && (
-            <div style={{ display: "flex", marginBottom: 12 }}>
-              <AIWorking tokens={tokens} lang={lang} label={t("Grounded reasoning…", "تفكير مستند للمقرر…")} />
-            </div>
-          )}
-          <div ref={endRef} />
+      {coursesAsync.loading || sessionAsync.loading ? (
+        <LoadingBlock tokens={tokens} label={t("Loading…", "جاري التحميل…")} />
+      ) : coursesAsync.error ? (
+        <div style={column}><ErrorBlock tokens={tokens} lang={lang} onRetry={coursesAsync.reload} /></div>
+      ) : courses.length === 0 ? (
+        <div style={column}>
+          <EmptyBlock tokens={tokens} Icon={IconTutor} title={t("Join a course first", "اشترك في مقرر الأول")} body={t("The tutor answers questions about your course.", "المعلم بيجاوب على أسئلة عن مقررك.")}
+            action={<PrimaryButton tokens={tokens} onClick={() => dispatch({ type: "NAVIGATE", screen: SCREENS.COURSES })}>{t("Go to my courses", "روح لمقرراتي")}</PrimaryButton>} />
         </div>
+      ) : (
+        <>
+          <div style={{ flex: 1, overflowY: "auto" }}>
+            <div style={{ ...column, paddingBottom: 16 }}>
+              {messages.length === 0 && !typing && (
+                <div style={{ textAlign: "center", padding: mobile ? "24px 0" : "48px 0 24px" }}>
+                  <IconTile tokens={tokens} Icon={IconTutor} size={56} />
+                  <h2 style={{ margin: "16px 0 6px", fontSize: 20, fontWeight: 650, color: tokens.textPrimary }}>{t("What would you like to learn?", "عايز تتعلّم إيه؟")}</h2>
+                  <p style={{ margin: "0 auto 24px", fontSize: 14, color: tokens.textMuted, maxWidth: 440, lineHeight: 1.6 }}>
+                    {t("Ask a question about your course, or start with one of these.", "اسأل سؤال عن مقررك، أو ابدأ بواحد من دول.")}
+                  </p>
+                  <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "1fr 1fr", gap: 10, textAlign: "start" }}>
+                    {suggestedPrompts.map((prompt) => (
+                      <button key={prompt.label} type="button" className="genai-row" disabled={typing} onClick={() => void ask(prompt.label, prompt.topicId)}
+                        style={{ padding: "14px 16px", borderRadius: 12, border: `1px solid ${tokens.cardBorder}`, background: tokens.card, color: tokens.textPrimary, fontSize: 13.5, lineHeight: 1.5, textAlign: "inherit", cursor: "pointer", fontFamily: "inherit" }}>
+                        {prompt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
-        <div
-          style={{
-            padding: mobile ? "10px 16px 18px" : "10px 28px 18px",
-            maxWidth: 860,
-            width: "100%",
-            margin: "0 auto",
-            borderTop: `1px solid ${tokens.cardBorder}`,
-            background: tokens.bg,
-          }}
-        >
-          {!sessionId && topics.length > 0 && (
-            <div style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
-              <TopicSelect topics={topics} value={topicId} onChange={setTopicId} tokens={tokens} lang={lang} placeholder={t("Topic for a new chat…", "موضوع المحادثة الجديدة…")} />
-              <select value={mode} onChange={(event) => setMode(event.target.value)} style={{ ...inputStyle(tokens, bodyFont(lang)), minWidth: 150, cursor: "pointer" }} className="genai-input">
-                {Object.entries(TUTOR_MODE_LABELS).map(([key, label]) => (
-                  <option key={key} value={key}>{lang === "ar" ? label.ar : label.en}</option>
-                ))}
-              </select>
-            </div>
-          )}
-          {materials.length > 0 && (
-            <div style={{ display: "flex", gap: 6, marginBottom: 8, flexWrap: "wrap", alignItems: "center", flexDirection: isRtl ? "row-reverse" : "row" }}>
-              <span style={{ fontSize: 11, color: tokens.textFaint }}>
-                {t("Answer from:", "مصدر الإجابة:")}
-              </span>
-              {materials.slice(0, 6).map((material) => {
-                const active = selectedMaterialIds.includes(material.id);
+              {messages.map((m) => {
+                const mine = m.role === "student";
                 return (
-                  <button
-                    key={material.id}
-                    type="button"
-                    onClick={() =>
-                      setSelectedMaterialIds((ids) =>
-                        active ? ids.filter((id) => id !== material.id) : [...ids, material.id],
-                      )
-                    }
-                    title={t(
-                      "Restrict the answer to this material",
-                      "تقييد الإجابة بهذه المادة",
-                    )}
-                    style={{
-                      padding: "5px 11px",
-                      borderRadius: 8,
-                      border: `1px solid ${active ? tokens.primary : tokens.cardBorder}`,
-                      background: active ? tokens.primaryLight : tokens.card,
-                      color: active ? tokens.primaryHover : tokens.textSecondary,
-                      fontSize: 11.5,
-                      fontWeight: 600,
-                      cursor: "pointer",
-                    }}
-                  >
-                    {material.title}
-                  </button>
+                  <div key={m.id} style={{ display: "flex", gap: 10, justifyContent: mine ? "flex-end" : "flex-start", margin: "16px 0" }}>
+                    {!mine && <IconTile tokens={tokens} Icon={IconTutor} size={32} />}
+                    <div style={{ maxWidth: mobile ? "88%" : "78%" }}>
+                      <div style={{ padding: mine ? "10px 14px" : "12px 16px", borderRadius: 14, background: mine ? tokens.primaryBtn : tokens.card, color: mine ? "#fff" : tokens.textPrimary, border: mine ? "none" : `1px solid ${tokens.cardBorder}`, fontSize: 14.5, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>
+                        {m.content}
+                      </div>
+                      {!mine && m.evidenceLimitation && (
+                        <div style={{ marginTop: 6, fontSize: 12.5, color: tokens.textMuted, lineHeight: 1.6 }}>{t("Note", "ملحوظة")}: {m.evidenceLimitation}</div>
+                      )}
+                      {!mine && (m.citations ?? []).length > 0 && (
+                        <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
+                          <span style={{ fontSize: 12, color: tokens.textMuted }}>{m.grounding === "external_trusted" ? t("Sources (outside your course):", "المصادر (من خارج المقرر):") : t("From your course:", "من مقررك:")}</span>
+                          {m.citations.slice(0, 4).map((c, index) =>
+                            c.sourceUrl ? (
+                              <a key={`ext-${index}`} href={c.sourceUrl} target="_blank" rel="noopener noreferrer" title={c.sourceTitle ?? c.sourceUrl}
+                                style={{ fontSize: 12, padding: "3px 10px", borderRadius: 999, background: tokens.inset, border: `1px solid ${tokens.cardBorder}`, color: tokens.primary, textDecoration: "none" }}>
+                                {(c.sourceTitle ?? c.sourceDomain ?? c.sourceUrl).slice(0, 40)}
+                              </a>
+                            ) : (
+                              <span key={c.chunkId ?? `mat-${index}`} title={c.snippet ?? ""}
+                                style={{ fontSize: 12, padding: "3px 10px", borderRadius: 999, background: tokens.inset, border: `1px solid ${tokens.cardBorder}`, color: tokens.textSecondary }}>
+                                {(c.snippet ?? "").slice(0, 36)}…
+                              </span>
+                            ),
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 );
               })}
+              {typing && (
+                <div style={{ display: "flex", gap: 10, alignItems: "center", margin: "16px 0", color: tokens.textMuted, fontSize: 13.5 }}>
+                  <IconTile tokens={tokens} Icon={IconTutor} size={32} />
+                  <KitSpinner color={tokens.primary} /> {t("Writing an answer…", "بيكتب الإجابة…")}
+                </div>
+              )}
+              <div ref={endRef} />
             </div>
-          )}
-          <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
-            <textarea
-              value={input}
-              rows={1}
-              aria-label={t("Your question", "سؤالك")}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  void ask(input);
-                }
-              }}
-              placeholder={t(`Ask about a ${course?.code ?? "course"} topic…`, `اسأل عن موضوع من ${course?.code ?? "المقرر"}…`)}
-              className="genai-input"
-              style={{
-                flex: 1,
-                padding: "11px 14px",
-                borderRadius: 12,
-                border: `1.5px solid ${tokens.cardBorder}`,
-                background: tokens.inset,
-                color: tokens.textPrimary,
-                fontSize: 13.5,
-                lineHeight: 1.55,
-                outline: "none",
-                resize: "none",
-                maxHeight: 132,
-                overflowY: "auto",
-                fontFamily: bodyFont(lang),
-              }}
-            />
-            <Btn tokens={tokens} onClick={() => void ask(input)} disabled={typing || !input.trim()} style={{ borderRadius: 12, padding: "11px 18px", boxShadow: tokens.primaryShadow }}>
-              {typing ? t("…", "…") : t("Send", "إرسال")}
-            </Btn>
           </div>
-          <div style={{ marginTop: 7, fontSize: 10.5, color: tokens.textFaint, display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
-            <span>{t("Enter to send · Shift+Enter for a new line", "Enter للإرسال · Shift+Enter لسطر جديد")}</span>
-            <span>{t("Answers are always cited to their sources.", "الإجابات مذيلة دائمًا بمصادرها.")}</span>
+
+          <div style={{ ...column, paddingBottom: mobile ? 14 : 22, paddingTop: 8 }}>
+            <div style={{ border: `1px solid ${tokens.cardBorder}`, borderRadius: 16, background: tokens.card, boxShadow: "0 4px 16px rgba(16,24,40,0.06)", padding: "10px 12px 10px 14px" }}>
+              <textarea
+                value={input}
+                rows={2}
+                aria-label={t("Your question", "سؤالك")}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void ask(input); } }}
+                placeholder={t("Ask your question…", "اكتب سؤالك…")}
+                style={{ width: "100%", boxSizing: "border-box", border: "none", outline: "none", resize: "none", background: "transparent", color: tokens.textPrimary, fontSize: 14.5, lineHeight: 1.6, fontFamily: "inherit", maxHeight: 160 }}
+              />
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: 6 }}>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                  {!sessionId && topics.length > 0 && (
+                    <select aria-label={t("Topic", "الموضوع")} value={topicId} onChange={(e) => setTopicId(e.target.value)} style={smallSelect}>
+                      <option value="">{t("Any topic", "أي موضوع")}</option>
+                      {topics.map((topic) => <option key={topic.id} value={topic.id}>{topic.label?.[lang] ?? topic.label?.en}</option>)}
+                    </select>
+                  )}
+                  {!sessionId && (
+                    <select aria-label={t("Answer style", "أسلوب الإجابة")} value={mode} onChange={(e) => setMode(e.target.value)} style={smallSelect}>
+                      {Object.entries(TUTOR_MODE_LABELS).map(([key, label]) => <option key={key} value={key}>{lang === "ar" ? label.ar : label.en}</option>)}
+                    </select>
+                  )}
+                  {materials.length > 0 && (
+                    <select aria-label={t("Answer from", "الإجابة من")} value={selectedMaterialIds[0] ?? ""} onChange={(e) => setSelectedMaterialIds(e.target.value ? [e.target.value] : [])} style={smallSelect}>
+                      <option value="">{t("All course files", "كل ملفات المقرر")}</option>
+                      {materials.map((material) => <option key={material.id} value={material.id}>{material.title}</option>)}
+                    </select>
+                  )}
+                </div>
+                <button type="button" aria-label={t("Send", "إرسال")} onClick={() => void ask(input)} disabled={typing || !input.trim()}
+                  style={{ width: 38, height: 38, borderRadius: "50%", border: "none", background: tokens.primaryBtn, color: "#fff", display: "inline-flex", alignItems: "center", justifyContent: "center", cursor: typing || !input.trim() ? "not-allowed" : "pointer", opacity: typing || !input.trim() ? 0.45 : 1 }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4" aria-hidden="true" style={{ transform: isRtl ? "scaleX(-1)" : "none" }}><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+                </button>
+              </div>
+            </div>
+            <div style={{ fontSize: 12, color: tokens.textFaint, textAlign: "center", marginTop: 8 }}>{t("Answers are based on your course materials. Always double-check important information.", "الإجابات مبنية على مواد مقررك. راجع المعلومات المهمة دايماً.")}</div>
           </div>
-        </div>
-      </AsyncGate>
+        </>
+      )}
     </div>
   );
 }

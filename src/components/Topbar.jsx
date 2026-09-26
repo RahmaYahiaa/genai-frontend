@@ -33,9 +33,7 @@ export default function Topbar({ state, dispatch, role, onMenu }) {
         : lang === "ar"
           ? "لوحة تحكم المدرّس"
           : "Instructor Dashboard"
-      : lang === "ar"
-        ? "مساحة الطالب"
-        : "Student workspace";
+      : "";
 
   const iconBtn = {
     width: 32,

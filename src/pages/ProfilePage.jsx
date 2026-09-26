@@ -12,7 +12,7 @@ import { tk, headingFont, bodyFont } from "@/constants/tokens";
 import { Card, Chip, Bar, AsyncGate, Btn } from "@/components/ui";
 import { signOut } from "@/services/auth";
 
-function AiPreferencesCard({ tokens, lang, t }) {
+export function AiPreferencesCard({ tokens, lang, t }) {
   const prefAsync = useAsync(getAiPreferences);
   const pref = prefAsync.data;
   const [language, setLanguage] = useState("");

@@ -13,10 +13,10 @@ import { CHANGE_LABELS } from "@/services/learning";
  */
 
 const JOURNEY = [
-  { id: "diagnostic", screen: SCREENS.DIAGNOSTIC, en: "Diagnostic", ar: "التشخيص" },
-  { id: "tutor", screen: SCREENS.TUTOR, en: "AI Tutor", ar: "المعلم الذكي" },
-  { id: "practice", screen: SCREENS.PRACTICE, en: "Practice", ar: "التدريب" },
-  { id: "reassessment", screen: SCREENS.REASSESSMENT, en: "Reassessment", ar: "إعادة التقييم" },
+  { id: "diagnostic", screen: SCREENS.DIAGNOSTIC, en: "1 · Check level", ar: "١ · اعرف مستواك" },
+  { id: "tutor", screen: SCREENS.TUTOR, en: "2 · Learn", ar: "٢ · اتعلّم" },
+  { id: "practice", screen: SCREENS.PRACTICE, en: "3 · Practice", ar: "٣ · تدرّب" },
+  { id: "reassessment", screen: SCREENS.REASSESSMENT, en: "4 · Re-check", ar: "٤ · قيس تقدّمك" },
 ];
 
 const stepIndex = (id) => Math.max(0, JOURNEY.findIndex((s) => s.id === id));
@@ -94,11 +94,6 @@ export function LearningHeader({ tokens, lang, mobile, kicker, kickerTone = "pri
         }}
       >
         <div style={{ minWidth: 0, flex: "1 1 340px", textAlign: isRtl ? "right" : "left" }}>
-          {kicker && (
-            <div style={{ marginBottom: 8 }}>
-              <Chip tokens={tokens} tone={kickerTone}>{kicker}</Chip>
-            </div>
-          )}
           <h1
             style={{
               margin: 0,
@@ -139,7 +134,7 @@ export function GuidedIntro({
   const isRtl = lang === "ar";
   return (
     <Card tokens={tokens} style={{ padding: mobile ? "20px 18px" : "26px 28px", maxWidth: 720 }}>
-      <Chip tokens={tokens} tone={badgeTone}>{badge}</Chip>
+
       <h2
         style={{
           margin: "14px 0 8px",
@@ -156,13 +151,6 @@ export function GuidedIntro({
       <p style={{ margin: 0, fontSize: 13, lineHeight: 1.75, color: tokens.textMuted, textAlign: isRtl ? "right" : "left" }}>
         {description}
       </p>
-      {facts.length > 0 && (
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "16px 0 4px", flexDirection: isRtl ? "row-reverse" : "row" }}>
-          {facts.map((fact) => (
-            <Chip key={fact.label} tokens={tokens} tone={fact.tone ?? "default"}>{fact.label}</Chip>
-          ))}
-        </div>
-      )}
       {children}
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 18, flexWrap: "wrap" }}>
         <Btn
@@ -198,7 +186,7 @@ export function SessionHistoryList({ rows, emptyLabel, emptyHint, onOpen, render
           textAlign: isRtl ? "right" : "left",
         }}
       >
-        {lang === "ar" ? "الجلسات السابقة" : "Previous sessions"}
+        {lang === "ar" ? "الجلسات السابقة" : "History"}
       </div>
       {rows.length === 0 ? (
         <EmptyPanel
@@ -215,7 +203,7 @@ export function SessionHistoryList({ rows, emptyLabel, emptyHint, onOpen, render
               key={row.id}
               type="button"
               onClick={() => onOpen(row)}
-              aria-label={`${lang === "ar" ? "فتح الجلسة" : "Open session"} ${renderTitle(row)}`}
+              aria-label={`${lang === "ar" ? "فتح الجلسة" : "Open"} ${renderTitle(row)}`}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -372,7 +360,7 @@ export function GainTable({ gains, topicTitle, tokens, lang, mobile }) {
             )}
             {change === "no_reassessment_yet" && (
               <div style={{ fontSize: 11, color: tokens.textMuted, marginTop: 6, textAlign: isRtl ? "right" : "left" }}>
-                {t("No honest baseline yet — complete a reassessment to unlock comparison.", "لا يوجد خط أساس موثوق بعد — أكمل إعادة تقييم ليفتح المقارن.")}
+                {t("Complete a progress check to see how much you've improved.", "لا يوجد خط أساس موثوق بعد — أكمل إعادة تقييم ليفتح المقارن.")}
               </div>
             )}
           </Card>
@@ -388,7 +376,7 @@ export function FlowProgress({ answered, total, tokens, lang, mobile }) {
   const isRtl = lang === "ar";
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
-      <div style={{ flex: 1 }} role="progressbar" aria-valuenow={answered} aria-valuemin={0} aria-valuemax={total} aria-label={isRtl ? "تقدمك في هذه الجلسة" : "Session progress"}>
+      <div style={{ flex: 1 }} role="progressbar" aria-valuenow={answered} aria-valuemin={0} aria-valuemax={total} aria-label={isRtl ? "تقدمك في هذه الجلسة" : "Progress"}>
         <Bar tokens={tokens} value={pct} color={tokens.primary} height={7} />
       </div>
       <span style={{ fontFamily: MONO, fontSize: 11, color: tokens.textMuted, whiteSpace: "nowrap" }}>

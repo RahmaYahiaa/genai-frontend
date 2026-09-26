@@ -9,8 +9,6 @@ import RegisterPage from "@/pages/RegisterPage";
 import DashboardPage from "@/pages/DashboardPage";
 import CoursesPage from "@/pages/CoursesPage";
 import StudentBrowseCoursesPage from "@/pages/StudentBrowseCoursesPage";
-import MasteryPage from "@/pages/MasteryPage";
-import TutorPage from "@/pages/TutorPage";
 import DiagnosticPage from "@/pages/DiagnosticPage";
 import PracticePage from "@/pages/PracticePage";
 import ReassessmentPage from "@/pages/ReassessmentPage";
@@ -24,6 +22,9 @@ import ContentStudioPage from "@/pages/ContentStudioPage";
 import StudentAssignmentsPage from "@/pages/StudentAssignmentsLegacy";
 import StudentAssignmentPage from "@/pages/StudentAssignmentLegacy";
 import StudentCoursePage from "@/pages/StudentCoursePage";
+import StudyToolsPage from "@/pages/StudyToolsPage";
+import TutorPage from "@/pages/TutorPage";
+import MasteryPage from "@/pages/MasteryPage";
 import AdminHealthPage from "@/pages/admin/AdminHealthPage";
 import AdminCoursesPage from "@/pages/admin/AdminCoursesPage";
 import AdminUsersPage from "@/pages/admin/AdminUsersPage";
@@ -47,6 +48,7 @@ const PAGES = {
   [SCREENS.STUDENT_ASSIGNMENTS]: StudentAssignmentsPage,
   [SCREENS.STUDENT_ASSIGNMENT]: StudentAssignmentPage,
   [SCREENS.STUDENT_COURSE]: StudentCoursePage,
+  [SCREENS.STUDY_TOOLS]: StudyToolsPage,
   [SCREENS.DASHBOARD]: DashboardPage,
   [SCREENS.COURSES]: CoursesPage,
   [SCREENS.BROWSE_COURSES]: StudentBrowseCoursesPage,

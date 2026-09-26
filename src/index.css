@@ -166,3 +166,6 @@ textarea:focus-visible {
     grid-template-columns: repeat(2, 1fr) !important;
   }
 }
+/* Student home rows */
+.genai-row:hover { background: rgba(27, 77, 168, 0.04) !important; }
+@keyframes genai-spin { to { transform: rotate(360deg); } }

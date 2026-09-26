@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import useStudyCourse from "@/hooks/useStudyCourse";
 import { listCourses } from "@/services/courses";
 import {
   KIND_LABELS,
@@ -44,10 +45,9 @@ function ResourceBody({ resource, tokens, lang, t, mobile }) {
     return (
       <div style={{ fontSize: 12.5, color: tokens.textMuted, lineHeight: 1.7, textAlign: align }}>
         {t(
-          "Not available right now — the platform reports honestly instead of faking content.",
-          "غير متاح حاليًا — المنصة تُخبر بالحقيقة بدل اختلاق المحتوى.",
+          "We couldn't create this one right now. Please try again in a moment.",
+          "مقدرناش نعمل ده دلوقتي. جرّب تاني كمان شوية.",
         )}
-        {resource.unavailableReason ? ` — ${resource.unavailableReason}` : ""}
       </div>
     );
   }
@@ -280,7 +280,7 @@ export default function StudyToolsPage({ state }) {
   const t = (en, ar) => (lang === "ar" ? ar : en);
   const isRtl = lang === "ar";
   const mobile = useMediaQuery("(max-width: 760px)");
-  const [courseId, setCourseId] = useState("");
+  const [courseId, setCourseId] = useStudyCourse();
   const [topic, setTopic] = useState("");
   const [kinds, setKinds] = useState(["summary", "quiz"]);
   const [resourceLanguage, setResourceLanguage] = useState("");
@@ -307,7 +307,10 @@ export default function StudyToolsPage({ state }) {
   const history = (listAsync.data?.items ?? []).filter((item) => item.status === "ready");
 
   const toggleKind = (kind) =>
-    setKinds((current) => (current.includes(kind) ? current.filter((k) => k !== kind) : [...current, kind]));
+    // The API accepts at most 10 kinds per request.
+    setKinds((current) =>
+      current.includes(kind) ? current.filter((k) => k !== kind) : current.length >= 10 ? current : [...current, kind],
+    );
 
   async function generate() {
     const clean = topic.trim();
@@ -337,7 +340,7 @@ export default function StudyToolsPage({ state }) {
       </h1>
       <p style={{ margin: "0 0 18px", fontSize: 12.5, color: tokens.textMuted }}>
         {t(
-          "Turn any topic into focused study material, grounded in your course evidence and your current learning gaps.",
+          "Turn any topic into summaries, flashcards, quizzes and more, based on your course.",
           "حوّل أي موضوع إلى مادة مذاكرة مركّزة، مستندة إلى أدلة مقررك وفجوات تعلّمك الحالية.",
         )}
       </p>
@@ -417,7 +420,7 @@ export default function StudyToolsPage({ state }) {
             })}
           </div>
           <Btn tokens={tokens} lang={lang} onClick={generate} disabled={busy || !topic.trim() || kinds.length === 0 || !effectiveCourseId}>
-            {busy ? t("Generating…", "جارٍ الإنشاء…") : t("Generate resources", "إنشاء الموارد")}
+            {busy ? t(`Creating ${kinds.length} resource${kinds.length > 1 ? "s" : ""}… this can take a minute`, `بنعمل ${kinds.length} … ممكن ياخد دقيقة`) : t("Generate resources", "إنشاء الموارد")}
           </Btn>
           {notice && (
             <div style={{ marginTop: 10 }}>

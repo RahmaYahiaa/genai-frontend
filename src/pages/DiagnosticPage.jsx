@@ -1,9 +1,12 @@
 import { demoMode } from "@/services/auth";
+import useStudyCourse from "@/hooks/useStudyCourse";
 import { useCallback, useEffect, useState } from "react";
 import { listCourses } from "@/services/courses";
 import { startDiagnostic, getDiagnostic, submitDiagnosticAnswer, listDiagnostics } from "@/services/learning";
 import { apiErrorText } from "@/services/http";
-import { CourseSelect, QuestionFlow, LearnerSessionTabs } from "@/components/SessionSolver";
+import { QuestionFlow } from "@/components/SessionSolver";
+import { StudyPage, StartPanel, Field, Segmented, PrimaryButton, SecondaryButton, TextButton, Notice, LoadingBlock, ErrorBlock, EmptyBlock, PastAttempts, ResultPanel, STATUS, summarize } from "@/components/study/StudyKit";
+import { IconDiagnostic } from "@/components/Icons";
 import { AlertStrip, inputStyle } from "@/components/ModuleUI";
 import useAsync from "@/hooks/useAsync";
 import useMediaQuery from "@/hooks/useMediaQuery";
@@ -61,12 +64,12 @@ function DemoDiagnosticPage({ state, dispatch }) {
 
   return (
     <div style={{ padding: mobile ? 16 : 28, maxWidth: 820, margin: "0 auto", fontFamily: bodyFont(lang) }}>
-      <AsyncGate tokens={tokens} lang={lang} loading={loading} error={error} reload={reload} label={t("Preparing diagnostic…", "جاري تجهيز التشخيص…")}>
+      <AsyncGate tokens={tokens} lang={lang} loading={loading} error={error} reload={reload} label={t("Preparing your level check…", "جاري تجهيز التشخيص…")}>
         {phase === "intro" && (
           <Card tokens={tokens} style={{ marginTop: 12 }}>
             <Chip tokens={tokens} tone="primary">{t("Evidence-based", "قائم على الأدلة")}</Chip>
             <h1 style={{ margin: "12px 0 6px", fontSize: 20, fontWeight: 700, color: tokens.textPrimary, fontFamily: headingFont(lang) }}>
-              {t("Knowledge Diagnostic", "تشخيص المعرفة")}
+              {t("Level check", "تشخيص المعرفة")}
             </h1>
             <p style={{ margin: "0 0 18px", fontSize: 13, color: tokens.textMuted, lineHeight: 1.65 }}>
               {t(
@@ -77,9 +80,9 @@ function DemoDiagnosticPage({ state, dispatch }) {
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 20 }}>
               <Chip tokens={tokens}>{questions?.length ?? 0} {t("questions", "أسئلة")}</Chip>
               <Chip tokens={tokens}>{t("~3 minutes", "~3 دقائق")}</Chip>
-              <Chip tokens={tokens}>{t("Instant evidence", "أدلة فورية")}</Chip>
+              <Chip tokens={tokens}>{t("Instant feedback", "أدلة فورية")}</Chip>
             </div>
-            <Btn tokens={tokens} onClick={() => setPhase("run")}>{t("Start diagnostic", "ابدأ التشخيص")}</Btn>
+            <Btn tokens={tokens} onClick={() => setPhase("run")}>{t("Start level check", "ابدأ التشخيص")}</Btn>
           </Card>
         )}
 
@@ -113,7 +116,7 @@ function DemoDiagnosticPage({ state, dispatch }) {
 
         {phase === "done" && (
           <Card tokens={tokens} style={{ marginTop: 12 }}>
-            <Chip tokens={tokens} tone="mastered">{t("Evidence recorded", "تم تسجيل الأدلة")}</Chip>
+            <Chip tokens={tokens} tone="mastered">{t("Progress saved", "تم تسجيل الأدلة")}</Chip>
             <h2 style={{ margin: "12px 0 4px", fontSize: 18, fontWeight: 700, color: tokens.textPrimary, fontFamily: headingFont(lang) }}>
               {t("Your knowledge map just got sharper", "خريطة معرفتك بقت أدق")}
             </h2>
@@ -170,7 +173,7 @@ function RealDiagnosticPage({ state, dispatch }) {
   const lang = state.lang;
   const t = (en, ar) => (lang === "ar" ? ar : en);
   const isRtl = lang === "ar";
-  const [courseId, setCourseId] = useState("");
+  const [courseId, setCourseId] = useStudyCourse();
   const loadCourses = useCallback(() => listCourses(), []);
   const coursesAsync = useAsync(loadCourses);
   const courses = coursesAsync.data?.items ?? [];
@@ -193,18 +196,13 @@ function RealDiagnosticPage({ state, dispatch }) {
       effectiveCourseId && diagId
         ? getDiagnostic(effectiveCourseId, diagId).catch(() => {
             clearStore(`genai-diag-${effectiveCourseId ?? "none"}`);
+            setDiagId(""); // stale or deleted session: back to the start screen
             return null;
           })
         : Promise.resolve(null),
     [effectiveCourseId, diagId],
   );
   const diagAsync = useAsync(loadDiag);
-  useEffect(() => {
-    if (diagId && !diagAsync.loading && diagAsync.data === null) {
-      clearStore(storeKey);
-      setDiagId("");
-    }
-  }, [diagId, diagAsync.loading, diagAsync.data, storeKey]);
   const loadList = useCallback(
     () => (effectiveCourseId ? listDiagnostics(effectiveCourseId).catch(() => []) : Promise.resolve([])),
     [effectiveCourseId],
@@ -286,122 +284,75 @@ function RealDiagnosticPage({ state, dispatch }) {
     }
   }
 
+  const courseProps = { courses, value: effectiveCourseId ?? "", onChange: setCourseId };
+  const reset = () => { clearStore(storeKey); setDiagId(""); setTab("new"); listAsync.reload(); };
+  const summary = summarize(evaluations);
+  // Only the first load blocks the page; background reloads (after each answer)
+  // must not unmount the question flow, or the student never sees feedback.
+  const loading = (coursesAsync.loading && coursesAsync.data == null) || (diagAsync.loading && diagAsync.data == null) || (listAsync.loading && listAsync.data == null);
+  const failed = coursesAsync.error ?? diagAsync.error ?? listAsync.error;
+
   return (
-    <div className="genai-pad" style={{ padding: mobile ? "20px 16px" : "26px 32px", direction: isRtl ? "rtl" : "ltr", maxWidth: 820, margin: "0 auto" }}>
-      <LearningHeader
-        tokens={tokens}
-        lang={lang}
-        mobile={mobile}
-        journeyCurrent="diagnostic"
-        dispatch={dispatch}
-        kicker={t("Step 1 · Map your gaps", "الخطوة 1 · حدّد الفجوات")}
-        kickerTone="primary"
-        title={t("Knowledge Diagnostic", "تشخيص المعرفة")}
-        subtitle={t(
-          "An AI-generated diagnostic from your course topics. Your answers become honest learning evidence that decides what comes next.",
-          "تشخيص مولَّد بالذكاء الاصطناعي من موضوعات مقررك. إجاباتك تصبح دليلَ تعلّمٍ صادقًا يحدّد ما يليه.",
-        )}
-      />
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14, alignItems: "flex-end", flexDirection: isRtl ? "row-reverse" : "row" }}>
-        <label style={{ fontSize: 11.5, fontWeight: 600, color: tokens.textMuted, display: "inline-flex", flexDirection: "column", gap: 4, flex: "1 1 220px", maxWidth: 340 }}>
-          {t("Course", "المقرر")}
-          <CourseSelect courses={courses} value={effectiveCourseId ?? ""} onChange={setCourseId} tokens={tokens} lang={lang} placeholder={t("Choose course…", "اختر مقررًا…")} />
-        </label>
-        <label style={{ fontSize: 11.5, fontWeight: 600, color: tokens.textMuted, display: "inline-flex", flexDirection: "column", gap: 4 }}>
-          {t("Questions per topic", "أسئلة لكل موضوع")}
-          <select value={perTopic} onChange={(event) => setPerTopic(Number(event.target.value))} style={{ ...inputStyle(tokens, bodyFont(lang)), minWidth: 90, cursor: "pointer" }} className="genai-input">
-            {[1, 2, 3, 4, 5].map((value) => <option key={value} value={value}>{value}</option>)}
-          </select>
-        </label>
-      </div>
-      {notice && <div style={{ marginBottom: 10 }}><AlertStrip tokens={tokens} lang={lang} tone="violet" icon={<span style={{ fontSize: 12 }}>!</span>} title={notice} /></div>}
-      <AsyncGate
-        tokens={tokens}
-        lang={lang}
-        loading={coursesAsync.loading || diagAsync.loading || listAsync.loading}
-        error={coursesAsync.error ?? diagAsync.error ?? listAsync.error}
-        reload={() => { coursesAsync.reload(); diagAsync.reload(); listAsync.reload(); }}
-        label={t("Loading diagnostic…", "جاري تحميل التشخيص…")}
-      >
-        {!diagId && <LearnerSessionTabs tab={tab} onChange={setTab} tokens={tokens} lang={lang} />}
-        {!diagId && tab === "history" ? (
-          <SessionHistoryList
-            rows={historyRows}
-            tokens={tokens}
-            lang={lang}
-            isRtl={isRtl}
-            mobile={mobile}
-            emptyLabel={t("No diagnostics yet.", "لا توجد تشخيصات بعد.")}
-            emptyHint={t("Start your first diagnostic — it is the first step of your learning loop.", "ابدأ أول تشخيص لك — إنها الخطوة الأولى في حلقة تعلّمك.")}
-            onOpen={(row) => { writeStore(storeKey, row.id); setDiagId(row.id); setTab("new"); }}
-            renderTitle={() => t("Diagnostic", "تشخيص")}
-            statusTone={(row) => sessionStatusTone(row.status)}
-            statusLabel={(row) => (row.status === "completed" ? t("Completed", "مكتمل") : t("In progress", "قيد التقدم"))}
-            renderMeta={(row) => (
-              <>
-                <span>{(row.answers ?? []).length}/{(row.questions ?? []).length}</span>
-                {row.createdAt && <span>{new Date(row.createdAt).toLocaleDateString(lang === "ar" ? "ar-EG" : "en-GB")}</span>}
-              </>
-            )}
-          />
-        ) : !diagId ? (
-          <GuidedIntro
-            tokens={tokens}
-            lang={lang}
-            mobile={mobile}
-            badge={t("Evidence-based", "قائم على الأدلة")}
-            badgeTone="primary"
-            title={t("What does this diagnostic do?", "ماذا يفعل هذا التشخيص؟")}
-            description={t(
-              "It asks open questions per topic and evaluates your answers honestly — including an explicit «I don't know», which counts as missing knowledge, never as a misconception. The result is a trustworthy baseline for your mastery map.",
-              "يطرح أسئلة مفتوحة لكل موضوع ويقيّم إجاباتك بصدق — ومنها خيار «لا أعرف» الصريح، الذي يُحتسب معرفةً ناقصة لا مفهومًا خاطئًا. والنتيجة خط أساس موثوق لخريطة إتقانك.",
-            )}
-            facts={[
-              { label: t(`${perTopic} questions per topic`, `${perTopic} أسئلة لكل موضوع`) },
-              { label: t("Honest «I don't know»", "خيار «لا أعرف» الصادق"), tone: "developing" },
-              { label: t("Feeds your mastery map", "يغذي خريطة إتقانك"), tone: "mastered" },
-            ]}
-            primaryLabel={t("Start diagnostic", "ابدأ التشخيص")}
-            primaryBusy={busy}
-            primaryDisabled={!effectiveCourseId}
-            onPrimary={() => void start()}
-            note={t("The diagnostic stays open on this device until you finish it, even if you refresh.", "يبقى التشخيص مفتوحًا على هذا الجهاز حتى تُنهيه، ولو حدّثت الصفحة.")}
-          />
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {diag && (
-              <QuestionFlow
-                questions={diag.questions ?? []}
-                evaluations={evaluations}
-                answeredIds={answeredIds}
-                busyId={busyQuestion}
-                onSubmit={(questionId, content) => void answer(questionId, content)}
-                onIdk={(questionId) => void answerIdk(questionId)}
-                onVoice={(questionId, audio) => void answerVoice(questionId, audio)}
-                tokens={tokens}
-                lang={lang}
-                mobile={mobile}
-                doneNote={complete ? (
-                  <DonePanel
-                    tokens={tokens}
-                    lang={lang}
-                    isRtl={isRtl}
-                    title={t("Diagnostic complete — your mastery now reflects this evidence.", "اكتمل التشخيص — أصبح إتقانك يعكس هذا الدليل.")}
-                    subtitle={t("Choose your next step:", "اختر خطوتك التالية:")}
-                    actions={[
-                      { label: t("Practice the gaps", "تدرّب على الفجوات"), primary: true, onClick: () => dispatch({ type: "NAVIGATE", screen: SCREENS.PRACTICE }) },
-                      { label: t("Ask the tutor", "اسأل المعلم"), onClick: () => dispatch({ type: "NAVIGATE", screen: SCREENS.TUTOR }) },
-                      { label: t("See mastery", "اعرض الإتقان"), onClick: () => dispatch({ type: "NAVIGATE", screen: SCREENS.MASTERY }) },
-                      { label: t("New diagnostic", "تشخيص جديد"), onClick: () => { clearStore(storeKey); setDiagId(""); setTab("new"); listAsync.reload(); } },
-                    ]}
-                  />
-                ) : null}
-              />
-            )}
-          </div>
-        )}
-      </AsyncGate>
-    </div>
+    <StudyPage tokens={tokens} lang={lang} mobile={mobile} course={courseProps}
+      title={t("Check my level", "اعرف مستواك")}
+      subtitle={t("Answer a few short questions so we know what you already understand and where to focus.", "جاوب على كام سؤال قصير عشان نعرف إنت فاهم إيه ولازم تركّز على إيه.")}
+      actions={diagId && !complete ? <TextButton tokens={tokens} muted onClick={reset}>{t("Leave and start over", "اخرج وابدأ من الأول")}</TextButton> : null}
+    >
+      {notice && <Notice tokens={tokens} tone="danger" title={t("Something didn't work", "في حاجة ماشتغلتش")}>{t("Please try again in a moment.", "جرّب تاني كمان شوية.")}</Notice>}
+      {loading ? (
+        <LoadingBlock tokens={tokens} label={t("Loading…", "جاري التحميل…")} />
+      ) : failed ? (
+        <ErrorBlock tokens={tokens} lang={lang} onRetry={() => { coursesAsync.reload(); diagAsync.reload(); listAsync.reload(); }} />
+      ) : courses.length === 0 ? (
+        <EmptyBlock tokens={tokens} Icon={IconDiagnostic} title={t("Join a course first", "اشترك في مقرر الأول")} body={t("The level check uses your course topics.", "اختبار المستوى بيعتمد على مواضيع مقررك.")}
+          action={<PrimaryButton tokens={tokens} onClick={() => dispatch({ type: "NAVIGATE", screen: SCREENS.COURSES })}>{t("Go to my courses", "روح لمقرراتي")}</PrimaryButton>} />
+      ) : !diagId ? (
+        <>
+          <StartPanel tokens={tokens} mobile={mobile} Icon={IconDiagnostic}
+            title={t("How it works", "بيشتغل إزاي")}
+            body={t("You'll get questions from each topic in this course. Answer in your own words — if you don't know, just say so. It takes about 10 minutes.", "هتجيلك أسئلة من كل موضوع في المقرر. جاوب بأسلوبك، ولو مش عارف قول كده عادي. بياخد حوالي ١٠ دقايق.")}
+            primary={<PrimaryButton tokens={tokens} busy={busy} disabled={!effectiveCourseId} onClick={() => void start()}>{busy ? t("Preparing your questions…", "بنجهّز أسئلتك…") : t("Start level check", "ابدأ اختبار المستوى")}</PrimaryButton>}
+          >
+            <Field tokens={tokens} label={t("Questions per topic", "عدد الأسئلة لكل موضوع")} hint={t("More questions give a more accurate result.", "أسئلة أكتر = نتيجة أدق.")}>
+              <Segmented tokens={tokens} value={perTopic} onChange={setPerTopic} ariaLabel={t("Questions per topic", "عدد الأسئلة لكل موضوع")} options={[1, 2, 3, 4, 5].map((v) => ({ value: v, label: String(v) }))} />
+            </Field>
+          </StartPanel>
+          <PastAttempts tokens={tokens} lang={lang} rows={historyRows}
+            onOpen={(row) => { writeStore(storeKey, row.id); setDiagId(row.id); }}
+            renderTitle={() => t("Level check", "اختبار مستوى")}
+            renderMeta={(row) => `${row.createdAt ? new Date(row.createdAt).toLocaleDateString(lang === "ar" ? "ar-EG" : "en-GB") + " · " : ""}${(row.answers ?? []).length}/${(row.questions ?? []).length} ${t("answered", "اتجاوبت")}`}
+            isDone={(row) => row.status === "completed"} />
+        </>
+      ) : diag ? (
+        <QuestionFlow key={diagId}
+          questions={diag.questions ?? []}
+          evaluations={evaluations}
+          answeredIds={answeredIds}
+          busyId={busyQuestion}
+          onSubmit={(questionId, content) => void answer(questionId, content)}
+          onIdk={(questionId) => void answerIdk(questionId)}
+          onVoice={(questionId, audio) => void answerVoice(questionId, audio)}
+          tokens={tokens}
+          lang={lang}
+          mobile={mobile}
+          doneNote={complete ? (
+            <ResultPanel tokens={tokens} mobile={mobile}
+              title={t("Level check complete", "خلّصت اختبار المستوى")}
+              body={t("Your progress has been updated. The best next step is to practise the topics you found hard.", "تقدّمك اتحدّث. أحسن خطوة جاية إنك تتدرّب على المواضيع اللي كانت صعبة عليك.")}
+              stats={[
+                { label: t("Correct", "صح"), value: summary.correct, color: STATUS.success.fg },
+                { label: t("Partly correct", "صح جزئياً"), value: summary.partial, color: STATUS.warning.fg },
+                { label: t("To work on", "محتاج تذاكره"), value: summary.incorrect + summary.unknown, color: STATUS.danger.fg },
+              ]}
+              primary={<PrimaryButton tokens={tokens} onClick={() => dispatch({ type: "NAVIGATE", screen: SCREENS.PRACTICE })}>{t("Start practising", "ابدأ التدريب")}</PrimaryButton>}
+              secondary={[
+                <SecondaryButton key="p" tokens={tokens} onClick={() => dispatch({ type: "NAVIGATE", screen: SCREENS.MASTERY })}>{t("See my progress", "شوف تقدّمي")}</SecondaryButton>,
+                <SecondaryButton key="n" tokens={tokens} onClick={reset}>{t("New level check", "اختبار جديد")}</SecondaryButton>,
+              ]} />
+          ) : null}
+        />
+      ) : null}
+    </StudyPage>
   );
 }
 

@@ -11,6 +11,13 @@ export default function AppShell({ state, dispatch, role = "student", children }
   const isRtl = lang === "ar";
   const mobile = useMediaQuery("(max-width: 760px)");
   const [drawer, setDrawer] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    try { return localStorage.getItem("genai-sidebar-collapsed") === "1"; } catch { return false; }
+  });
+  const toggleCollapsed = () => setCollapsed((v) => {
+    try { localStorage.setItem("genai-sidebar-collapsed", v ? "0" : "1"); } catch { /* storage unavailable */ }
+    return !v;
+  });
 
   return (
     <div
@@ -40,7 +47,7 @@ export default function AppShell({ state, dispatch, role = "student", children }
           </>
         ) : null
       ) : (
-        <Sidebar state={state} dispatch={dispatch} role={role} />
+        <Sidebar state={state} dispatch={dispatch} role={role} collapsed={collapsed} onToggle={toggleCollapsed} />
       )}
 
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>

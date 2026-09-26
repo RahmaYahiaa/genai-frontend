@@ -1,85 +1,6 @@
 import { useRef, useState } from "react";
-import { MONO } from "@/constants/tokens";
-import { Btn, Card, Chip, ConfidencePill, bFontFor, textareaStyle, inputStyle } from "@/components/ModuleUI";
-import { FlowProgress } from "@/components/learning";
-
-const CORRECTNESS_LABELS = {
-  CORRECT: { en: "Correct", ar: "صحيح" },
-  PARTIAL: { en: "Partial", ar: "جزئي" },
-  INCORRECT: { en: "Incorrect", ar: "غير صحيح" },
-  // lowercase variants emitted by the live API
-  correct: { en: "Correct", ar: "صحيح" },
-  partial: { en: "Partial", ar: "جزئي" },
-  incorrect: { en: "Incorrect", ar: "غير صحيح" },
-  // "I don't know" (EDUNation parity): missing knowledge, not a misconception.
-  unknown: { en: "Not known yet", ar: "لم يُعرَف بعد" },
-};
-
-const correctnessTone = (correctness) => {
-  const key = String(correctness ?? "").toUpperCase();
-  if (key === "CORRECT") return "mastered";
-  if (key === "PARTIAL") return "primary";
-  if (key === "INCORRECT") return "gap";
-  return "default";
-};
-
-const correctnessColor = (correctness, tokens) => {
-  const key = String(correctness ?? "").toUpperCase();
-  if (key === "CORRECT") return tokens.mastered;
-  if (key === "PARTIAL") return tokens.primary;
-  if (key === "INCORRECT") return tokens.gap;
-  return tokens.cardBorder;
-};
-
-export function EvaluationCard({ evaluation, tokens, lang }) {
-  const t = (en, ar) => (lang === "ar" ? ar : en);
-  const isRtl = lang === "ar";
-  if (!evaluation) return null;
-  const correctness = evaluation.correctness ?? null;
-  const accent = correctnessColor(correctness, tokens);
-  return (
-    <div
-      aria-live="polite"
-      style={{
-        background: tokens.inset,
-        border: `1px solid ${tokens.cardBorder}`,
-        borderRadius: 10,
-        padding: "12px 14px",
-        marginTop: 10,
-        ...(isRtl ? { borderRight: `3px solid ${accent}` } : { borderLeft: `3px solid ${accent}` }),
-      }}
-    >
-      <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 6, flexDirection: isRtl ? "row-reverse" : "row" }}>
-        {correctness && (
-          <Chip tokens={tokens} tone={correctnessTone(correctness)}>
-            {lang === "ar" ? CORRECTNESS_LABELS[correctness]?.ar ?? correctness : CORRECTNESS_LABELS[correctness]?.en ?? correctness}
-          </Chip>
-        )}
-        {evaluation.confidence && (
-          <ConfidencePill confidence={String(evaluation.confidence).toLowerCase()} tokens={tokens} lang={lang} short />
-        )}
-        <span style={{ fontFamily: MONO, fontSize: 10.5, color: tokens.textSecondary }}>
-          {t("score", "الدرجة")}: {evaluation.score}
-        </span>
-      </div>
-      {evaluation.feedback && (
-        <p style={{ fontFamily: bFontFor(lang), fontSize: 12.5, color: tokens.textSecondary, lineHeight: 1.7, margin: 0, textAlign: isRtl ? "right" : "left" }}>
-          {evaluation.feedback}
-        </p>
-      )}
-      {(evaluation.misconceptions ?? []).length > 0 && (
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
-          <span style={{ fontSize: 11, color: tokens.textFaint, alignSelf: "center" }}>
-            {t("Misconception detected:", "مفهوم خاطئ رُصد:")}
-          </span>
-          {evaluation.misconceptions.map((item) => (
-            <Chip key={item.code ?? item} tokens={tokens} tone="gap">{item.code ?? item}</Chip>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
+import { bFontFor, inputStyle } from "@/components/ModuleUI";
+import { Panel, PrimaryButton, TextButton, STATUS, normCorrectness } from "@/components/study/StudyKit";
 
 /**
  * Voice answers (diagnostic): records with MediaRecorder and submits as
@@ -143,135 +64,126 @@ function useVoiceRecorder() {
   return { recordingId, error, start, stop };
 }
 
-// onIdk is optional (diagnostic only — EDUNation "I don't know" parity):
-// an explicit "don't know / skip" that the backend records as missing
-// knowledge, never as a misconception.
-// onVoice is optional (diagnostic only): records an audio answer and submits
-// it for server-side transcription + evaluation.
+const RESULT_COPY = {
+  correct: { en: "Correct", ar: "إجابة صحيحة", tone: "success" },
+  partial: { en: "Partly correct", ar: "صحيحة جزئياً", tone: "warning" },
+  incorrect: { en: "Not quite", ar: "مش مظبوطة", tone: "danger" },
+  unknown: { en: "Marked as not known yet", ar: "اتسجّلت إنك لسه مش عارفها", tone: "warning" },
+};
+
+export function EvaluationCard({ evaluation, tokens, lang }) {
+  if (!evaluation) return null;
+  const key = normCorrectness(evaluation.correctness);
+  const copy = RESULT_COPY[key];
+  const c = STATUS[copy?.tone ?? "warning"];
+  // Only human-written descriptions are shown; raw codes are internal.
+  const misconceptions = (evaluation.misconceptions ?? []).filter((m) => typeof m === "object" && m?.description);
+  return (
+    <div aria-live="polite" style={{ marginTop: 16, padding: "14px 16px", borderRadius: 12, background: c.bg, border: `1px solid ${c.border}` }}>
+      {copy && <div style={{ fontSize: 14, fontWeight: 650, color: c.fg, marginBottom: evaluation.feedback ? 6 : 0 }}>{lang === "ar" ? copy.ar : copy.en}</div>}
+      {evaluation.feedback && <p style={{ margin: 0, fontSize: 14, lineHeight: 1.7, color: tokens.textPrimary }}>{evaluation.feedback}</p>}
+      {misconceptions.length > 0 && (
+        <div style={{ marginTop: 8, fontSize: 13, color: tokens.textSecondary }}>
+          <span style={{ fontWeight: 600 }}>{lang === "ar" ? "راجع: " : "Review: "}</span>
+          {misconceptions.map((m) => m.description).join(" ")}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// One question at a time. Props are unchanged from the previous list-based
+// flow, so every page keeps its exact submit / "I don't know" / voice calls.
 export function QuestionFlow({ questions, evaluations, answeredIds, busyId, onSubmit, onIdk = null, onVoice = null, tokens, lang, mobile, doneNote }) {
   const t = (en, ar) => (lang === "ar" ? ar : en);
-  const isRtl = lang === "ar";
-  const bFont = bFontFor(lang);
   const [texts, setTexts] = useState({});
+  const [viewIndex, setViewIndex] = useState(null);
   const voice = useVoiceRecorder();
-  const voiceSupported =
-    Boolean(onVoice) &&
-    typeof navigator !== "undefined" &&
-    Boolean(navigator.mediaDevices?.getUserMedia) &&
-    typeof MediaRecorder !== "undefined";
+  const voiceSupported = Boolean(onVoice) && typeof navigator !== "undefined" && Boolean(navigator.mediaDevices?.getUserMedia) && typeof MediaRecorder !== "undefined";
   const total = questions.length;
+  const answeredCount = questions.filter((q) => answeredIds.includes(q.id)).length;
+  const firstOpen = questions.findIndex((q) => !answeredIds.includes(q.id));
+  const allDone = total > 0 && firstOpen === -1;
+  const index = viewIndex ?? (allDone ? total - 1 : Math.max(0, firstOpen));
+  const question = questions[index];
+
+  if (allDone && viewIndex == null && doneNote) {
+    return (
+      <div>
+        {doneNote}
+        <div style={{ textAlign: "center", marginTop: 14 }}>
+          <TextButton tokens={tokens} onClick={() => setViewIndex(0)}>{t("Review your answers", "راجع إجاباتك")}</TextButton>
+        </div>
+      </div>
+    );
+  }
+  if (!question) return null;
+  const answered = answeredIds.includes(question.id);
+  const busy = busyId === question.id;
+  const recording = voice.recordingId === question.id;
+  const text = texts[question.id] ?? "";
+  const nextOpen = questions.findIndex((q, i) => i > index && !answeredIds.includes(q.id));
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      <FlowProgress answered={answeredIds.length} total={total} tokens={tokens} lang={lang} mobile={mobile} />
-      {questions.map((question, index) => {
-        const answered = answeredIds.includes(question.id);
-        return (
-          <Card tokens={tokens} key={question.id} style={{ padding: mobile ? "14px 16px" : "16px 18px" }}>
-            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 10, flexDirection: isRtl ? "row-reverse" : "row" }}>
-              <span
-                aria-hidden="true"
-                style={{
-                  minWidth: 26,
-                  height: 20,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  padding: "0 6px",
-                  borderRadius: 6,
-                  background: answered ? tokens.masteredBg : tokens.inset,
-                  border: `1px solid ${answered ? tokens.masteredBorder : tokens.cardBorder}`,
-                  color: answered ? tokens.mastered : tokens.textMuted,
-                  fontFamily: MONO,
-                  fontSize: 10,
-                  fontWeight: 700,
-                }}
-              >
-                {index + 1}
-              </span>
-              {question.difficulty && <Chip tokens={tokens} tone="slate">{question.difficulty}</Chip>}
-              {answered && (
-                <Chip tokens={tokens} tone="mastered" style={{ ...(isRtl ? { marginRight: "auto" } : { marginLeft: "auto" }) }}>
-                  {t("Answered", "تمت الإجابة")}
-                </Chip>
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, gap: 12 }}>
+        <span style={{ fontSize: 13.5, fontWeight: 600, color: tokens.textPrimary }}>{t(`Question ${index + 1} of ${total}`, `سؤال ${index + 1} من ${total}`)}</span>
+        <span style={{ fontSize: 13, color: tokens.textMuted }}>{t(`${answeredCount} answered`, `${answeredCount} اتجاوبت`)}</span>
+      </div>
+      <div role="tablist" aria-label={t("Questions", "الأسئلة")} style={{ display: "flex", gap: 6, marginBottom: 18 }}>
+        {questions.map((q, i) => {
+          const done = answeredIds.includes(q.id);
+          return (
+            <button key={q.id} type="button" role="tab" aria-selected={i === index} aria-label={t(`Question ${i + 1}`, `سؤال ${i + 1}`)} onClick={() => setViewIndex(i)}
+              style={{ flex: 1, height: 6, borderRadius: 99, border: "none", padding: 0, cursor: "pointer", background: i === index ? tokens.primary : done ? `${tokens.primary}66` : tokens.cardBorder }} />
+          );
+        })}
+      </div>
+
+      <Panel tokens={tokens} padding={mobile ? 20 : 28}>
+        <div style={{ fontSize: mobile ? 16 : 17, fontWeight: 600, lineHeight: 1.6, color: tokens.textPrimary, marginBottom: 16 }}>{question.prompt}</div>
+        <textarea
+          value={answered ? text || "" : text}
+          disabled={answered || busy}
+          aria-label={t("Your answer", "إجابتك")}
+          onChange={(e) => setTexts((prev) => ({ ...prev, [question.id]: e.target.value }))}
+          rows={5}
+          placeholder={answered ? t("Your answer was saved.", "إجابتك اتحفظت.") : t("Type your answer here…", "اكتب إجابتك هنا…")}
+          style={{ width: "100%", boxSizing: "border-box", minHeight: 120, padding: "12px 14px", borderRadius: 10, border: `1px solid ${tokens.cardBorder}`, background: answered ? tokens.inset : tokens.card, color: tokens.textPrimary, fontSize: 14.5, lineHeight: 1.6, fontFamily: "inherit", resize: "vertical", outline: "none" }}
+        />
+
+        {!answered && (
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginTop: 14, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
+              {onIdk && <TextButton tokens={tokens} muted disabled={busy || recording} onClick={() => { setViewIndex(index); onIdk(question.id); }}>{t("I don't know", "مش عارف")}</TextButton>}
+              {voiceSupported && (
+                <TextButton tokens={tokens} muted={!recording} disabled={busy || (voice.recordingId !== null && !recording)}
+                  onClick={() => (recording ? void voice.stop(question.id).then((audio) => audio && (setViewIndex(index), onVoice(question.id, audio))) : void voice.start(question.id))}>
+                  {recording ? t("Stop and send recording", "وقّف وابعت التسجيل") : t("Answer by voice", "جاوب بصوتك")}
+                </TextButton>
               )}
             </div>
-            <div style={{ fontSize: 14.5, fontWeight: 650, color: tokens.textPrimary, lineHeight: 1.65, marginBottom: 10, textAlign: isRtl ? "right" : "left" }}>
-              {question.prompt}
-            </div>
-            <textarea
-              value={texts[question.id] ?? ""}
-              disabled={answered}
-              aria-label={t(`Your answer to question ${index + 1}`, `إجابتك على السؤال ${index + 1}`)}
-              onChange={(event) => setTexts((prev) => ({ ...prev, [question.id]: event.target.value }))}
-              rows={4}
-              placeholder={answered ? t("Answer submitted — evidence recorded.", "سُلِّمت الإجابة — سُجِّل الدليل.") : t("Write your answer…", "اكتب إجابتك…")}
-              className="genai-input"
-              style={{
-                ...textareaStyle(tokens, bFont),
-                width: "100%",
-                minHeight: 84,
-                resize: "vertical",
-                opacity: answered ? 0.65 : 1,
-              }}
-            />
-            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 10 }}>
-              <Btn
-                tokens={tokens}
-                lang={lang}
-                disabled={answered || busyId === question.id || !(texts[question.id] ?? "").trim()}
-                onClick={() => onSubmit(question.id, texts[question.id])}
-              >
-                {busyId === question.id
-                  ? t("Evaluating…", "جاري التقييم…")
-                  : answered
-                    ? t("Answered", "تمت الإجابة")
-                    : t("Submit answer", "تسليم الإجابة")}
-              </Btn>
-              {onIdk && !answered && (
-                <Btn
-                  tokens={tokens}
-                  lang={lang}
-                  variant="ghost"
-                  disabled={busyId === question.id || voice.recordingId === question.id}
-                  title={t(
-                    "Choose this instead of guessing — it counts as missing knowledge, not as a misconception.",
-                    "اخترها بدل التخمين — تُحتسب معرفةً ناقصة لا مفهومًا خاطئًا.",
-                  )}
-                  onClick={() => onIdk(question.id)}
-                >
-                  {t("I don't know", "لا أعرف")}
-                </Btn>
-              )}
-              {voiceSupported && !answered && (
-                <Btn
-                  tokens={tokens}
-                  lang={lang}
-                  variant={voice.recordingId === question.id ? "soft" : "ghost"}
-                  disabled={busyId === question.id || (voice.recordingId !== null && voice.recordingId !== question.id)}
-                  onClick={() => {
-                    if (voice.recordingId === question.id) {
-                      void voice.stop(question.id).then((audio) => audio && onVoice(question.id, audio));
-                    } else {
-                      void voice.start(question.id);
-                    }
-                  }}
-                >
-                  {voice.recordingId === question.id
-                    ? t("Stop & submit ⏺", "إيقاف وتسليم ⏺")
-                    : t("Record answer", "إجابة صوتية")}
-                </Btn>
-              )}
-              {voice.error && (
-                <span style={{ fontSize: 11, color: tokens.gap }}>
-                  {t("Microphone unavailable — type your answer instead.", "الميكروفون غير متاح — اكتب إجابتك بدلًا منها.")}
-                </span>
-              )}
-            </div>
-            <EvaluationCard evaluation={evaluations[question.id] ?? null} tokens={tokens} lang={lang} />
-          </Card>
-        );
-      })}
-      {doneNote}
+            <PrimaryButton tokens={tokens} busy={busy} disabled={!text.trim() || recording} onClick={() => { setViewIndex(index); onSubmit(question.id, text); }}>
+              {busy ? t("Checking…", "بنصحح…") : t("Submit answer", "ابعت الإجابة")}
+            </PrimaryButton>
+          </div>
+        )}
+        {voice.error && <div style={{ marginTop: 10, fontSize: 13, color: STATUS.danger.fg }}>{t("We couldn't use your microphone. Please type your answer.", "مقدرناش نستخدم المايك. اكتب إجابتك.")}</div>}
+
+        <EvaluationCard evaluation={evaluations[question.id] ?? null} tokens={tokens} lang={lang} />
+
+        {answered && (
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 16 }}>
+            {nextOpen !== -1 ? (
+              <PrimaryButton tokens={tokens} onClick={() => setViewIndex(nextOpen)}>{t("Next question", "السؤال اللي بعده")}</PrimaryButton>
+            ) : firstOpen !== -1 ? (
+              <PrimaryButton tokens={tokens} onClick={() => setViewIndex(firstOpen)}>{t("Go to unanswered question", "روح للسؤال اللي لسه")}</PrimaryButton>
+            ) : (
+              doneNote && <PrimaryButton tokens={tokens} onClick={() => setViewIndex(null)}>{t("See results", "شوف النتيجة")}</PrimaryButton>
+            )}
+          </div>
+        )}
+      </Panel>
     </div>
   );
 }
@@ -313,13 +225,13 @@ export function CourseSelect({ courses, value, onChange, tokens, lang, placehold
 export function LearnerSessionTabs({ tab, onChange, tokens, lang }) {
   const bFont = bFontFor(lang);
   const items = [
-    ["new", lang === "ar" ? "جلسة جديدة" : "New session"],
+    ["new", lang === "ar" ? "ابدأ جديد" : "Start new"],
     ["history", lang === "ar" ? "الجلسات السابقة" : "History"],
   ];
   return (
     <div
       role="tablist"
-      aria-label={lang === "ar" ? "أقسام الجلسات" : "Session views"}
+      aria-label={lang === "ar" ? "أقسام الجلسات" : "History"}
       style={{
         display: "inline-flex",
         gap: 4,

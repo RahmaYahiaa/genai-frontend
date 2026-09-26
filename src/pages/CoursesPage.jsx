@@ -81,10 +81,16 @@ export default function CoursesPage({ state, dispatch }) {
           </h1>
           <p style={{ margin: 0, fontSize: 12.5, color: tokens.textMuted }}>
             {state.role === "student"
-              ? t("Everything you're enrolled in, with live mastery evidence.", "كل المقررات المسجلة فيها، مع أدلة الإتقان الحية.")
+              ? t("All your courses and how you're doing in each.", "كل المقررات المسجلة فيها، مع أدلة الإتقان الحية.")
               : t("Courses you teach or staff — open the workspace to manage them.", "المقررات اللي بتدرّسها أو مشارك فيها — افتح مساحة العمل لإدارتها.")}
           </p>
         </div>
+        {real && state.role === "student" && state.user?.accountType !== "individual" && (
+          <Btn tokens={tokens} variant="soft" onClick={() => dispatch({ type: "NAVIGATE", screen: SCREENS.BROWSE_COURSES })} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7, flexShrink: 0 }}>
+            <IconPlus size={13} color={tokens.primary} />
+            {t("Find courses", "ابحث عن مقررات")}
+          </Btn>
+        )}
         {canCreate && (
           <Btn tokens={tokens} variant="soft" onClick={() => setCreateOpen(true)} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7, flexShrink: 0 }}>
             <IconPlus size={13} color={tokens.primary} />
@@ -144,7 +150,7 @@ export default function CoursesPage({ state, dispatch }) {
                     {isPersonal
                       ? `${course.topics.length} ${t("topics · your materials", "مواضيع · موادك")}`
                       : hasMastery
-                        ? `${covered}/${course.topics.length} ${t("topics with evidence", "مواضيع بأدلة")}`
+                        ? `${covered}/${course.topics.length} ${t("topics checked", "مواضيع بأدلة")}`
                         : `${course.topics.length} ${t("topics", "مواضيع")}`}
                   </span>
                   {isPersonal ? (

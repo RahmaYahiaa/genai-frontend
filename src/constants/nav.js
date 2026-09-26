@@ -1,9 +1,9 @@
 import {
   IconDashboard,
   IconCourses,
-  IconMastery,
   IconTutor,
   IconDiagnostic,
+  IconMastery,
   IconPractice,
   IconReassessment,
   IconProfile,
@@ -19,16 +19,22 @@ import {
 } from "@/components/Icons";
 import { SCREENS } from "./routes";
 
+// Student navigation is grouped around the learning journey:
+// Home → my courses/work → the study loop (check level → learn → practice → re-check) → progress.
+// Student nav in plain language, grouped by what the student wants to do.
 export const STUDENT_NAV = [
-  { id: SCREENS.DASHBOARD, en: "Dashboard", ar: "لوحة التحكم", Icon: IconDashboard },
-  { id: SCREENS.COURSES, en: "My Courses", ar: "مقرراتي", Icon: IconCourses },
-  { id: SCREENS.BROWSE_COURSES, en: "Browse institution courses", ar: "استعرض مقررات المؤسسة", Icon: IconBookOpen },
-  { id: SCREENS.STUDENT_ASSIGNMENTS, en: "Assignments", ar: "التكليفات", Icon: IconClipboard },
-  { id: SCREENS.MASTERY, en: "Topics & Mastery", ar: "المواضيع والإتقان", Icon: IconMastery },
+  { id: SCREENS.DASHBOARD, en: "Home", ar: "الرئيسية", Icon: IconDashboard },
+  { section: { en: "My studies", ar: "دراستي" } },
+  { id: SCREENS.COURSES, en: "My Courses", ar: "مقرراتي", Icon: IconCourses, match: [SCREENS.STUDENT_COURSE, SCREENS.BROWSE_COURSES] },
+  { id: SCREENS.STUDENT_ASSIGNMENTS, en: "Assignments", ar: "التكليفات", Icon: IconClipboard, match: [SCREENS.STUDENT_ASSIGNMENT] },
+  { section: { en: "Learn", ar: "اتعلّم" } },
   { id: SCREENS.TUTOR, en: "AI Tutor", ar: "المعلم الذكي", Icon: IconTutor },
-  { id: SCREENS.DIAGNOSTIC, en: "Diagnostic", ar: "التشخيص", Icon: IconDiagnostic },
-  { id: SCREENS.PRACTICE, en: "Practice", ar: "التدريب", Icon: IconPractice },
-  { id: SCREENS.REASSESSMENT, en: "Reassessment", ar: "إعادة التقييم", Icon: IconReassessment },
+  { id: SCREENS.STUDY_TOOLS, en: "Study Tools", ar: "أدوات المذاكرة", Icon: IconSparkle },
+  { id: SCREENS.MASTERY, en: "My Progress", ar: "تقدّمي", Icon: IconMastery },
+  { section: { en: "Test yourself", ar: "اختبر نفسك" } },
+  { id: SCREENS.DIAGNOSTIC, en: "Check my level", ar: "اعرف مستواك", Icon: IconDiagnostic },
+  { id: SCREENS.PRACTICE, en: "Practice", ar: "تدرّب", Icon: IconPractice },
+  { id: SCREENS.REASSESSMENT, en: "Measure progress", ar: "قيس تقدّمك", Icon: IconReassessment },
 ];
 
 export const STUDENT_NAV_BOTTOM = [

@@ -1,9 +1,12 @@
 import { demoMode } from "@/services/auth";
+import useStudyCourse from "@/hooks/useStudyCourse";
 import { useCallback, useEffect, useState } from "react";
 import { listCourses } from "@/services/courses";
 import { createPracticeSession, getPracticeSession, submitPracticeAnswer, listPracticeSessions } from "@/services/learning";
 import { apiErrorText } from "@/services/http";
-import { CourseSelect, TopicSelect, QuestionFlow, LearnerSessionTabs } from "@/components/SessionSolver";
+import { QuestionFlow } from "@/components/SessionSolver";
+import { StudyPage, StartPanel, Field, Select, Segmented, PrimaryButton, SecondaryButton, TextButton, Notice, LoadingBlock, ErrorBlock, EmptyBlock, PastAttempts, ResultPanel, STATUS, summarize } from "@/components/study/StudyKit";
+import { IconPractice } from "@/components/Icons";
 import { AlertStrip, inputStyle } from "@/components/ModuleUI";
 import useAsync from "@/hooks/useAsync";
 import useMediaQuery from "@/hooks/useMediaQuery";
@@ -68,7 +71,7 @@ function DemoPracticePage({ state, dispatch }) {
         {t("Practice", "التدريب")}
       </h1>
       <p style={{ margin: "0 0 20px", fontSize: 12.5, color: tokens.textMuted }}>
-        {t("Immediate feedback, and every correct answer adds evidence.", "تصحيح فوري، وكل إجابة صحيحة بتضيف دليلاً.")}
+        {t("Instant feedback on every answer.", "تصحيح فوري، وكل إجابة صحيحة بتضيف دليلاً.")}
       </p>
       <AsyncGate tokens={tokens} lang={lang} loading={loading} error={error} reload={reload} label={t("Preparing questions…", "جاري تجهيز الأسئلة…")}>
         {!done && q && (
@@ -118,7 +121,7 @@ function DemoPracticePage({ state, dispatch }) {
         {done && (
           <Card tokens={tokens} style={{ marginTop: 12 }}>
             <Chip tokens={tokens} tone={score >= questions.length * 0.75 ? "mastered" : "primary"}>
-              {t("Session complete", "اكتمل التدريب")}
+              {t("Completed", "اكتمل التدريب")}
             </Chip>
             <div style={{ display: "flex", alignItems: "baseline", gap: 10, margin: "14px 0 8px" }}>
               <span style={{ fontSize: 34, fontWeight: 700, color: tokens.textPrimary, fontFamily: headingFont(lang), letterSpacing: "-0.03em" }}>
@@ -129,7 +132,7 @@ function DemoPracticePage({ state, dispatch }) {
             <Bar tokens={tokens} value={(score / questions.length) * 100} color={tokens.mastered} height={8} />
             <p style={{ margin: "14px 0 18px", fontSize: 12.5, color: tokens.textMuted, lineHeight: 1.6 }}>
               {t(
-                "Solid work. Reassessment now gives you hard proof that these skills stuck.",
+                "Well done. A progress check will show how much of this you've kept.",
                 "شغل جامد. إعادة التقييم دلوقتي هتدي دليل قاطع إن المهارات دي ثابتة.",
               )}
             </p>
@@ -161,7 +164,7 @@ function RealPracticePage({ state, dispatch }) {
   const lang = state.lang;
   const t = (en, ar) => (lang === "ar" ? ar : en);
   const isRtl = lang === "ar";
-  const [courseId, setCourseId] = useState("");
+  const [courseId, setCourseId] = useStudyCourse();
   const loadCourses = useCallback(() => listCourses(), []);
   const coursesAsync = useAsync(loadCourses);
   const courses = coursesAsync.data?.items ?? [];
@@ -188,18 +191,13 @@ function RealPracticePage({ state, dispatch }) {
       effectiveCourseId && sessionId
         ? getPracticeSession(effectiveCourseId, sessionId).catch(() => {
             clearStore(`genai-practice-${effectiveCourseId ?? "none"}`);
+            setSessionId(""); // stale or deleted session: back to the start screen
             return null;
           })
         : Promise.resolve(null),
     [effectiveCourseId, sessionId],
   );
   const sessionAsync = useAsync(loadSession);
-  useEffect(() => {
-    if (sessionId && !sessionAsync.loading && sessionAsync.data === null) {
-      clearStore(storeKey);
-      setSessionId("");
-    }
-  }, [sessionId, sessionAsync.loading, sessionAsync.data, storeKey]);
   const loadList = useCallback(
     () => (effectiveCourseId ? listPracticeSessions(effectiveCourseId).catch(() => []) : Promise.resolve([])),
     [effectiveCourseId],
@@ -246,121 +244,81 @@ function RealPracticePage({ state, dispatch }) {
     }
   }
 
+  const courseProps = { courses, value: effectiveCourseId ?? "", onChange: setCourseId };
+  const reset = () => { clearStore(storeKey); setSessionId(""); setTab("new"); listAsync.reload(); };
+  const summary = summarize(evaluations);
+  // Only the first load blocks the page; background reloads (after each answer)
+  // must not unmount the question flow, or the student never sees feedback.
+  const loading = (coursesAsync.loading && coursesAsync.data == null) || (sessionAsync.loading && sessionAsync.data == null) || (listAsync.loading && listAsync.data == null);
+  const failed = coursesAsync.error ?? sessionAsync.error ?? listAsync.error;
+  const topicOptions = topics.map((topic) => ({ value: topic.id, label: topic.label?.[lang] ?? topic.label?.en ?? topic.id }));
+
   return (
-    <div className="genai-pad" style={{ padding: mobile ? "20px 16px" : "26px 32px", direction: isRtl ? "rtl" : "ltr", maxWidth: 820, margin: "0 auto" }}>
-      <LearningHeader
-        tokens={tokens}
-        lang={lang}
-        mobile={mobile}
-        journeyCurrent="practice"
-        dispatch={dispatch}
-        kicker={t("Step 3 · Close the gaps", "الخطوة 3 · امنع الفجوات")}
-        kickerTone="primary"
-        title={t("Practice", "التدريب")}
-        subtitle={t(
-          "AI-generated practice on a topic you choose. Every answer is evaluated instantly and written back as mastery evidence.",
-          "تدريب مولَّد بالذكاء الاصطناعي على موضوع تختاره. كل إجابة تُقيَّم فورًا وتُكتب دليلًا على إتقانك.",
-        )}
-      />
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14, alignItems: "flex-end", flexDirection: isRtl ? "row-reverse" : "row" }}>
-        <label style={{ fontSize: 11.5, fontWeight: 600, color: tokens.textMuted, display: "inline-flex", flexDirection: "column", gap: 4, flex: "1 1 220px", maxWidth: 340 }}>
-          {t("Course", "المقرر")}
-          <CourseSelect courses={courses} value={effectiveCourseId ?? ""} onChange={setCourseId} tokens={tokens} lang={lang} placeholder={t("Choose course…", "اختر مقررًا…")} />
-        </label>
-        <label style={{ fontSize: 11.5, fontWeight: 600, color: tokens.textMuted, display: "inline-flex", flexDirection: "column", gap: 4 }}>
-          {t("Questions", "عدد الأسئلة")}
-          <select value={count} onChange={(event) => setCount(Number(event.target.value))} style={{ ...inputStyle(tokens, bodyFont(lang)), minWidth: 80, cursor: "pointer" }} className="genai-input">
-            {[1, 2, 3, 4, 5].map((value) => <option key={value} value={value}>{value}</option>)}
-          </select>
-        </label>
-      </div>
-      {notice && <div style={{ marginBottom: 10 }}><AlertStrip tokens={tokens} lang={lang} tone="violet" icon={<span style={{ fontSize: 12 }}>!</span>} title={notice} /></div>}
-      <AsyncGate
-        tokens={tokens}
-        lang={lang}
-        loading={coursesAsync.loading || sessionAsync.loading || listAsync.loading}
-        error={coursesAsync.error ?? sessionAsync.error ?? listAsync.error}
-        reload={() => { coursesAsync.reload(); sessionAsync.reload(); listAsync.reload(); }}
-        label={t("Loading practice…", "جاري تحميل التدريب…")}
-      >
-        {!sessionId && <LearnerSessionTabs tab={tab} onChange={setTab} tokens={tokens} lang={lang} />}
-        {!sessionId && tab === "history" ? (
-          <SessionHistoryList
-            rows={historyRows}
-            tokens={tokens}
-            lang={lang}
-            isRtl={isRtl}
-            mobile={mobile}
-            emptyLabel={t("No practice sessions yet.", "لا توجد جلسات تدريب بعد.")}
-            emptyHint={t("Practice after learning with the tutor — your answers build evidence on weak spots.", "تدرّب بعد التعلّم مع المعلم — إجاباتك تبني أدلةً على النقاط الضعيفة.")}
-            onOpen={(row) => { writeStore(storeKey, row.id); setSessionId(row.id); setTab("new"); }}
-            renderTitle={(row) => topicLabel(row.topicId)}
-            statusTone={(row) => sessionStatusTone(row.status)}
-            statusLabel={(row) => (row.status === "completed" ? t("Completed", "مكتمل") : t("In progress", "قيد التقدم"))}
-            renderMeta={(row) => (
-              <>
-                <span>{(row.answers ?? []).length}/{(row.questions ?? []).length} {t("answered", "مُجاب")}</span>
-                {row.createdAt && <span>{new Date(row.createdAt).toLocaleDateString(lang === "ar" ? "ar-EG" : "en-GB")}</span>}
-              </>
-            )}
-          />
-        ) : !sessionId ? (
-          <GuidedIntro
-            tokens={tokens}
-            lang={lang}
-            mobile={mobile}
-            badge={t("Immediate feedback", "تغذية راجعة فورية")}
-            badgeTone="primary"
-            title={t("Train where it matters", "تدرّب حيث تهم المذاكرة")}
-            description={t(
-              "Pick one topic and answer open questions. The AI evaluates each answer on the spot — correctness, feedback, and the misconception behind a wrong answer — then feeds it back to your mastery map.",
-              "اختر موضوعًا واحدًا وأجب أسئلة مفتوحة. يقيّم الذكاء كل إجابة في الحال — الصواب والتغذية والتصور الخاطئ وراء الإجابة الخاطئة — ثم يعيدها إلى خريطة إتقانك.",
-            )}
-            facts={[
-              { label: t(`${count} questions`, `${count} أسئلة`) },
-              { label: t("Evaluated instantly", "تقييم فوري"), tone: "primary" },
-              { label: t("Writes mastery evidence", "يكتب أدلة الإتقان"), tone: "mastered" },
-            ]}
-            primaryLabel={t("Start practice", "ابدأ التدريب")}
-            primaryBusy={busy}
-            primaryDisabled={!topicId}
-            onPrimary={() => void start()}
-            note={topicId ? undefined : t("Choose a topic above to unlock start.", "اختر موضوعًا بالأعلى ليتفعّل بدء الجلسة.")}
+    <StudyPage tokens={tokens} lang={lang} mobile={mobile} course={courseProps}
+      title={t("Practice", "تدرّب")}
+      subtitle={t("Pick a topic and answer a few questions. You'll get feedback on every answer right away.", "اختار موضوع وجاوب على كام سؤال. هتاخد تعليق على كل إجابة على طول.")}
+      actions={sessionId && !complete ? <TextButton tokens={tokens} muted onClick={reset}>{t("Leave and start over", "اخرج وابدأ من الأول")}</TextButton> : null}
+    >
+      {notice && <Notice tokens={tokens} tone="danger" title={t("Something didn't work", "في حاجة ماشتغلتش")}>{t("Please try again in a moment.", "جرّب تاني كمان شوية.")}</Notice>}
+      {loading ? (
+        <LoadingBlock tokens={tokens} label={t("Loading…", "جاري التحميل…")} />
+      ) : failed ? (
+        <ErrorBlock tokens={tokens} lang={lang} onRetry={() => { coursesAsync.reload(); sessionAsync.reload(); listAsync.reload(); }} />
+      ) : courses.length === 0 ? (
+        <EmptyBlock tokens={tokens} Icon={IconPractice} title={t("Join a course first", "اشترك في مقرر الأول")} body={t("Practice questions come from your course topics.", "أسئلة التدريب جاية من مواضيع مقررك.")}
+          action={<PrimaryButton tokens={tokens} onClick={() => dispatch({ type: "NAVIGATE", screen: SCREENS.COURSES })}>{t("Go to my courses", "روح لمقرراتي")}</PrimaryButton>} />
+      ) : !sessionId ? (
+        <>
+          <StartPanel tokens={tokens} mobile={mobile} Icon={IconPractice}
+            title={t("Set up your practice", "جهّز التدريب")}
+            body={t("Choose what you want to work on. Tip: start with a topic you found hard in your level check.", "اختار عايز تشتغل على إيه. نصيحة: ابدأ بموضوع كان صعب عليك في اختبار المستوى.")}
+            primary={<PrimaryButton tokens={tokens} busy={busy} disabled={!topicId} onClick={() => void start()}>{busy ? t("Preparing your questions…", "بنجهّز أسئلتك…") : t("Start practice", "ابدأ التدريب")}</PrimaryButton>}
           >
-            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 16, flexDirection: isRtl ? "row-reverse" : "row" }}>
-              <TopicSelect topics={topics} value={topicId} onChange={setTopicId} tokens={tokens} lang={lang} placeholder={t("Choose the topic to train…", "اختر الموضوع الذي ستتدرب عليه…")} />
-            </div>
-          </GuidedIntro>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <QuestionFlow
-              questions={session?.questions ?? []}
-              evaluations={evaluations}
-              answeredIds={answeredIds}
-              busyId={busyQuestion}
-              onSubmit={(questionId, content) => void answer(questionId, content)}
-              tokens={tokens}
-              lang={lang}
-              mobile={mobile}
-              doneNote={complete ? (
-                <DonePanel
-                  tokens={tokens}
-                  lang={lang}
-                  isRtl={isRtl}
-                  title={t("Practice complete — evidence recorded.", "اكتمل التدريب — سُجّلت الأدلة.")}
-                  subtitle={t("Ready to prove the gain? A reassessment measures the before→after change on this topic.", "مستعد لإثبات التحسّن؟ إعادة التقييم تقيس الفارق قبل←بعد على هذا الموضوع.")}
-                  actions={[
-                    { label: t("Prove it — Reassess", "أثبِتها — إعادة التقييم"), primary: true, onClick: () => dispatch({ type: "NAVIGATE", screen: SCREENS.REASSESSMENT }) },
-                    { label: t("See mastery", "اعرض الإتقان"), onClick: () => dispatch({ type: "NAVIGATE", screen: SCREENS.MASTERY }) },
-                    { label: t("New practice session", "جلسة تدريب جديدة"), onClick: () => { clearStore(storeKey); setSessionId(""); setTab("new"); listAsync.reload(); } },
-                  ]}
-                />
-              ) : null}
-            />
-          </div>
-        )}
-      </AsyncGate>
-    </div>
+            {topicOptions.length === 0 ? (
+              <Notice tokens={tokens} tone="info">{t("This course has no topics yet, so there's nothing to practise.", "المقرر ده لسه مفيهوش مواضيع، فمفيش حاجة تتدرّب عليها.")}</Notice>
+            ) : (
+              <Field tokens={tokens} label={t("Topic", "الموضوع")}>
+                <Select tokens={tokens} value={topicId} onChange={setTopicId} options={topicOptions} placeholder={t("Choose a topic", "اختار موضوع")} ariaLabel={t("Topic", "الموضوع")} />
+              </Field>
+            )}
+            <Field tokens={tokens} label={t("Number of questions", "عدد الأسئلة")}>
+              <Segmented tokens={tokens} value={count} onChange={setCount} ariaLabel={t("Number of questions", "عدد الأسئلة")} options={[1, 2, 3, 4, 5].map((v) => ({ value: v, label: String(v) }))} />
+            </Field>
+          </StartPanel>
+          <PastAttempts tokens={tokens} lang={lang} rows={historyRows}
+            onOpen={(row) => { writeStore(storeKey, row.id); setSessionId(row.id); }}
+            renderTitle={(row) => topicLabel(row.topicId)}
+            renderMeta={(row) => `${row.createdAt ? new Date(row.createdAt).toLocaleDateString(lang === "ar" ? "ar-EG" : "en-GB") + " · " : ""}${(row.answers ?? []).length}/${(row.questions ?? []).length} ${t("answered", "اتجاوبت")}`}
+            isDone={(row) => row.status === "completed"} />
+        </>
+      ) : (
+        <QuestionFlow key={sessionId}
+          questions={session?.questions ?? []}
+          evaluations={evaluations}
+          answeredIds={answeredIds}
+          busyId={busyQuestion}
+          onSubmit={(questionId, content) => void answer(questionId, content)}
+          tokens={tokens}
+          lang={lang}
+          mobile={mobile}
+          doneNote={complete ? (
+            <ResultPanel tokens={tokens} mobile={mobile}
+              title={t("Practice complete", "خلّصت التدريب")}
+              body={t("Nice work. When you feel ready, take a progress check to see how much you've improved.", "شغل حلو. لما تحس إنك جاهز، اعمل قياس تقدّم عشان تشوف اتحسّنت قد إيه.")}
+              stats={[
+                { label: t("Correct", "صح"), value: summary.correct, color: STATUS.success.fg },
+                { label: t("Partly correct", "صح جزئياً"), value: summary.partial, color: STATUS.warning.fg },
+                { label: t("To work on", "محتاج تذاكره"), value: summary.incorrect, color: STATUS.danger.fg },
+              ]}
+              primary={<PrimaryButton tokens={tokens} onClick={reset}>{t("Practise again", "اتدرّب تاني")}</PrimaryButton>}
+              secondary={[
+                <SecondaryButton key="r" tokens={tokens} onClick={() => dispatch({ type: "NAVIGATE", screen: SCREENS.REASSESSMENT })}>{t("Measure my progress", "قيس تقدّمي")}</SecondaryButton>,
+                <SecondaryButton key="t" tokens={tokens} onClick={() => dispatch({ type: "NAVIGATE", screen: SCREENS.TUTOR })}>{t("Ask the tutor", "اسأل المعلم")}</SecondaryButton>,
+              ]} />
+          ) : null}
+        />
+      )}
+    </StudyPage>
   );
 }
 

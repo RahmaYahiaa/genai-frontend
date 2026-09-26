@@ -5,13 +5,15 @@ import useMediaQuery from "@/hooks/useMediaQuery";
 import { fetchDashboard } from "@/services/api";
 import { listCourses } from "@/services/courses";
 import { listAssignmentsForCourse } from "@/services/assignments";
-import { getLearnerModel } from "@/services/learning";
+import { getLearnerModel, getMyLearning } from "@/services/learning";
+import { Panel, PrimaryButton, TextButton } from "@/components/study/StudyKit";
 import { tk, headingFont, bodyFont } from "@/constants/tokens";
 import { SCREENS } from "@/constants/routes";
 import { TASK_KIND_LABELS } from "@/data/student";
 import { Card, Btn, Chip, Bar, Stat, AsyncGate } from "@/components/ui";
 import MasteryBar from "@/components/MasteryBar";
 import LinkInvitationBanner from "@/components/LinkInvitationBanner";
+import { IconTutor, IconSparkle, IconPractice, IconMastery, IconCheck } from "@/components/Icons";
 
 const TASK_TONE = { diagnostic: "primary", practice: "default", reassessment: "mastered", assignment: "primary" };
 
@@ -46,7 +48,7 @@ function DashboardInner({ data, tokens, lang, t, dispatch }) {
             {t("Welcome back", "أهلاً بعودتك")}, {lang === "ar" ? user.name.ar.split(" ")[0] : user.name.en.split(" ")[0]}
           </h1>
           <div style={{ fontSize: 12.5, color: tokens.textMuted, marginTop: 4 }}>
-            {t("Here's your evidence-based learning snapshot.", "دي خلاصة تعلّمك القائمة على الأدلة.")}
+            {t("Here's an overview of your learning.", "دي خلاصة تعلّمك القائمة على الأدلة.")}
           </div>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
@@ -57,7 +59,7 @@ function DashboardInner({ data, tokens, lang, t, dispatch }) {
 
       <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: 12, marginBottom: 14 }}>
         <Stat tokens={tokens} label={t("Avg mastery", "متوسط الإتقان")} value={`${stats.avgMastery}%`} accent={tokens.mastered} />
-        <Stat tokens={tokens} label={t("Evidence items", "عناصر الأدلة")} value={stats.evidenceItems} hint={t(`${stats.topicsCovered}/${stats.topicsTotal} topics covered`, `${stats.topicsCovered}/${stats.topicsTotal} موضوعاً مغطى`)} />
+        <Stat tokens={tokens} label={t("Answers checked", "عناصر الأدلة")} value={stats.evidenceItems} hint={t(`${stats.topicsCovered}/${stats.topicsTotal} topics covered`, `${stats.topicsCovered}/${stats.topicsTotal} موضوعاً مغطى`)} />
         <Stat tokens={tokens} label={t("Streak", "سلسلة الأيام")} value={stats.streakDays == null ? "—" : `${stats.streakDays} ${t("days", "أيام")}`} hint={stats.streakDays == null ? t("not tracked yet", "مش متتبعة لسه") : undefined} />
         <Stat tokens={tokens} label={t("Study time", "وقت الدراسة")} value={stats.studyMinutes == null ? "—" : `${stats.studyMinutes}m`} hint={stats.studyMinutes == null ? t("not tracked yet", "مش متتبع لسه") : t(`Goal ${stats.goalMinutes}m`, `الهدف ${stats.goalMinutes} د`)} />
       </div>
@@ -103,7 +105,7 @@ function DashboardInner({ data, tokens, lang, t, dispatch }) {
           <Card tokens={tokens} style={{ background: tokens.primaryLight, borderColor: `${tokens.primary}33` }}>
             <div style={{ fontWeight: 700, fontSize: 13.5, color: tokens.textPrimary, marginBottom: 4 }}>{t("Focus topic", "موضوع التركيز")}</div>
             <div style={{ fontSize: 12, color: tokens.textMuted, marginBottom: 12 }}>
-              {weakest ? `${t("Weakest right now", "أضعف نقطة حالياً")}: ${weakest.label[lang]} (${weakest.pct}%)` : t("All topics have evidence", "كل المواضيع عندها أدلة")}
+              {weakest ? `${t("Weakest right now", "أضعف نقطة حالياً")}: ${weakest.label[lang]} (${weakest.pct}%)` : t("Every topic has been checked", "كل المواضيع عندها أدلة")}
             </div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <Btn tokens={tokens} onClick={() => dispatch({ type: "NAVIGATE", screen: SCREENS.TUTOR })}>{t("Ask AI Tutor", "اسأل المعلّم الذكي")}</Btn>
@@ -120,7 +122,7 @@ function DashboardInner({ data, tokens, lang, t, dispatch }) {
             <div style={{ fontSize: 12, color: tokens.textMuted, marginTop: 2 }}>
               {stats.goalMinutes
                 ? t(`${stats.studyMinutes} of ${stats.goalMinutes} minutes this week`, `${stats.studyMinutes} من ${stats.goalMinutes} دقيقة هذا الأسبوع`)
-                : t("Session minutes are not tracked by the backend yet.", "دقائق الجلسات مش متسجلة في الباك إند لسه.")}
+                : t("", "دقائق الجلسات مش متسجلة في الباك إند لسه.")}
             </div>
           </div>
           <div style={{ width: mobile ? "100%" : 220 }}>
@@ -137,91 +139,196 @@ function DashboardInner({ data, tokens, lang, t, dispatch }) {
 }
 const pctOf = (value) => (value == null ? 0 : value <= 1 ? Math.round(value * 100) : Math.round(value));
 
+// AI learning engine next_action → the existing screen where the student can act on it.
+const ACTION_SCREEN = {
+  build_foundation: SCREENS.TUTOR,
+  fill_prerequisites: SCREENS.TUTOR,
+  resolve_misconceptions: SCREENS.TUTOR,
+  reinforce: SCREENS.PRACTICE,
+  progress: SCREENS.PRACTICE,
+};
+const ACTION_LABELS = {
+  build_foundation: { en: "Build the foundations first", ar: "ابنِ الأساسات أولًا" },
+  reinforce: { en: "Reinforce weak concepts", ar: "عزّز المفاهيم الضعيفة" },
+  resolve_misconceptions: { en: "Resolve misconceptions", ar: "صحّح المفاهيم الخاطئة" },
+  fill_prerequisites: { en: "Fill prerequisite gaps", ar: "سدّ الفجوات التأسيسية" },
+  progress: { en: "Keep progressing", ar: "واصل التقدّم" },
+};
+const SCREEN_CTA = {
+  [SCREENS.TUTOR]: { en: "Learn with the AI Tutor", ar: "اتعلّم مع المعلم الذكي" },
+  [SCREENS.PRACTICE]: { en: "Start practice", ar: "ابدأ التدريب" },
+  [SCREENS.DIAGNOSTIC]: { en: "Check my level", ar: "اعرف مستواك" },
+  [SCREENS.BROWSE_COURSES]: { en: "Find courses", ar: "ابحث عن مقررات" },
+  [SCREENS.COURSES]: { en: "Go to My Courses", ar: "روح لمقرراتي" },
+};
+
+
 function RealDashboardPage({ state, dispatch }) {
   const tokens = tk(state.dark);
   const lang = state.lang;
   const t = (en, ar) => (lang === "ar" ? ar : en);
   const mobile = useMediaQuery("(max-width: 760px)");
+  const institutional = state.user?.accountType !== "individual";
 
   const load = useCallback(async () => {
     const { items } = await listCourses();
-    const enrolled = items ?? [];
-    let modelCourse = null;
-    let model = null;
-    for (const course of enrolled) {
-      try {
-        const candidate = await getLearnerModel(course.id);
-        if (!model || (candidate?.mastery ?? []).some((row) => row.evidenceCount > 0)) {
-          modelCourse = course;
-          model = candidate;
-        }
-        if ((candidate?.mastery ?? []).some((row) => row.evidenceCount > 0)) break;
-      } catch {
-        modelCourse = modelCourse ?? course;
-      }
-    }
-    const mastery = model?.mastery ?? [];
-    const overview = model?.overview ?? null;
-    const topics = mastery.map((row) => ({
-      id: row.topicId,
-      label: { en: row.title ?? "", ar: row.title ?? "" },
-      pct: pctOf(row.averageScore),
-      evidence: row.evidenceCount ?? 0,
-    }));
-    const withEvidence = topics.filter((topic) => topic.evidence > 0);
-    const stats = {
-      avgMastery: overview?.overallAverageScore != null
-        ? pctOf(overview.overallAverageScore)
-        : withEvidence.length
-          ? Math.round(withEvidence.reduce((sum, topic) => sum + topic.pct, 0) / withEvidence.length)
-          : 0,
-      evidenceItems: overview?.evidenceCount ?? topics.reduce((sum, topic) => sum + topic.evidence, 0),
-      topicsCovered: overview?.assessedTopicsCount ?? withEvidence.length,
-      topicsTotal: overview?.topicsCount ?? topics.length,
-      streakDays: null,
-      studyMinutes: null,
-      goalMinutes: null,
-    };
-    const taskRows = await Promise.all(
-      enrolled.slice(0, 6).map(async (course) => {
-        try {
-          const { items: assignments } = await listAssignmentsForCourse(course.id, {});
-          return assignments
-            .filter((assignment) => assignment.status === "OPEN")
-            .map((assignment) => ({
-              id: `${course.id}-${assignment.id}`,
-              kind: "assignment",
-              label: { en: assignment.title?.en ?? "", ar: assignment.title?.ar ?? "" },
-              course: course.code ?? course.id,
-              due: { en: "open now", ar: "مفتوح الآن" },
-            }));
-        } catch {
-          return [];
-        }
-      }),
-    );
-    return {
-      user: state.user ?? { name: { en: "learner", ar: "متعلم" } },
-      stats,
-      courses: [
-        {
-          id: modelCourse?.code ?? modelCourse?.title?.en ?? modelCourse?.id ?? "—",
-          week: null,
-          overall: stats.avgMastery,
-          topics,
-        },
-      ],
-      tasks: taskRows.flat().slice(0, 5),
-    };
-  }, [state.user]);
+    const courses = items ?? [];
+    const [models, learning, assignmentRows] = await Promise.all([
+      Promise.all(courses.slice(0, 8).map((course) => getLearnerModel(course.id).catch(() => null))),
+      // AI engine can be unavailable — the dashboard degrades to evidence-based guidance.
+      getMyLearning().catch(() => null),
+      institutional
+        ? Promise.all(
+            courses.slice(0, 8).map(async (course) => {
+              try {
+                const { items: assignments } = await listAssignmentsForCourse(course.id, {});
+                return assignments.filter((a) => a.status === "OPEN").map((a) => ({ ...a, course }));
+              } catch {
+                return [];
+              }
+            }),
+          )
+        : Promise.resolve([]),
+    ]);
+    const courseRows = courses.map((course, index) => {
+      const mastery = models[index]?.mastery ?? [];
+      const overview = models[index]?.overview ?? null;
+      const withEvidence = mastery.filter((row) => (row.evidenceCount ?? 0) > 0);
+      const weakest = [...withEvidence].sort((a, b) => pctOf(a.averageScore) - pctOf(b.averageScore))[0] ?? null;
+      return {
+        course,
+        modelLoaded: Boolean(models[index]),
+        evidence: overview?.evidenceCount ?? withEvidence.reduce((sum, row) => sum + (row.evidenceCount ?? 0), 0),
+        assessed: overview?.assessedTopicsCount ?? withEvidence.length,
+        total: overview?.topicsCount ?? mastery.length,
+        avg: withEvidence.length === 0 ? null : overview?.overallAverageScore != null
+          ? pctOf(overview.overallAverageScore)
+          : withEvidence.length
+            ? Math.round(withEvidence.reduce((sum, row) => sum + pctOf(row.averageScore), 0) / withEvidence.length)
+            : null,
+        weakest: weakest ? { title: weakest.title, pct: pctOf(weakest.averageScore) } : null,
+      };
+    });
+    return { courseRows, learning, assignments: assignmentRows.flat() };
+  }, [institutional]);
   const { data, loading, error, reload } = useAsync(load);
+  const firstName = (state.user?.name?.[lang] || state.user?.email || "").split(" ")[0];
 
   return (
     <div style={{ padding: mobile ? 16 : 28, maxWidth: 1080, margin: "0 auto", fontFamily: bodyFont(lang), direction: lang === "ar" ? "rtl" : "ltr" }}>
-      {data && <LinkInvitationBanner state={state} />}
-      <AsyncGate tokens={tokens} lang={lang} loading={loading} error={error} reload={reload} label={t("Loading your dashboard…", "جاري تحميل لوحتك…")}>
-        {data && <DashboardInner data={data} tokens={tokens} lang={lang} t={t} dispatch={dispatch} />}
+      <LinkInvitationBanner state={state} />
+      <AsyncGate tokens={tokens} lang={lang} loading={loading} error={error} reload={reload} label={t("Loading your home…", "جاري تحميل الرئيسية…")}>
+        {data && <HomeInner data={data} tokens={tokens} lang={lang} t={t} dispatch={dispatch} mobile={mobile} institutional={institutional} firstName={firstName} />}
       </AsyncGate>
+    </div>
+  );
+}
+
+function pickNextStep({ courseRows, learning }, institutional) {
+  if (courseRows.length === 0) {
+    return institutional
+      ? { screen: SCREENS.BROWSE_COURSES, title: { en: "Enroll in your first course", ar: "اشترك في أول مقرر" }, reason: { en: "The tutor, practice and your progress all work inside a course. Find your university's courses to begin.", ar: "المعلم والتدريب وتقدّمك كلهم بيشتغلوا جوه مقرر. دوّر على مقررات جامعتك عشان تبدأ." } }
+      : { screen: SCREENS.COURSES, title: { en: "Create your first course", ar: "اعمل أول مقرر ليك" }, reason: { en: "Create a course and upload your notes. The tutor and practice questions will be based on them.", ar: "اعمل مقرر دراسة ذاتية وارفع موادك — المعلم الذكي والتدريب هيستخدموها." } };
+  }
+  const hasMastery = Object.keys(learning?.profile?.concept_mastery ?? {}).length > 0;
+  const next = hasMastery ? learning?.next_action : null;
+  if (next?.action) {
+    const screen = ACTION_SCREEN[next.action] ?? SCREENS.PRACTICE;
+    return {
+      screen,
+      ai: true,
+      priority: next.priority,
+      title: ACTION_LABELS[next.action] ?? { en: next.action, ar: next.action },
+      reasonText: next.reason ?? null,
+      concepts: next.target_concepts ?? [],
+    };
+  }
+  const noEvidence = courseRows.find((row) => row.evidence === 0);
+  if (noEvidence) {
+    return { screen: SCREENS.DIAGNOSTIC, courseId: noEvidence.course.id, title: { en: `Check your level in ${noEvidence.course.title.en}`, ar: `اعرف مستواك في ${noEvidence.course.title.ar}` }, reason: { en: "Take a short level check so we know where to start.", ar: "لسه مفيش أدلة على مستواك هنا. تشخيص قصير بيحدد نقطة البداية." } };
+  }
+  const weakestRow = [...courseRows].filter((row) => row.weakest).sort((a, b) => a.weakest.pct - b.weakest.pct)[0];
+  if (weakestRow) {
+    return { screen: SCREENS.PRACTICE, courseId: weakestRow.course.id, title: { en: `Practice ${weakestRow.weakest.title}`, ar: `تدرّب على ${weakestRow.weakest.title}` }, reason: { en: `Your weakest topic right now (${weakestRow.weakest.pct}%).`, ar: `أضعف موضوع عندك دلوقتي (${weakestRow.weakest.pct}%).` } };
+  }
+  return { screen: SCREENS.PRACTICE, title: { en: "Keep practicing", ar: "كمّل تدريب" }, reason: { en: "Practice keeps your progress up to date.", ar: "التدريب بيضيف أدلة ويحدّث إتقانك." } };
+}
+
+function HomeInner({ data, tokens, lang, t, dispatch, mobile, firstName, institutional }) {
+  const { courseRows, learning, assignments } = data;
+  const step = pickNextStep(data, institutional);
+  const reviewDue = (learning?.review_queue ?? []).length;
+  const go = (screen, extra = {}) => dispatch({ type: "NAVIGATE", screen, ...extra });
+  const L = (obj) => obj?.[lang] ?? obj?.en ?? "";
+  const hour = new Date().getHours();
+  const greet = hour < 12 ? t("Good morning", "صباح الخير") : t("Good evening", "مساء الخير");
+  const sectionTitle = { fontSize: 15, fontWeight: 650, color: tokens.textPrimary, margin: "32px 0 12px" };
+
+  return (
+    <div style={{ maxWidth: 760, margin: "0 auto" }}>
+      <h1 style={{ margin: "8px 0 4px", fontSize: mobile ? 22 : 26, fontWeight: 700, letterSpacing: "-0.02em", color: tokens.textPrimary, fontFamily: headingFont(lang) }}>
+        {greet}{firstName ? `, ${firstName}` : ""}
+      </h1>
+      <p style={{ margin: "0 0 24px", fontSize: 14.5, color: tokens.textMuted }}>{t("Here's what to do next.", "دي خطوتك الجاية.")}</p>
+
+      <Panel tokens={tokens} padding={mobile ? 20 : 28} style={{ borderInlineStart: `4px solid ${tokens.primary}` }}>
+        <div style={{ fontSize: 12.5, fontWeight: 600, color: tokens.primary, marginBottom: 8 }}>{t("Your next step", "خطوتك الجاية")}</div>
+        <div style={{ fontSize: mobile ? 18 : 20, fontWeight: 650, color: tokens.textPrimary, marginBottom: 8, lineHeight: 1.4 }}>{L(step.title)}</div>
+        <p style={{ margin: "0 0 18px", fontSize: 14, color: tokens.textMuted, lineHeight: 1.65 }}>
+          {step.reasonText ?? L(step.reason)}
+          {step.concepts?.length ? <><br /><span style={{ color: tokens.textPrimary }}>{t("Focus on: ", "ركّز على: ")}{step.concepts.join(lang === "ar" ? "، " : ", ")}</span></> : null}
+        </p>
+        <PrimaryButton tokens={tokens} onClick={() => go(step.screen, step.courseId ? { studyCourseId: step.courseId } : {})}>{L(SCREEN_CTA[step.screen]) || t("Continue", "كمّل")}</PrimaryButton>
+        {reviewDue > 0 && (
+          <div style={{ marginTop: 16, fontSize: 13.5, color: tokens.textMuted }}>
+            {t(`You also have ${reviewDue} topics to review. `, `وعندك كمان ${reviewDue} مواضيع للمراجعة. `)}
+            <TextButton tokens={tokens} onClick={() => go(SCREENS.MASTERY)}>{t("Review now", "راجع دلوقتي")}</TextButton>
+          </div>
+        )}
+      </Panel>
+
+      {assignments.length > 0 && (
+        <>
+          <h2 style={sectionTitle}>{t("Open assignments", "واجبات مفتوحة")}</h2>
+          <Panel tokens={tokens} padding={0} style={{ overflow: "hidden" }}>
+            {assignments.slice(0, 4).map((a, i) => (
+              <button key={a.id} type="button" className="genai-row" onClick={() => go(SCREENS.ASSIGNMENTS)}
+                style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, width: "100%", textAlign: "inherit", padding: "14px 20px", background: "none", border: "none", borderTop: i ? `1px solid ${tokens.cardBorder}` : "none", cursor: "pointer", fontFamily: "inherit" }}>
+                <span style={{ minWidth: 0 }}>
+                  <span style={{ display: "block", fontSize: 14, fontWeight: 600, color: tokens.textPrimary }}>{L(a.title) || a.title}</span>
+                  <span style={{ fontSize: 12.5, color: tokens.textMuted }}>{L(a.course.title)}</span>
+                </span>
+                <span style={{ fontSize: 12.5, fontWeight: 600, color: tokens.primary, whiteSpace: "nowrap" }}>{t("Open", "افتح")}</span>
+              </button>
+            ))}
+          </Panel>
+        </>
+      )}
+
+      {courseRows.length > 0 && (
+        <>
+          <h2 style={sectionTitle}>{t("Your courses", "مقرراتك")}</h2>
+          <Panel tokens={tokens} padding={0} style={{ overflow: "hidden" }}>
+            {courseRows.map((row, i) => (
+              <button key={row.course.id} type="button" className="genai-row" onClick={() => go(SCREENS.STUDENT_COURSE, { courseId: row.course.id })}
+                style={{ display: "flex", alignItems: "center", gap: 16, width: "100%", textAlign: "inherit", padding: "14px 20px", background: "none", border: "none", borderTop: i ? `1px solid ${tokens.cardBorder}` : "none", cursor: "pointer", fontFamily: "inherit" }}>
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ display: "block", fontSize: 14, fontWeight: 600, color: tokens.textPrimary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{L(row.course.title)}</span>
+                  <span style={{ fontSize: 12.5, color: tokens.textMuted }}>
+                    {row.avg == null ? t("Level not checked yet", "لسه ماعملتش اختبار مستوى") : t(`${row.assessed} of ${row.total} topics checked`, `${row.assessed} من ${row.total} مواضيع اتقاست`)}
+                  </span>
+                </span>
+                {row.avg != null && (
+                  <span style={{ width: mobile ? 70 : 120, display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ flex: 1, height: 6, borderRadius: 99, background: tokens.inset, overflow: "hidden" }}><span style={{ display: "block", width: `${row.avg}%`, height: "100%", background: tokens.primary }} /></span>
+                    <span style={{ fontSize: 12.5, fontWeight: 600, color: tokens.textSecondary }}>{row.avg}%</span>
+                  </span>
+                )}
+              </button>
+            ))}
+          </Panel>
+        </>
+      )}
     </div>
   );
 }

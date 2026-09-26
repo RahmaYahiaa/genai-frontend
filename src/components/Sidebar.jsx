@@ -10,7 +10,15 @@ import BrandMark from "./BrandMark";
 const MONO = "'JetBrains Mono', monospace";
 const SIDEBAR_W = 220;
 
-export default function Sidebar({ state, dispatch, role, onNavigate }) {
+function PanelIcon({ color }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+      <rect x="3" y="4" width="18" height="16" rx="3" /><path d="M9 4v16" />
+    </svg>
+  );
+}
+
+export default function Sidebar({ state, dispatch, role, onNavigate, collapsed = false, onToggle = null }) {
   const mobile = useMediaQuery("(max-width: 760px)");
   const tokens = tk(state.dark);
   const lang = state.lang;
@@ -24,8 +32,16 @@ export default function Sidebar({ state, dispatch, role, onNavigate }) {
   const navBottom = navBottomForRole(role);
   const activeScreen = state.screen;
 
-  const navItem = (item) => {
-    const isActive = activeScreen === item.id;
+  const navItem = (item, index) => {
+    if (item.section) {
+      if (collapsed) return <div key={`section-${index}`} style={{ height: 1, background: tokens.sidebarBorder, margin: "10px 8px" }} />;
+      return (
+        <div key={`section-${index}`} style={{ padding: "16px 12px 6px", fontSize: 11, fontWeight: 600, color: tokens.textFaint, textAlign: isRtl ? "right" : "left" }}>
+          {lang === "ar" ? item.section.ar : item.section.en}
+        </div>
+      );
+    }
+    const isActive = activeScreen === item.id || (item.match ?? []).includes(activeScreen);
     const label = lang === "ar" ? item.ar : item.en;
     return (
       <button
@@ -35,12 +51,14 @@ export default function Sidebar({ state, dispatch, role, onNavigate }) {
           onNavigate?.();
         }}
         title={label}
+        aria-label={label}
         style={{
           display: "flex",
           alignItems: "center",
           gap: 11,
           width: "100%",
-          padding: "9px 12px",
+          padding: collapsed ? "9px 0" : "9px 12px",
+          justifyContent: collapsed ? "center" : "flex-start",
           borderRadius: 8,
           border: "none",
           cursor: "pointer",
@@ -55,10 +73,8 @@ export default function Sidebar({ state, dispatch, role, onNavigate }) {
         }}
       >
         <item.Icon size={17} color={isActive ? tokens.primary : tokens.textMuted} />
-        <span style={{ flex: 1 }}>{label}</span>
-        {isActive && (
-          <span style={{ width: 4, height: 4, borderRadius: "50%", background: tokens.primary }} />
-        )}
+        {!collapsed && <span style={{ flex: 1 }}>{label}</span>}
+
       </button>
     );
   };
@@ -66,7 +82,9 @@ export default function Sidebar({ state, dispatch, role, onNavigate }) {
   return (
     <aside
       style={{
-        width: mobile ? "min(78vw, 260px)" : SIDEBAR_W,
+        width: mobile ? "min(78vw, 260px)" : collapsed ? 64 : SIDEBAR_W,
+        transition: "width 180ms ease",
+        overflow: "hidden",
         flexShrink: 0,
         background: tokens.sidebar,
         borderRight: isRtl ? "none" : `1px solid ${tokens.sidebarBorder}`,
@@ -81,18 +99,29 @@ export default function Sidebar({ state, dispatch, role, onNavigate }) {
           display: "flex",
           alignItems: "center",
           gap: 9,
-          padding: "14px 16px 12px",
+          padding: collapsed ? "14px 0 12px" : "14px 12px 12px 16px",
           borderBottom: `1px solid ${tokens.sidebarBorder}`,
         }}
       >
-        <BrandMark size={26} />
-        <div>
-          <div style={{ fontFamily: hFont, fontWeight: 800, fontSize: 14, color: tokens.textPrimary, letterSpacing: "-0.03em" }}>GenAI</div>
-          <div style={{ fontFamily: MONO, fontSize: 7.5, color: tokens.textFaint, letterSpacing: "0.12em" }}>ACADEMIC INTELLIGENCE</div>
-        </div>
+        {!collapsed && <BrandMark size={26} />}
+        {!collapsed && (
+          <div style={{ flex: 1 }}>
+            <div style={{ fontFamily: hFont, fontWeight: 800, fontSize: 14, color: tokens.textPrimary, letterSpacing: "-0.03em" }}>GenAI</div>
+            {role !== "student" && <div style={{ fontFamily: MONO, fontSize: 7.5, color: tokens.textFaint, letterSpacing: "0.12em" }}>ACADEMIC INTELLIGENCE</div>}
+          </div>
+        )}
+        {onToggle && (
+          <button type="button" onClick={onToggle}
+            title={collapsed ? (lang === "ar" ? "افتح القائمة" : "Open sidebar") : (lang === "ar" ? "اقفل القائمة" : "Close sidebar")}
+            aria-label={collapsed ? (lang === "ar" ? "افتح القائمة" : "Open sidebar") : (lang === "ar" ? "اقفل القائمة" : "Close sidebar")}
+            aria-expanded={!collapsed}
+            style={{ width: 32, height: 32, borderRadius: 8, border: "none", background: "transparent", cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center", margin: collapsed ? "0 auto" : 0 }}>
+            <PanelIcon color={tokens.textMuted} />
+          </button>
+        )}
       </div>
 
-      <div style={{ padding: "10px 16px 4px" }}>
+      <div style={{ padding: "10px 16px 4px", display: role === "student" || collapsed ? "none" : "block" }}>
         <span
           style={{
             fontFamily: MONO,
@@ -107,7 +136,7 @@ export default function Sidebar({ state, dispatch, role, onNavigate }) {
       </div>
 
       <nav style={{ flex: 1, padding: "4px 8px", overflowY: "auto" }}>
-        {nav.map((item) => navItem(item))}
+        {nav.map((item, index) => navItem(item, index))}
       </nav>
 
       {navBottom.length > 0 && (
@@ -117,7 +146,8 @@ export default function Sidebar({ state, dispatch, role, onNavigate }) {
       <div
         style={{
           margin: "0 8px 10px",
-          padding: "10px 10px",
+          padding: collapsed ? "8px 0" : "10px 10px",
+          justifyContent: "center",
           borderRadius: 10,
           border: `1px solid ${tokens.sidebarBorder}`,
           background: tokens.card,
@@ -149,7 +179,7 @@ export default function Sidebar({ state, dispatch, role, onNavigate }) {
               ? "NM"
               : DEMO_USER.initials}
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ flex: 1, minWidth: 0, display: collapsed ? "none" : "block" }}>
           <div
             style={{
               fontSize: 11.5,

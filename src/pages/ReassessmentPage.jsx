@@ -1,9 +1,12 @@
 import { demoMode } from "@/services/auth";
+import useStudyCourse from "@/hooks/useStudyCourse";
 import { useCallback, useState } from "react";
 import { listCourses } from "@/services/courses";
 import { listReassessments, createReassessment, getReassessment, submitReassessmentAnswer, getLearningGain } from "@/services/learning";
 import { apiErrorText } from "@/services/http";
-import { CourseSelect, TopicSelect, QuestionFlow, LearnerSessionTabs } from "@/components/SessionSolver";
+import { QuestionFlow } from "@/components/SessionSolver";
+import { StudyPage, StartPanel, Panel, Field, Select, Segmented, PrimaryButton, SecondaryButton, TextButton, Notice, LoadingBlock, ErrorBlock, EmptyBlock, PastAttempts, ResultPanel, StatusText, STATUS, summarize } from "@/components/study/StudyKit";
+import { IconReassessment } from "@/components/Icons";
 import { AlertStrip, inputStyle } from "@/components/ModuleUI";
 import useAsync from "@/hooks/useAsync";
 import useMediaQuery from "@/hooks/useMediaQuery";
@@ -64,7 +67,7 @@ function DemoReassessmentPage({ state, dispatch }) {
 
   return (
     <div style={{ padding: mobile ? 16 : 28, maxWidth: 820, margin: "0 auto", fontFamily: bodyFont(lang) }}>
-      <AsyncGate tokens={tokens} lang={lang} loading={loading} error={error} reload={reload} label={t("Preparing reassessment…", "جاري تجهيز إعادة التقييم…")}>
+      <AsyncGate tokens={tokens} lang={lang} loading={loading} error={error} reload={reload} label={t("Preparing your progress check…", "جاري تجهيز إعادة التقييم…")}>
         {phase === "intro" && (
           <Card tokens={tokens} style={{ marginTop: 12 }}>
             <Chip tokens={tokens} tone="mastered">{t("Growth measurement", "قياس النمو")}</Chip>
@@ -73,17 +76,17 @@ function DemoReassessmentPage({ state, dispatch }) {
             </h1>
             <p style={{ margin: "0 0 18px", fontSize: 13, color: tokens.textMuted, lineHeight: 1.65 }}>
               {t(
-                "Same evidence standard as the diagnostic — but now we can prove improvement, topic by topic.",
+                "Works like the level check, and shows your improvement topic by topic.",
                 "نفس معيار الأدلة كالتشخيص — لكن دلوقتي نقدر نثبت التحسن، موضوعاً بموضوع.",
               )}
             </p>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 20 }}>
-              <Chip tokens={tokens} tone="mastered">{t("Diagnostic completed", "التشخيص مكتمل")}</Chip>
+              <Chip tokens={tokens} tone="mastered">{t("Level check completed", "التشخيص مكتمل")}</Chip>
               <Chip tokens={tokens} tone="primary">{t("Practice logged", "التدريب مسجل")}</Chip>
               <Chip tokens={tokens}>{t("4 questions", "4 أسئلة")}</Chip>
             </div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <Btn tokens={tokens} onClick={() => setPhase("run")}>{t("Start reassessment", "ابدأ إعادة التقييم")}</Btn>
+              <Btn tokens={tokens} onClick={() => setPhase("run")}>{t("Start progress check", "ابدأ إعادة التقييم")}</Btn>
             </div>
           </Card>
         )}
@@ -141,7 +144,7 @@ function DemoReassessmentPage({ state, dispatch }) {
             ))}
             <p style={{ margin: "16px 0 18px", fontSize: 12.5, color: tokens.textMuted, lineHeight: 1.6 }}>
               {t(
-                "Evidence trail updated: every correct answer now carries proof on your mastery map.",
+                "Your progress has been updated with these answers.",
                 "سجل الأدلة اتحدث: كل إجابة صحيحة بقت حاملة دليلاً على خريطة إتقانك.",
               )}
             </p>
@@ -165,7 +168,7 @@ function RealReassessmentPage({ state, dispatch }) {
   const lang = state.lang;
   const t = (en, ar) => (lang === "ar" ? ar : en);
   const isRtl = lang === "ar";
-  const [courseId, setCourseId] = useState("");
+  const [courseId, setCourseId] = useStudyCourse();
   const loadCourses = useCallback(() => listCourses(), []);
   const coursesAsync = useAsync(loadCourses);
   const courses = coursesAsync.data?.items ?? [];
@@ -235,132 +238,106 @@ function RealReassessmentPage({ state, dispatch }) {
     }
   }
 
+  const courseProps = { courses, value: effectiveCourseId ?? "", onChange: setCourseId };
+  const reset = () => { setSessionId(""); setTab("new"); listAsync.reload(); gainAsync.reload(); };
+  const summary = summarize(evaluations);
+  // Only the first load blocks the page; background reloads (after each answer)
+  // must not unmount the question flow, or the student never sees feedback.
+  const loading = (coursesAsync.loading && coursesAsync.data == null) || (listAsync.loading && listAsync.data == null) || (sessionAsync.loading && sessionAsync.data == null) || (gainAsync.loading && gainAsync.data == null);
+  const failed = coursesAsync.error ?? listAsync.error ?? sessionAsync.error ?? gainAsync.error;
+  const topicOptions = topics.map((topic) => ({ value: topic.id, label: topic.label?.[lang] ?? topic.label?.en ?? topic.id }));
+  const LEVELS = {
+    no_evidence: t("Not checked", "لسه ماتقاسش"), beginner: t("Beginner", "مبتدئ"), intermediate: t("Intermediate", "متوسط"),
+    advanced: t("Advanced", "متقدم"), mastered: t("Mastered", "متقن"),
+  };
+  const levelLabel = (v) => LEVELS[String(v ?? "no_evidence").replace("-", "_")] ?? String(v).replace(/_/g, " ");
+  const CHANGE = {
+    improved: { label: t("Improved", "اتحسّن"), tone: "success" },
+    declined: { label: t("Dropped", "قلّ"), tone: "danger" },
+    unchanged: { label: t("No change", "زي ما هو"), tone: "warning" },
+  };
+
   return (
-    <div className="genai-pad" style={{ padding: mobile ? "20px 16px" : "26px 32px", direction: isRtl ? "rtl" : "ltr", maxWidth: 820, margin: "0 auto" }}>
-      <LearningHeader
-        tokens={tokens}
-        lang={lang}
-        mobile={mobile}
-        journeyCurrent="reassessment"
-        dispatch={dispatch}
-        kicker={t("Step 4 · Prove the growth", "الخطوة 4 · أثبِت النمو")}
-        kickerTone="mastered"
-        title={t("Reassessment", "إعادة التقييم")}
-        subtitle={t(
-          "Answer again on a topic after learning and practicing — the before→after comparison below measures your real gain.",
-          "أجب مجددًا على أحد الموضوعات بعد التعلم والتدريب — المقارنة قبل←بعد أدناه تقيس مكسبك الحقيقي.",
-        )}
-      />
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14, alignItems: "flex-end", flexDirection: isRtl ? "row-reverse" : "row" }}>
-        <label style={{ fontSize: 11.5, fontWeight: 600, color: tokens.textMuted, display: "inline-flex", flexDirection: "column", gap: 4, flex: "1 1 220px", maxWidth: 340 }}>
-          {t("Course", "المقرر")}
-          <CourseSelect courses={courses} value={effectiveCourseId ?? ""} onChange={setCourseId} tokens={tokens} lang={lang} placeholder={t("Choose course…", "اختر مقررًا…")} />
-        </label>
-        <label style={{ fontSize: 11.5, fontWeight: 600, color: tokens.textMuted, display: "inline-flex", flexDirection: "column", gap: 4 }}>
-          {t("Questions", "عدد الأسئلة")}
-          <select value={count} onChange={(event) => setCount(Number(event.target.value))} style={{ ...inputStyle(tokens, bodyFont(lang)), minWidth: 80, cursor: "pointer" }} className="genai-input">
-            {[1, 2, 3, 4, 5].map((value) => <option key={value} value={value}>{value}</option>)}
-          </select>
-        </label>
-      </div>
-      {notice && <div style={{ marginBottom: 10 }}><AlertStrip tokens={tokens} lang={lang} tone="violet" icon={<span style={{ fontSize: 12 }}>!</span>} title={notice} /></div>}
-      <AsyncGate
-        tokens={tokens}
-        lang={lang}
-        loading={coursesAsync.loading || listAsync.loading || sessionAsync.loading || gainAsync.loading}
-        error={coursesAsync.error ?? listAsync.error ?? sessionAsync.error ?? gainAsync.error}
-        reload={() => { coursesAsync.reload(); listAsync.reload(); sessionAsync.reload(); gainAsync.reload(); }}
-        label={t("Loading reassessments…", "جاري تحميل إعادة التقييم…")}
-      >
-        {!sessionId && <LearnerSessionTabs tab={tab} onChange={setTab} tokens={tokens} lang={lang} />}
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {!sessionId && tab === "new" && (
-            <GuidedIntro
-              tokens={tokens}
-              lang={lang}
-              mobile={mobile}
-              badge={t("Growth measurement", "قياس النمو")}
-              badgeTone="mastered"
-              title={t("Same standard, new proof", "نفس المعيار، دليل جديد")}
-              description={t(
-                "Reassessment uses the same evidence standard as the diagnostic — but now every topic shows an honest before→after change, so your growth is measured, not assumed.",
-                "تستخدم إعادة التقييم معيار الأدلة نفسه الذي يعتمده التشخيص — لكن كل موضوع يعرض الآن تغيّرًا صادقًا قبل←بعد، فتُقاس نموّك قياسًا لا افتراضًا.",
-              )}
-              facts={[
-                { label: t("Baseline vs current mastery", "خط الأساس مقابل الإتقان الحالي"), tone: "mastered" },
-                { label: t("Computed from real evidence", "محسوب من أدلة فعلية"), tone: "primary" },
+    <StudyPage tokens={tokens} lang={lang} mobile={mobile} course={courseProps}
+      title={t("Measure progress", "قيس تقدّمك")}
+      subtitle={t("Answer a few questions on a topic you've studied and see how your level has changed since you started.", "جاوب على كام سؤال في موضوع ذاكرته، وشوف مستواك اتغيّر قد إيه من ساعة ما بدأت.")}
+      actions={sessionId && !complete ? <TextButton tokens={tokens} muted onClick={reset}>{t("Leave", "اخرج")}</TextButton> : null}
+    >
+      {notice && <Notice tokens={tokens} tone="danger" title={t("Something didn't work", "في حاجة ماشتغلتش")}>{t("Please try again in a moment.", "جرّب تاني كمان شوية.")}</Notice>}
+      {loading ? (
+        <LoadingBlock tokens={tokens} label={t("Loading…", "جاري التحميل…")} />
+      ) : failed ? (
+        <ErrorBlock tokens={tokens} lang={lang} onRetry={() => { coursesAsync.reload(); listAsync.reload(); sessionAsync.reload(); gainAsync.reload(); }} />
+      ) : courses.length === 0 ? (
+        <EmptyBlock tokens={tokens} Icon={IconReassessment} title={t("Join a course first", "اشترك في مقرر الأول")}
+          action={<PrimaryButton tokens={tokens} onClick={() => dispatch({ type: "NAVIGATE", screen: SCREENS.COURSES })}>{t("Go to my courses", "روح لمقرراتي")}</PrimaryButton>} />
+      ) : sessionId && session ? (
+        <QuestionFlow key={sessionId}
+          questions={session.questions ?? []}
+          evaluations={evaluations}
+          answeredIds={answeredIds}
+          busyId={busyQuestion}
+          onSubmit={(questionId, content) => void answer(questionId, content)}
+          tokens={tokens}
+          lang={lang}
+          mobile={mobile}
+          doneNote={complete ? (
+            <ResultPanel tokens={tokens} mobile={mobile}
+              title={t("Progress check complete", "خلّصت قياس التقدّم")}
+              body={t("See how your level changed for each topic.", "شوف مستواك اتغيّر إزاي في كل موضوع.")}
+              stats={[
+                { label: t("Correct", "صح"), value: summary.correct, color: STATUS.success.fg },
+                { label: t("Partly correct", "صح جزئياً"), value: summary.partial, color: STATUS.warning.fg },
+                { label: t("To work on", "محتاج تذاكره"), value: summary.incorrect, color: STATUS.danger.fg },
               ]}
-              primaryLabel={t("Start reassessment", "ابدأ إعادة التقييم")}
-              primaryBusy={busy}
-              primaryDisabled={!topicId}
-              onPrimary={() => void start()}
-              note={topicId ? undefined : t("Choose a topic above to unlock start.", "اختر موضوعًا بالأعلى ليتفعّل بدء إعادة التقييم.")}
-            >
-              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 16, flexDirection: isRtl ? "row-reverse" : "row" }}>
-                <TopicSelect topics={topics} value={topicId} onChange={setTopicId} tokens={tokens} lang={lang} placeholder={t("Choose the topic to measure…", "اختر الموضوع الذي تريد قياسه…")} />
-              </div>
-            </GuidedIntro>
-          )}
+              primary={<PrimaryButton tokens={tokens} onClick={reset}>{t("See my improvement", "شوف تحسّني")}</PrimaryButton>}
+              secondary={[<SecondaryButton key="m" tokens={tokens} onClick={() => dispatch({ type: "NAVIGATE", screen: SCREENS.MASTERY })}>{t("See my progress", "شوف تقدّمي")}</SecondaryButton>]} />
+          ) : null}
+        />
+      ) : (
+        <>
+          <StartPanel tokens={tokens} mobile={mobile} Icon={IconReassessment}
+            title={t("Check how far you've come", "شوف وصلت لفين")}
+            body={t("Works best after you've practised a topic. Your results are compared with your first level check.", "بيبقى أحسن بعد ما تتدرّب على الموضوع. نتيجتك بتتقارن بأول اختبار مستوى عملته.")}
+            primary={<PrimaryButton tokens={tokens} busy={busy} disabled={!topicId} onClick={() => void start()}>{busy ? t("Preparing your questions…", "بنجهّز أسئلتك…") : t("Start progress check", "ابدأ قياس التقدّم")}</PrimaryButton>}
+          >
+            <Field tokens={tokens} label={t("Topic", "الموضوع")}>
+              <Select tokens={tokens} value={topicId} onChange={setTopicId} options={topicOptions} placeholder={t("Choose a topic", "اختار موضوع")} ariaLabel={t("Topic", "الموضوع")} />
+            </Field>
+            <Field tokens={tokens} label={t("Number of questions", "عدد الأسئلة")}>
+              <Segmented tokens={tokens} value={count} onChange={setCount} ariaLabel={t("Number of questions", "عدد الأسئلة")} options={[1, 2, 3, 4, 5].map((v) => ({ value: v, label: String(v) }))} />
+            </Field>
+          </StartPanel>
 
-          {sessionId && session && (
-            <QuestionFlow
-              questions={session.questions ?? []}
-              evaluations={evaluations}
-              answeredIds={answeredIds}
-              busyId={busyQuestion}
-              onSubmit={(questionId, content) => void answer(questionId, content)}
-              tokens={tokens}
-              lang={lang}
-              mobile={mobile}
-              doneNote={complete ? (
-                <DonePanel
-                  tokens={tokens}
-                  lang={lang}
-                  isRtl={isRtl}
-                  title={t("Reassessment complete — the gain table below now reflects it.", "اكتملت إعادة التقييم — جدول مكسب التعلم أدناه يعكسها الآن.")}
-                  actions={[
-                    { label: t("See the comparison", "اعرض المقارنة"), primary: true, onClick: () => setSessionId("") },
-                    { label: t("See mastery", "اعرض الإتقان"), onClick: () => dispatch({ type: "NAVIGATE", screen: SCREENS.MASTERY }) },
-                  ]}
-                />
-              ) : null}
-            />
+          <h2 style={{ fontSize: 16, fontWeight: 650, color: tokens.textPrimary, margin: "32px 0 12px" }}>{t("Your improvement by topic", "تحسّنك في كل موضوع")}</h2>
+          {gains.length === 0 ? (
+            <Panel tokens={tokens} padding={22}><div style={{ fontSize: 14, color: tokens.textMuted }}>{t("Nothing to compare yet. Take a level check first, then practise and come back here.", "لسه مفيش حاجة نقارنها. اعمل اختبار مستوى الأول، واتدرّب، وارجع هنا.")}</div></Panel>
+          ) : (
+            <Panel tokens={tokens} padding={0} style={{ overflow: "hidden" }}>
+              {gains.map((row, i) => {
+                const change = CHANGE[row.change];
+                return (
+                  <div key={row.topicId} style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 20px", borderTop: i ? `1px solid ${tokens.cardBorder}` : "none", flexWrap: "wrap" }}>
+                    <div style={{ flex: "1 1 200px", minWidth: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: tokens.textPrimary }}>{typeof row.title === "string" ? row.title : topicTitle(row.topicId)}</div>
+                      <div style={{ fontSize: 13, color: tokens.textMuted, marginTop: 3 }}>
+                        {levelLabel(row.baselineMasteryLevel)} <span aria-hidden="true">{isRtl ? "←" : "→"}</span> <span style={{ color: tokens.textPrimary, fontWeight: 600 }}>{levelLabel(row.currentMasteryLevel)}</span>
+                      </div>
+                    </div>
+                    {change ? <StatusText tone={change.tone}>{change.label}</StatusText> : <span style={{ fontSize: 12.5, color: tokens.textMuted }}>{t("Not measured yet", "لسه ماتقاسش")}</span>}
+                  </div>
+                );
+              })}
+            </Panel>
           )}
-
-          {!sessionId && tab === "history" && (
-            <SessionHistoryList
-              rows={sessions}
-              tokens={tokens}
-              lang={lang}
-              isRtl={isRtl}
-              mobile={mobile}
-              emptyLabel={t("No reassessments yet.", "لا توجد إعادات تقييم بعد.")}
-              emptyHint={t("Reassess after practice — it unlocks the honest before→after comparison.", "أعِد التقييم بعد التدريب — يفتح ذلك المقارنة الصادقة قبل←بعد.")}
-              onOpen={(row) => { setSessionId(row.id); setTab("new"); }}
-              renderTitle={(row) => topicTitle(row.topicId)}
-              statusTone={(row) => sessionStatusTone(row.status)}
-              statusLabel={(row) => (row.status === "completed" ? t("Completed", "مكتمل") : t("In progress", "قيد التقدم"))}
-              renderMeta={(row) => <span>{row.answeredCount}/{row.questionCount} {t("answered", "مُجاب")}</span>}
-            />
-          )}
-
-          {!sessionId && tab === "history" ? null : (
-            <section aria-label={t("Learning gain", "مكسب التعلم")}>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 8, marginBottom: 10, flexDirection: isRtl ? "row-reverse" : "row" }}>
-                <h3 style={{ fontFamily: headingFont(lang), fontSize: 14, fontWeight: 700, color: tokens.textPrimary, margin: 0 }}>
-                  {t("Learning gain — before → after", "مكسب التعلم — قبل ← بعد")}
-                </h3>
-              </div>
-              {gains.length === 0 ? (
-                <p style={{ fontSize: 12, color: tokens.textFaint, margin: 0 }}>{t("No topics to report yet.", "لا توجد موضوعات للتقرير بعد.")}</p>
-              ) : (
-                <GainTable gains={gains} topicTitle={topicTitle} tokens={tokens} lang={lang} mobile={mobile} />
-              )}
-            </section>
-          )}
-        </div>
-      </AsyncGate>
-    </div>
+          <PastAttempts tokens={tokens} lang={lang} rows={sessions}
+            onOpen={(row) => setSessionId(row.id)}
+            renderTitle={(row) => topicTitle(row.topicId)}
+            renderMeta={(row) => `${row.answeredCount ?? 0}/${row.questionCount ?? 0} ${t("answered", "اتجاوبت")}`}
+            isDone={(row) => row.status === "completed"} />
+        </>
+      )}
+    </StudyPage>
   );
 }
 

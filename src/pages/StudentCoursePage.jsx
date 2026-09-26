@@ -7,6 +7,7 @@ import { AsyncGate } from "@/components/ui";
 import { Card, Btn, Chip, BackCircle, inputStyle, bFontFor, hFontFor, toast } from "@/components/ModuleUI";
 import { IconPlus, IconDoc, IconDownload, IconPencil, IconTrash, IconCheck, IconX, IconBookOpen } from "@/components/Icons";
 import MaterialUploader from "@/components/MaterialUploader";
+import StudyCoursePanel from "@/components/StudyCoursePanel";
 import { fmtBytes, fileKind } from "@/utils/fileMeta";
 import { SCREENS } from "@/constants/routes";
 import { demoMode } from "@/services/auth";
@@ -198,6 +199,17 @@ function RealCourseView({ state, dispatch, tokens, lang, isRtl, hFont, bFont, mo
                 </p>
               </div>
             </div>
+
+            {state.role !== "instructor" && (
+              <StudyCoursePanel
+                courseId={course.id}
+                readyMaterials={materials.filter((m) => m.status === "ready").length}
+                dispatch={dispatch}
+                tokens={tokens}
+                lang={lang}
+                mobile={mobile}
+              />
+            )}
 
             {canManage && (
               <Card tokens={tokens} style={{ padding: "14px 16px", margin: "16px 0", display: "flex", gap: 10, alignItems: "center", flexDirection: isRtl ? "row-reverse" : "row" }}>
