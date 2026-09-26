@@ -2,10 +2,11 @@ import { demoMode } from "@/services/auth";
 import useStudyCourse from "@/hooks/useStudyCourse";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { listCourses, listMaterials } from "@/services/courses";
-import { listTutorSessions, createTutorSession, getTutorSession, sendTutorMessage as sendLiveTutorMessage, getAiHealth, TUTOR_MODE_LABELS } from "@/services/learning";
+import { listTutorSessions, renameTutorSession, deleteTutorSession, createTutorSession, getTutorSession, sendTutorMessage as sendLiveTutorMessage, getAiHealth, TUTOR_MODE_LABELS } from "@/services/learning";
 import { apiErrorText } from "@/services/http";
 import { CoursePicker, Panel, IconTile, PrimaryButton, SecondaryButton, TextButton, Notice, LoadingBlock, ErrorBlock, EmptyBlock, Spinner as KitSpinner } from "@/components/study/StudyKit";
-import { IconTutor } from "@/components/Icons";
+import { IconTutor, IconHistory, IconPencil, IconTrash, IconCheck, IconX, IconArrowUpRight } from "@/components/Icons";
+import IconAction from "@/components/IconAction";
 import { SCREENS } from "@/constants/routes";
 import { AlertStrip, inputStyle } from "@/components/ModuleUI";
 import useAsync from "@/hooks/useAsync";
@@ -303,7 +304,11 @@ function RealTutorPage({ state, dispatch }) {
             <CoursePicker tokens={tokens} lang={lang} courses={courses} value={effectiveCourseId ?? ""} onChange={setCourseId} />
           </div>
           <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
-            {historyRows.length > 0 && <TextButton tokens={tokens} muted onClick={() => setShowHistory((v) => !v)}>{showHistory ? t("Close history", "اقفل السجل") : t("Past chats", "المحادثات السابقة")}</TextButton>}
+            {historyRows.length > 0 && (
+              <IconAction tokens={tokens} active={showHistory} label={showHistory ? t("Close chat history", "اقفل سجل المحادثات") : t("Chat history", "سجل المحادثات")} onClick={() => setShowHistory((v) => !v)}>
+                <IconHistory size={18} />
+              </IconAction>
+            )}
             {sessionId && <SecondaryButton tokens={tokens} style={{ height: 36, padding: "0 14px", fontSize: 13 }} onClick={() => { setSessionId(""); setNotice(null); }}>{t("New chat", "محادثة جديدة")}</SecondaryButton>}
           </div>
         </div>
@@ -313,15 +318,21 @@ function RealTutorPage({ state, dispatch }) {
       <div style={column}>
         {notice && <Notice tokens={tokens} tone="warning">{notice}</Notice>}
         {showHistory && (
-          <Panel tokens={tokens} padding={0} style={{ marginBottom: 16, overflow: "hidden" }}>
-            {historyRows.map((row, i) => (
-              <button key={row.id} type="button" className="genai-row" onClick={() => { setSessionId(row.id); setShowHistory(false); }}
-                style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, width: "100%", textAlign: "inherit", padding: "12px 18px", background: "none", border: "none", borderTop: i ? `1px solid ${tokens.cardBorder}` : "none", cursor: "pointer", fontFamily: "inherit" }}>
-                <span style={{ fontSize: 14, fontWeight: 600, color: tokens.textPrimary }}>{topicName(row.topicId) || t("Chat", "محادثة")}</span>
-                <span style={{ fontSize: 12.5, color: tokens.textMuted }}>{row.messageCount} {t("messages", "رسالة")}</span>
-              </button>
-            ))}
-          </Panel>
+          <ChatHistory
+            tokens={tokens}
+            t={t}
+            lang={lang}
+            rows={historyRows}
+            activeId={sessionId}
+            topicName={topicName}
+            onOpen={(id) => { setSessionId(id); setShowHistory(false); }}
+            onRename={async (id, title) => { await renameTutorSession(effectiveCourseId, id, title); listAsync.reload(); }}
+            onDelete={async (id) => {
+              await deleteTutorSession(effectiveCourseId, id);
+              if (id === sessionId) setSessionId("");
+              listAsync.reload();
+            }}
+          />
         )}
       </div>
 
@@ -442,6 +453,78 @@ function RealTutorPage({ state, dispatch }) {
         </>
       )}
     </div>
+  );
+}
+
+function chatTitle(row, topicName, t) {
+  if (row.title) return row.title;
+  const first = (row.messages ?? []).find((m) => m.role === "student")?.content;
+  if (first) return first.length > 70 ? `${first.slice(0, 70)}…` : first;
+  return topicName(row.topicId) || t("Chat", "محادثة");
+}
+
+function ChatHistory({ tokens, t, lang, rows, activeId, topicName, onOpen, onRename, onDelete }) {
+  const [editing, setEditing] = useState(null);
+  const [draft, setDraft] = useState("");
+  const [confirming, setConfirming] = useState(null);
+  const [busy, setBusy] = useState(null);
+  const [error, setError] = useState(null);
+  const run = async (id, fn) => {
+    setBusy(id);
+    setError(null);
+    try { await fn(); } catch (err) { setError(apiErrorText(err, lang)); } finally { setBusy(null); }
+  };
+  const fmt = (d) => (d ? new Date(d).toLocaleDateString(lang === "ar" ? "ar-EG" : "en-GB", { day: "numeric", month: "short" }) : "");
+  return (
+    <Panel tokens={tokens} padding={0} style={{ marginBottom: 16, overflow: "hidden" }}>
+      <div style={{ padding: "12px 18px", fontSize: 13, fontWeight: 650, color: tokens.textSecondary, borderBottom: `1px solid ${tokens.cardBorder}` }}>
+        {t("Chat history", "سجل المحادثات")}
+      </div>
+      {error && <div style={{ padding: "8px 18px" }}><Notice tokens={tokens} tone="warning">{error}</Notice></div>}
+      <div style={{ maxHeight: 340, overflowY: "auto" }}>
+        {rows.map((row, i) => {
+          const count = row.messageCount ?? row.messages?.length ?? 0;
+          const isEditing = editing === row.id;
+          const isConfirming = confirming === row.id;
+          const title = chatTitle(row, topicName, t);
+          return (
+            <div key={row.id} className="genai-row" style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px 10px 18px", borderTop: i ? `1px solid ${tokens.cardBorder}` : "none", background: row.id === activeId ? tokens.primaryLight : undefined }}>
+              {isEditing ? (
+                <form style={{ flex: 1, display: "flex", gap: 8, alignItems: "center" }} onSubmit={(e) => { e.preventDefault(); run(row.id, async () => { await onRename(row.id, draft.trim() || null); setEditing(null); }); }}>
+                  <input autoFocus value={draft} maxLength={120} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Escape") setEditing(null); }}
+                    aria-label={t("Chat name", "اسم المحادثة")}
+                    style={{ flex: 1, height: 34, padding: "0 10px", borderRadius: 8, border: `1px solid ${tokens.primary}66`, background: tokens.card, color: tokens.textPrimary, fontSize: 14, fontFamily: "inherit", outline: "none" }} />
+                  <IconAction tokens={tokens} label={t("Save name", "احفظ الاسم")} disabled={busy === row.id} onClick={(e) => e.currentTarget.form.requestSubmit()}><IconCheck size={16} /></IconAction>
+                  <IconAction tokens={tokens} label={t("Cancel", "إلغاء")} onClick={() => setEditing(null)}><IconX size={16} /></IconAction>
+                </form>
+              ) : (
+                <>
+                  <button type="button" onClick={() => onOpen(row.id)} style={{ flex: 1, minWidth: 0, textAlign: "start", background: "none", border: "none", padding: 0, cursor: "pointer", fontFamily: "inherit" }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: tokens.textPrimary, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{title}</div>
+                    <div style={{ fontSize: 12, color: tokens.textMuted, marginTop: 2 }}>
+                      {[topicName(row.topicId), fmt(row.updatedAt ?? row.createdAt), `${count} ${t("messages", "رسالة")}`].filter(Boolean).join(" · ")}
+                    </div>
+                  </button>
+                  {isConfirming ? (
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontSize: 12.5, color: tokens.textSecondary }}>{t("Delete this chat?", "تمسح المحادثة دي؟")}</span>
+                      <IconAction tokens={tokens} danger label={t("Delete", "امسح")} disabled={busy === row.id} onClick={() => run(row.id, async () => { await onDelete(row.id); setConfirming(null); })}><IconCheck size={16} /></IconAction>
+                      <IconAction tokens={tokens} label={t("Cancel", "إلغاء")} onClick={() => setConfirming(null)}><IconX size={16} /></IconAction>
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <IconAction tokens={tokens} label={t("Open chat", "افتح المحادثة")} onClick={() => onOpen(row.id)}><IconArrowUpRight size={16} /></IconAction>
+                      <IconAction tokens={tokens} label={t("Rename", "غيّر الاسم")} onClick={() => { setConfirming(null); setEditing(row.id); setDraft(row.title ?? title); }}><IconPencil size={16} /></IconAction>
+                      <IconAction tokens={tokens} danger label={t("Delete chat", "امسح المحادثة")} onClick={() => { setEditing(null); setConfirming(row.id); }}><IconTrash size={16} /></IconAction>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </Panel>
   );
 }
 

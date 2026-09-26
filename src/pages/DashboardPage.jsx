@@ -287,6 +287,8 @@ function HomeInner({ data, tokens, lang, t, dispatch, mobile, firstName, institu
         )}
       </Panel>
 
+      <LearningSnapshot learning={learning} courseRows={courseRows} tokens={tokens} lang={lang} t={t} mobile={mobile} go={go} sectionTitle={sectionTitle} />
+
       {assignments.length > 0 && (
         <>
           <h2 style={sectionTitle}>{t("Open assignments", "واجبات مفتوحة")}</h2>
@@ -330,6 +332,147 @@ function HomeInner({ data, tokens, lang, t, dispatch, mobile, firstName, institu
         </>
       )}
     </div>
+  );
+}
+
+// Level bands shared by the chart, the ring and the strength lists.
+const band = (pct) =>
+  pct >= 70
+    ? { color: "#15803d", soft: "rgba(21,128,61,0.10)", en: "Strong", ar: "قوي" }
+    : pct >= 50
+      ? { color: "#d97706", soft: "rgba(217,119,6,0.12)", en: "Getting there", ar: "في الطريق" }
+      : { color: "#dc2626", soft: "rgba(220,38,38,0.09)", en: "Needs work", ar: "محتاج شغل" };
+
+function Ring({ pct, tokens, label, size = 116 }) {
+  const stroke = 10;
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const b = band(pct, tokens);
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label={`${pct}%`}>
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={tokens.inset} strokeWidth={stroke} />
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={b.color} strokeWidth={stroke} strokeLinecap="round"
+        strokeDasharray={`${(pct / 100) * c} ${c}`} transform={`rotate(-90 ${size / 2} ${size / 2})`} style={{ transition: "stroke-dasharray 0.6s ease" }} />
+      <text x="50%" y="48%" textAnchor="middle" dominantBaseline="middle" style={{ fontSize: 24, fontWeight: 700, fill: tokens.textPrimary }}>{pct}%</text>
+      <text x="50%" y="66%" textAnchor="middle" dominantBaseline="middle" style={{ fontSize: 10.5, fill: tokens.textMuted }}>{label}</text>
+    </svg>
+  );
+}
+
+// Strengths, focus areas and a per-topic level chart, from the learning
+// profile (AI engine, or the platform's own evidence when it is unavailable).
+function LearningSnapshot({ learning, courseRows, tokens, lang, t, mobile, go, sectionTitle }) {
+  const mastery = learning?.profile?.concept_mastery ?? {};
+  const topics = Object.entries(mastery)
+    .map(([title, value]) => ({ title, pct: pctOf(value) }))
+    .sort((a, b) => b.pct - a.pct);
+  if (courseRows.length === 0) return null;
+
+  if (topics.length === 0) {
+    return (
+      <>
+        <h2 style={sectionTitle}>{t("Your strengths and weak spots", "نقاط قوتك وضعفك")}</h2>
+        <Panel tokens={tokens} padding={mobile ? 20 : 24}>
+          <div style={{ display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", alignItems: "flex-end", gap: 6, height: 54 }} aria-hidden="true">
+              {[30, 52, 40, 64].map((h, i) => <span key={i} style={{ width: 12, height: h * 0.8, borderRadius: 4, background: tokens.inset }} />)}
+            </div>
+            <div style={{ flex: "1 1 240px" }}>
+              <div style={{ fontSize: 14.5, fontWeight: 650, color: tokens.textPrimary }}>{t("Nothing to show yet", "لسه مفيش بيانات")}</div>
+              <div style={{ fontSize: 13, color: tokens.textMuted, marginTop: 4, lineHeight: 1.6 }}>
+                {t("Take a short level check and we'll show which topics you're strong in and which need work.", "اعمل اختبار مستوى قصير وهنوريك انت قوي في إيه ومحتاج تشتغل على إيه.")}
+              </div>
+            </div>
+            <PrimaryButton tokens={tokens} onClick={() => go(SCREENS.DIAGNOSTIC)}>{t("Check my level", "اعرف مستواك")}</PrimaryButton>
+          </div>
+        </Panel>
+      </>
+    );
+  }
+
+  const overall = Math.round(topics.reduce((sum, row) => sum + row.pct, 0) / topics.length);
+  const strong = learning?.profile?.strengths?.length ? learning.profile.strengths : topics.filter((row) => row.pct >= 70).map((row) => row.title);
+  const weak = learning?.profile?.weak_concepts?.length
+    ? learning.profile.weak_concepts
+    : [...topics].reverse().filter((row) => row.pct < 50).map((row) => row.title);
+  const checks = courseRows.reduce((sum, row) => sum + (row.evidence ?? 0), 0);
+  const stat = (value, label) => (
+    <div style={{ flex: "1 1 0", minWidth: 80 }}>
+      <div style={{ fontSize: 22, fontWeight: 700, color: tokens.textPrimary, lineHeight: 1.1 }}>{value}</div>
+      <div style={{ fontSize: 12, color: tokens.textMuted, marginTop: 4 }}>{label}</div>
+    </div>
+  );
+  const list = (items, tone, empty) => (
+    items.length === 0 ? (
+      <div style={{ fontSize: 13, color: tokens.textFaint }}>{empty}</div>
+    ) : (
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+        {items.slice(0, 5).map((name) => (
+          <span key={name} style={{ padding: "5px 11px", borderRadius: 999, fontSize: 12.5, fontWeight: 600, color: tone.color, background: tone.soft }}>{name}</span>
+        ))}
+      </div>
+    )
+  );
+  const shown = topics.slice(0, 8);
+
+  return (
+    <>
+      <h2 style={sectionTitle}>{t("Your strengths and weak spots", "نقاط قوتك وضعفك")}</h2>
+      <Panel tokens={tokens} padding={mobile ? 18 : 24}>
+        <div style={{ display: "flex", gap: mobile ? 16 : 28, alignItems: "center", flexWrap: "wrap" }}>
+          <Ring pct={overall} tokens={tokens} label={t("overall", "إجمالي")} />
+          <div style={{ flex: "1 1 260px", display: "flex", gap: 12 }}>
+            {stat(topics.length, t("Topics tracked", "مواضيع متقاسة"))}
+            {stat(strong.length, t("Strong", "قوي فيها"))}
+            {stat(weak.length, t("To work on", "محتاج تشتغل عليها"))}
+            {stat(checks, t("Answers checked", "إجابات اتقيّمت"))}
+          </div>
+        </div>
+
+        <div style={{ marginTop: 24 }}>
+          <div style={{ fontSize: 13, fontWeight: 650, color: tokens.textSecondary, marginBottom: 12 }}>{t("Level by topic", "مستواك في كل موضوع")}</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
+            {shown.map((row) => {
+              const b = band(row.pct, tokens);
+              return (
+                <div key={row.title} style={{ display: "grid", gridTemplateColumns: mobile ? "1fr 44px" : "180px 1fr 44px", alignItems: "center", gap: mobile ? 6 : 14 }}>
+                  <span style={{ fontSize: 13, color: tokens.textPrimary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", gridColumn: mobile ? "1 / -1" : "auto" }} title={row.title}>{row.title}</span>
+                  <span style={{ height: 10, borderRadius: 99, background: tokens.inset, overflow: "hidden", position: "relative" }}>
+                    <span style={{ position: "absolute", insetInlineStart: 0, top: 0, bottom: 0, width: `${Math.max(row.pct, 2)}%`, borderRadius: 99, background: b.color, transition: "width 0.6s ease" }} />
+                  </span>
+                  <span style={{ fontSize: 12.5, fontWeight: 650, color: b.color, textAlign: "end" }}>{row.pct}%</span>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{ display: "flex", gap: 16, marginTop: 14, flexWrap: "wrap" }}>
+            {[80, 60, 30].map((p) => {
+              const b = band(p, tokens);
+              return (
+                <span key={p} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11.5, color: tokens.textMuted }}>
+                  <span style={{ width: 8, height: 8, borderRadius: 99, background: b.color }} />
+                  {b[lang] ?? b.en}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "1fr 1fr", gap: 20, marginTop: 24, paddingTop: 20, borderTop: `1px solid ${tokens.cardBorder}` }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 650, color: tokens.textSecondary, marginBottom: 10 }}>{t("You're strong in", "انت قوي في")}</div>
+            {list(strong, band(80, tokens), t("Keep practicing — strong topics will show here.", "كمّل تدريب — المواضيع اللي هتقوى فيها هتظهر هنا."))}
+          </div>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 650, color: tokens.textSecondary, marginBottom: 10 }}>{t("Focus next on", "ركّز بعد كده على")}</div>
+            {list(weak, band(20, tokens), t("No weak topics right now.", "مفيش مواضيع ضعيفة دلوقتي."))}
+          </div>
+        </div>
+        <div style={{ marginTop: 18 }}>
+          <TextButton tokens={tokens} onClick={() => go(SCREENS.MASTERY)}>{t("See full progress", "شوف تقدمك بالتفصيل")}</TextButton>
+        </div>
+      </Panel>
+    </>
   );
 }
 

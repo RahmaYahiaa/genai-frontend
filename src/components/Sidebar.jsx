@@ -103,11 +103,11 @@ export default function Sidebar({ state, dispatch, role, onNavigate, collapsed =
           borderBottom: `1px solid ${tokens.sidebarBorder}`,
         }}
       >
-        {!collapsed && <BrandMark size={26} />}
+        {!collapsed && <BrandMark size={28} />}
         {!collapsed && (
           <div style={{ flex: 1 }}>
-            <div style={{ fontFamily: hFont, fontWeight: 800, fontSize: 14, color: tokens.textPrimary, letterSpacing: "-0.03em" }}>GenAI</div>
-            {role !== "student" && <div style={{ fontFamily: MONO, fontSize: 7.5, color: tokens.textFaint, letterSpacing: "0.12em" }}>ACADEMIC INTELLIGENCE</div>}
+            <div style={{ fontFamily: hFont, fontWeight: 700, fontSize: 18, lineHeight: 1, color: tokens.textPrimary, letterSpacing: "-0.01em" }}>Lerna</div>
+            {role !== "student" && <div style={{ fontFamily: MONO, fontSize: 7.5, color: tokens.textFaint, letterSpacing: "0.12em" }}>LEARN SMARTER</div>}
           </div>
         )}
         {onToggle && (

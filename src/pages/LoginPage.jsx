@@ -178,7 +178,7 @@ export default function LoginPage({ state, dispatch }) {
       </button>
 
       <p style={{ textAlign: "center", fontSize: 12, color: tokens.textMuted, margin: "18px 0 0", fontFamily: bFont }}>
-        {lang === "ar" ? "جديد على GenAI؟" : "New to GenAI?"}{" "}
+        {lang === "ar" ? "جديد على Lerna؟" : "New to Lerna?"}{" "}
         <button
           onClick={() => dispatch({ type: "NAVIGATE", screen: SCREENS.REGISTER })}
           style={{ color: tokens.primary, background: "none", border: "none", cursor: "pointer", fontWeight: 600, fontSize: 12, fontFamily: bFont, padding: 0 }}
@@ -189,7 +189,7 @@ export default function LoginPage({ state, dispatch }) {
 
       <p style={{ textAlign: "center", fontSize: 10.5, color: tokens.textFaint, marginTop: 18, lineHeight: 1.6, fontFamily: bFont }}>
         {lang === "ar" ? "متوافق مع FERPA · حوكمة بيانات مؤسسية" : "FERPA-compliant · Institutional data governance"}
-        <br />© 2026 GenAI Academic Intelligence
+        <br />© 2026 Lerna
       </p>
     </>
   );
@@ -210,8 +210,8 @@ export default function LoginPage({ state, dispatch }) {
       }
       subtitle={
         lang === "ar"
-          ? "تتتبع GenAI ما تعرفه بالضبط عبر أدلة التشخيص — ثم تخصص ما تدرسه بعدها وتثبت التحسن عبر إعادة تقييم صارمة."
-          : "GenAI tracks exactly what you know through diagnostic evidence — then personalises what you study next and proves improvement through rigorous reassessment."
+          ? "تتتبع Lerna ما تعرفه بالضبط عبر أدلة التشخيص — ثم تخصص ما تدرسه بعدها وتثبت التحسن عبر إعادة تقييم صارمة."
+          : "Lerna tracks exactly what you know through diagnostic evidence — then personalises what you study next and proves improvement through rigorous reassessment."
       }
       hero={
         <div className="rise-in" style={{ animationDelay: "360ms" }}>

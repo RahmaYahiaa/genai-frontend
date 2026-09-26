@@ -1,3 +1,4 @@
+import BrandMark from "./BrandMark";
 import { tk, headingFont, bodyFont } from "@/constants/tokens";
 import useMediaQuery from "@/hooks/useMediaQuery";
 import { IconSun, IconMoon, IconGlobe } from "./Icons";
@@ -52,15 +53,10 @@ export default function AuthLayout({ dark, lang, title, subtitle, hero, form, di
 
   const brand = (
     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-      <div style={{ background: "rgba(255,255,255,0.12)", borderRadius: 12, padding: 8, border: "1px solid rgba(255,255,255,0.18)" }}>
-        <svg width="20" height="20" viewBox="0 0 28 28" fill="none">
-          <path d="M14 3L23 8.5V19.5L14 25L5 19.5V8.5L14 3Z" stroke="white" strokeWidth="2" fill="none" strokeLinejoin="round" />
-          <circle cx="14" cy="14" r="3.5" fill="white" fillOpacity="0.9" />
-        </svg>
-      </div>
+      <BrandMark size={38} onDark />
       <div>
-        <div style={{ fontFamily: hFont, fontWeight: 800, fontSize: 18, color: "white", letterSpacing: "-0.03em" }}>GenAI</div>
-        <div style={{ fontFamily: MONO, fontSize: 9, color: "rgba(255,255,255,0.45)", letterSpacing: "0.08em" }}>ACADEMIC INTELLIGENCE</div>
+        <div style={{ fontFamily: hFont, fontWeight: 700, fontSize: 22, lineHeight: 1.1, color: "white", letterSpacing: "-0.01em" }}>Lerna</div>
+        <div style={{ fontFamily: MONO, fontSize: 9, color: "rgba(255,255,255,0.45)", letterSpacing: "0.08em" }}>LEARN SMARTER</div>
       </div>
     </div>
   );

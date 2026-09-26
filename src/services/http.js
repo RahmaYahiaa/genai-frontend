@@ -37,8 +37,8 @@ export function apiErrorText(err, lang) {
   }
   if (err?.code === "NOT_BACKEND") {
     return ar
-      ? "اللي رد على العنوان ده مش باك إند GenAI — تأكد إن genai-backend شغال على البورت 3000 ومفيش تطبيق تاني واخد البورت، واعمل restart للفرونت بعد أي تعديل في .env."
-      : "The server answering on this address is not the GenAI backend — make sure genai-backend is running on port 3000 (and no other app took the port), then restart the frontend after any .env change.";
+      ? "اللي رد على العنوان ده مش باك إند Lerna — تأكد إن genai-backend شغال على البورت 3000 ومفيش تطبيق تاني واخد البورت، واعمل restart للفرونت بعد أي تعديل في .env."
+      : "The server answering on this address is not the Lerna backend — make sure genai-backend is running on port 3000 (and no other app took the port), then restart the frontend after any .env change.";
   }
   if (err?.code === "API_NOT_CONFIGURED") {
     return ar ? "اضبط VITE_API_URL في ملف .env بتاع الفرونت." : "Set VITE_API_URL in the frontend .env file.";

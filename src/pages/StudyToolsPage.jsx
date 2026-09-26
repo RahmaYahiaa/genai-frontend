@@ -19,6 +19,8 @@ import { Card, Chip, Btn, AsyncGate } from "@/components/ui";
 import { tk, headingFont, bodyFont } from "@/constants/tokens";
 import useAsync from "@/hooks/useAsync";
 import useMediaQuery from "@/hooks/useMediaQuery";
+import { IconDownload, IconEye, IconEyeOff, IconTrash } from "@/components/Icons";
+import IconAction from "@/components/IconAction";
 
 // Study Tools (EDUNation parity): turn any topic into grounded study
 // resources — text kinds render inline, diagram previews as SVG, the deck
@@ -338,6 +340,8 @@ function formatDate(value, lang) {
   }
 }
 
+// Square icon button with a tooltip and an accessible label.
+
 // One saved resource: name, date, and open / download / delete actions.
 function ResourceItem({ resource, tokens, lang, t, mobile, defaultOpen, onDeleted }) {
   const isRtl = lang === "ar";
@@ -385,26 +389,29 @@ function ResourceItem({ resource, tokens, lang, t, mobile, defaultOpen, onDelete
             {resource.knowledgeSource === "uploaded_material" ? ` · ${t("From your course files", "من ملفات المقرر")}` : ""}
           </div>
         </button>
-        <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-          <Btn tokens={tokens} lang={lang} variant="ghost" style={small} onClick={() => setOpen((o) => !o)}>
-            {open ? t("Hide", "إخفاء") : t("Open", "فتح")}
-          </Btn>
-          <Btn tokens={tokens} lang={lang} variant="soft" style={small} disabled={busy !== null} onClick={download}>
-            {busy === "download" ? t("Downloading…", "جارٍ التنزيل…") : t("Download", "تنزيل")}
-          </Btn>
+        <div style={{ display: "flex", gap: 6, flexShrink: 0, alignItems: "center" }}>
           {confirming ? (
             <>
-              <Btn tokens={tokens} lang={lang} variant="ghost" style={{ ...small, color: tokens.danger ?? "#b42318" }} disabled={busy !== null} onClick={remove}>
-                {busy === "delete" ? t("Deleting…", "جارٍ الحذف…") : t("Confirm delete", "تأكيد الحذف")}
+              <span style={{ fontSize: 12, color: tokens.textMuted }}>{t("Delete this?", "تحذفه؟")}</span>
+              <Btn tokens={tokens} lang={lang} variant="ghost" style={{ ...small, color: "#dc2626" }} disabled={busy !== null} onClick={remove}>
+                {busy === "delete" ? t("Deleting…", "جارٍ الحذف…") : t("Delete", "حذف")}
               </Btn>
               <Btn tokens={tokens} lang={lang} variant="ghost" style={small} disabled={busy !== null} onClick={() => setConfirming(false)}>
                 {t("Cancel", "إلغاء")}
               </Btn>
             </>
           ) : (
-            <Btn tokens={tokens} lang={lang} variant="ghost" style={small} onClick={() => setConfirming(true)}>
-              {t("Delete", "حذف")}
-            </Btn>
+            <>
+              <IconAction tokens={tokens} label={open ? t("Hide", "إخفاء") : t("Open", "فتح")} active={open} onClick={() => setOpen((o) => !o)}>
+                {open ? <IconEyeOff size={16} /> : <IconEye size={16} />}
+              </IconAction>
+              <IconAction tokens={tokens} label={t("Download", "تنزيل")} disabled={busy !== null} onClick={download}>
+                <IconDownload size={16} />
+              </IconAction>
+              <IconAction tokens={tokens} label={t("Delete", "حذف")} danger onClick={() => setConfirming(true)}>
+                <IconTrash size={16} />
+              </IconAction>
+            </>
           )}
         </div>
       </div>

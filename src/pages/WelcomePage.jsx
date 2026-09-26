@@ -47,11 +47,11 @@ export default function WelcomePage() {
       <div className="splash-logo" style={{ marginBottom: 18 }}>
         <BrandMark size={64} />
       </div>
-      <div className="splash-word" style={{ fontFamily: hFont, fontWeight: 800, fontSize: 26, color: "#fff", letterSpacing: "-0.03em" }}>
-        GenAI
+      <div className="splash-word" style={{ fontFamily: hFont, fontWeight: 700, fontSize: 34, color: "#fff", letterSpacing: "-0.01em" }}>
+        Lerna
       </div>
       <div className="splash-sub" style={{ fontFamily: bFont, fontSize: 10, color: "rgba(255,255,255,0.5)", letterSpacing: "0.18em", marginTop: 6 }}>
-        {lang === "ar" ? "الذكاء الأكاديمي" : "ACADEMIC INTELLIGENCE"}
+        {lang === "ar" ? "اتعلّم بذكاء" : "LEARN SMARTER"}
       </div>
 
       <div style={{ width: 168, height: 3, borderRadius: 2, background: "rgba(255,255,255,0.18)", marginTop: 36, overflow: "hidden" }}>

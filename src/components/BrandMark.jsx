@@ -1,19 +1,19 @@
-export default function BrandMark({ size = 22 }) {
+// Original mark (hexagon + core). `onDark` renders the translucent variant
+// used on the blue auth/splash backgrounds.
+export default function BrandMark({ size = 22, onDark = false }) {
+  if (onDark) {
+    return (
+      <svg width={size} height={size} viewBox="0 0 28 28" fill="none" aria-hidden="true">
+        <rect width="28" height="28" rx="7" fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.18)" />
+        <path d="M14 5L21 9.5V18.5L14 23L7 18.5V9.5L14 5Z" stroke="#fff" strokeWidth="1.8" strokeLinejoin="round" />
+        <circle cx="14" cy="14" r="3" fill="#fff" fillOpacity="0.9" />
+      </svg>
+    );
+  }
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 28 28"
-      fill="none"
-      aria-hidden="true"
-    >
+    <svg width={size} height={size} viewBox="0 0 28 28" fill="none" aria-hidden="true">
       <rect width="28" height="28" rx="7" fill="#1B4DA8" />
-      <path
-        d="M14 5L21 9.5V18.5L14 23L7 18.5V9.5L14 5Z"
-        stroke="#fff"
-        strokeWidth="1.8"
-        strokeLinejoin="round"
-      />
+      <path d="M14 5L21 9.5V18.5L14 23L7 18.5V9.5L14 5Z" stroke="#fff" strokeWidth="1.8" strokeLinejoin="round" />
       <circle cx="14" cy="14" r="3" fill="#fff" fillOpacity="0.9" />
     </svg>
   );

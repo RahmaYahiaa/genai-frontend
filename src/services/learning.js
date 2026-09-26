@@ -71,6 +71,14 @@ export function createTutorSession(courseId, body) {
   return api(`/courses/${courseId}/tutor/sessions`, { method: "POST", body });
 }
 
+export function renameTutorSession(courseId, sessionId, title) {
+  return api(`/courses/${courseId}/tutor/sessions/${sessionId}`, { method: "PATCH", body: { title } });
+}
+
+export function deleteTutorSession(courseId, sessionId) {
+  return api(`/courses/${courseId}/tutor/sessions/${sessionId}`, { method: "DELETE" });
+}
+
 export function getTutorSession(courseId, sessionId) {
   return api(`/courses/${courseId}/tutor/sessions/${sessionId}`);
 }
