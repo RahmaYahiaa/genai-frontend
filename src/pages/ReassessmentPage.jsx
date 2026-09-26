@@ -7,7 +7,6 @@ import { apiErrorText } from "@/services/http";
 import { QuestionFlow } from "@/components/SessionSolver";
 import { StudyPage, StartPanel, Panel, Field, Select, NumberStepper, PrimaryButton, SecondaryButton, TextButton, Notice, LoadingBlock, ErrorBlock, EmptyBlock, PastAttempts, ResultPanel, StatusText, STATUS, summarize } from "@/components/study/StudyKit";
 import { IconReassessment } from "@/components/Icons";
-import { AlertStrip, inputStyle } from "@/components/ModuleUI";
 import useAsync from "@/hooks/useAsync";
 import useMediaQuery from "@/hooks/useMediaQuery";
 import { fetchReassessmentQuestions } from "@/services/api";
@@ -16,7 +15,6 @@ import { SCREENS } from "@/constants/routes";
 import { getCourse } from "@/data/courses";
 import { Card, Btn, Chip, Bar, AsyncGate } from "@/components/ui";
 import MasteryBar from "@/components/MasteryBar";
-import { LearningHeader, GuidedIntro, SessionHistoryList, DonePanel, GainTable, sessionStatusTone } from "@/components/learning";
 
 function DemoReassessmentPage({ state, dispatch }) {
   const tokens = tk(state.dark);
@@ -179,7 +177,6 @@ function RealReassessmentPage({ state, dispatch }) {
   const [sessionId, setSessionId] = useState("");
   const [topicId, setTopicId] = useState("");
   const [count, setCount] = useState(2);
-  const [tab, setTab] = useState("new");
   const [busy, setBusy] = useState(false);
   const [busyQuestion, setBusyQuestion] = useState(null);
   const [notice, setNotice] = useState(null);
@@ -196,7 +193,11 @@ function RealReassessmentPage({ state, dispatch }) {
     [effectiveCourseId],
   );
   const gainAsync = useAsync(loadGain);
-  const gains = gainAsync.data?.topicGains ?? gainAsync.data?.items ?? (Array.isArray(gainAsync.data) ? gainAsync.data : []);
+  // Backend: GET /courses/:id/learning-gain → { topics: [...], overview }. Topics with no
+  // evidence and no progress check yet have nothing to show, so they are left out.
+  const gains = (gainAsync.data?.topics ?? gainAsync.data?.topicGains ?? (Array.isArray(gainAsync.data) ? gainAsync.data : [])).filter(
+    (row) => (row.evidenceCount ?? 0) > 0 || (row.reassessmentsCount ?? 0) > 0,
+  );
 
   const loadSession = useCallback(
     () => (effectiveCourseId && sessionId ? getReassessment(effectiveCourseId, sessionId).catch(() => null) : Promise.resolve(null)),
@@ -239,7 +240,7 @@ function RealReassessmentPage({ state, dispatch }) {
   }
 
   const courseProps = { courses, value: effectiveCourseId ?? "", onChange: setCourseId };
-  const reset = () => { setSessionId(""); setTab("new"); listAsync.reload(); gainAsync.reload(); };
+  const reset = () => { setSessionId(""); listAsync.reload(); gainAsync.reload(); };
   const summary = summarize(evaluations);
   // Only the first load blocks the page; background reloads (after each answer)
   // must not unmount the question flow, or the student never sees feedback.
@@ -256,6 +257,7 @@ function RealReassessmentPage({ state, dispatch }) {
     declined: { label: t("Dropped", "قلّ"), tone: "danger" },
     unchanged: { label: t("No change", "زي ما هو"), tone: "warning" },
   };
+  const pct = (v) => (typeof v === "number" ? `${Math.round(v <= 1 ? v * 100 : v)}%` : null);
 
   return (
     <StudyPage tokens={tokens} lang={lang} mobile={mobile} course={courseProps}
@@ -320,12 +322,16 @@ function RealReassessmentPage({ state, dispatch }) {
                 return (
                   <div key={row.topicId} style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 20px", borderTop: i ? `1px solid ${tokens.cardBorder}` : "none", flexWrap: "wrap" }}>
                     <div style={{ flex: "1 1 200px", minWidth: 0 }}>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: tokens.textPrimary }}>{typeof row.title === "string" ? row.title : topicTitle(row.topicId)}</div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: tokens.textPrimary }}>{typeof row.title === "string" ? row.title : row.title?.[lang] ?? row.title?.en ?? topicTitle(row.topicId)}</div>
                       <div style={{ fontSize: 13, color: tokens.textMuted, marginTop: 3 }}>
-                        {levelLabel(row.baselineMasteryLevel)} <span aria-hidden="true">{isRtl ? "←" : "→"}</span> <span style={{ color: tokens.textPrimary, fontWeight: 600 }}>{levelLabel(row.currentMasteryLevel)}</span>
+                        {row.change === "no_reassessment_yet" ? (
+                          <>{t("Now", "دلوقتي")}: <span style={{ color: tokens.textPrimary, fontWeight: 600 }}>{levelLabel(row.currentMasteryLevel)}</span>{pct(row.currentAverageScore) ? ` · ${pct(row.currentAverageScore)}` : ""}</>
+                        ) : (
+                          <>{levelLabel(row.baselineMasteryLevel)}{row.baselineEvidenceCount > 0 && pct(row.baselineAverageScore) ? ` (${pct(row.baselineAverageScore)})` : ""} <span aria-hidden="true">{isRtl ? "←" : "→"}</span> <span style={{ color: tokens.textPrimary, fontWeight: 600 }}>{levelLabel(row.currentMasteryLevel)}</span>{pct(row.currentAverageScore) ? ` (${pct(row.currentAverageScore)})` : ""}</>
+                        )}
                       </div>
                     </div>
-                    {change ? <StatusText tone={change.tone}>{change.label}</StatusText> : <span style={{ fontSize: 12.5, color: tokens.textMuted }}>{t("Not measured yet", "لسه ماتقاسش")}</span>}
+                    {change ? <StatusText tone={change.tone}>{change.label}</StatusText> : <span style={{ fontSize: 12.5, color: tokens.textMuted }}>{t("Take a progress check to compare", "اعمل قياس تقدّم عشان نقارن")}</span>}
                   </div>
                 );
               })}
