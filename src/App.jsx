@@ -13,7 +13,8 @@ import DiagnosticPage from "@/pages/DiagnosticPage";
 import PracticePage from "@/pages/PracticePage";
 import ReassessmentPage from "@/pages/ReassessmentPage";
 import ProfilePage from "@/pages/ProfilePage";
-import InstructorHomePage from "@/pages/InstructorHomePage";
+import InstructorDashboardPage from "@/pages/InstructorDashboardPage";
+import InstructorCoursesPage from "@/pages/InstructorCoursesPage";
 import CourseWorkspacePage from "@/pages/CourseWorkspacePage";
 import AssignmentBuilderPage from "@/pages/AssignmentBuilderLegacy";
 import AssignmentReviewPage from "@/pages/AssignmentReviewPage";
@@ -39,7 +40,8 @@ import AppShell from "@/components/AppShell";
 import "./App.css";
 
 const PAGES = {
-  [SCREENS.INSTRUCTOR_HOME]: InstructorHomePage,
+  [SCREENS.INSTRUCTOR_HOME]: InstructorDashboardPage,
+  [SCREENS.INSTRUCTOR_COURSES]: InstructorCoursesPage,
   [SCREENS.COURSE_WORKSPACE]: CourseWorkspacePage,
   [SCREENS.ASSIGNMENT_CREATE]: AssignmentBuilderPage,
   [SCREENS.ASSIGNMENT_REVIEW]: AssignmentReviewPage,

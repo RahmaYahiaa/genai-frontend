@@ -1,10 +1,10 @@
 import { api } from "@/services/http";
 
 export const CONFIDENCE_FILTER_LABELS = {
-  HIGH: { en: "High confidence", ar: "ثقة عالية" },
-  MEDIUM: { en: "Medium confidence", ar: "ثقة متوسطة" },
-  LOW: { en: "Low confidence", ar: "ثقة منخفضة" },
-  INSUFFICIENT_EVIDENCE: { en: "Insufficient evidence", ar: "أدلة غير كافية" },
+  HIGH: { en: "Reliable", ar: "موثوق" },
+  MEDIUM: { en: "Check it", ar: "راجعه" },
+  LOW: { en: "Needs your eye", ar: "محتاج مراجعتك" },
+  INSUFFICIENT_EVIDENCE: { en: "Couldn't grade", ar: "مقدرش يصحّح" },
 };
 
 export function getReview(assignmentId, params = {}) {
@@ -54,4 +54,15 @@ export function previewEvaluation(assignmentId, questionId, trialAnswer) {
     method: "POST",
     body: { trialAnswer },
   });
+}
+
+/** Undecided counts from a review payload (backend stats also count decided rows). */
+export function pendingCounts(review) {
+  const open = (rows) => (rows ?? []).filter((row) => !row.decided).length;
+  return {
+    total: review?.stats?.total ?? 0,
+    toReview: open(review?.needsReview),
+    readyToApprove: open(review?.fastTrack),
+    decided: review?.stats?.finalizedCount ?? 0,
+  };
 }

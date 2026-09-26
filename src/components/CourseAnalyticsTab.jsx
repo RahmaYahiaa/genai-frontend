@@ -31,7 +31,7 @@ function MasteryBar({ pct, evidence = 1, thin = false, tokens }) {
 
 function CitationChip({ label, tokens }) {
   return (
-    <span style={{ fontFamily: MONO, fontSize: 11, background: tokens.citationBg, color: tokens.citation, border: `1px solid ${tokens.citationBorder}`, borderRadius: 6, padding: "2px 8px", display: "inline-flex", alignItems: "center" }}>
+    <span style={{ fontFamily: "inherit", fontSize: 11, background: tokens.citationBg, color: tokens.citation, border: `1px solid ${tokens.citationBorder}`, borderRadius: 6, padding: "2px 8px", display: "inline-flex", alignItems: "center" }}>
       {label}
     </span>
   );
@@ -81,7 +81,7 @@ function DemoCourseAnalyticsTab({ state, courseId, dispatch }) {
   const materialsTopic = course.topics.find((t) => t.id === materialsFor);
 
   const mono = (t, extra) => (
-    <div style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "0.09em", color: tokens.textMuted, ...extra }}>{t}</div>
+    <div style={{ fontFamily: "inherit", fontSize: 12, letterSpacing: 0, color: tokens.textMuted, ...extra }}>{t}</div>
   );
 
   const exportReport = () => {
@@ -145,7 +145,7 @@ function DemoCourseAnalyticsTab({ state, courseId, dispatch }) {
     };
     const m = map[t] ?? map.stable;
     return (
-      <span style={{ fontFamily: MONO, fontSize: 10, color: m.fg, background: m.bg, border: `1px solid ${m.fg}44`, borderRadius: 5, padding: "2px 8px", whiteSpace: "nowrap" }}>
+      <span style={{ fontFamily: "inherit", fontSize: 12, color: m.fg, background: m.bg, border: `1px solid ${m.fg}44`, borderRadius: 5, padding: "2px 8px", whiteSpace: "nowrap" }}>
         {lang === "ar" ? m.labelAr : m.label}
       </span>
     );
@@ -177,7 +177,7 @@ function DemoCourseAnalyticsTab({ state, courseId, dispatch }) {
           <div style={{ fontFamily: bFont, fontSize: 13, color: tokens.textSecondary }}>
             {course.id} · {lang === "ar" ? course.title.ar : course.title.en} · {course.instructor} · {lang === "ar" ? `الأسبوع ${course.week} من ${course.weeksTotal}` : `Week ${course.week} of ${course.weeksTotal}`}
           </div>
-          <div style={{ fontFamily: MONO, fontSize: 11, color: tokens.textMuted, marginTop: 5 }}>
+          <div style={{ fontFamily: "inherit", fontSize: 11, color: tokens.textMuted, marginTop: 5 }}>
             {lang === "ar" ? `لقطة محسوبة مسبقاً · بتاريخ ${fmtWhen(mod.analyticsAsOf, lang)}` : `Precomputed snapshot · as of ${fmtWhen(mod.analyticsAsOf, lang)}`}
           </div>
         </div>
@@ -195,11 +195,11 @@ function DemoCourseAnalyticsTab({ state, courseId, dispatch }) {
 
       <div className="genai-tiles-5" style={{ display: "grid", gridTemplateColumns: mobile ? "repeat(2, 1fr)" : "repeat(5, 1fr)", gap: 14, marginBottom: 18 }}>
         {[
-          { label: lang === "ar" ? "الطلاب" : "STUDENTS", value: `${course.enrolled}`, sub: lang === "ar" ? "مسجلون" : "Enrolled", color: tokens.textPrimary },
-          { label: lang === "ar" ? "متوسط الإتقان" : "AVG. MASTERY", value: `${course.overall}%`, sub: lang === "ar" ? "كل المواضيع" : "All topics", color: tokens.primary },
-          { label: lang === "ar" ? "يحتاج انتباهاً" : "NEED ATTENTION", value: `${needAttention}`, sub: lang === "ar" ? "إتقان < 40%" : "< 40% mastery", color: tokens.gap },
-          { label: lang === "ar" ? "جلسات الذكاء" : "AI SESSIONS", value: `${sessions}`, sub: lang === "ar" ? "هذا الفصل" : "This semester", color: tokens.textPrimary },
-          { label: lang === "ar" ? "مفاهيم خاطئة" : "MISCONCEPTIONS", value: `${misList.length}`, sub: lang === "ar" ? "مميزة ومشخّصة" : "Distinct, diagnosed", color: tokens.gap },
+          { label: lang === "ar" ? "الطلاب" : "Students", value: `${course.enrolled}`, sub: lang === "ar" ? "مسجلون" : "Enrolled", color: tokens.textPrimary },
+          { label: lang === "ar" ? "متوسط الإتقان" : "Avg. mastery", value: `${course.overall}%`, sub: lang === "ar" ? "كل المواضيع" : "All topics", color: tokens.primary },
+          { label: lang === "ar" ? "يحتاج انتباهاً" : "Need attention", value: `${needAttention}`, sub: lang === "ar" ? "إتقان < 40%" : "< 40% mastery", color: tokens.gap },
+          { label: lang === "ar" ? "جلسات الذكاء" : "Ai sessions", value: `${sessions}`, sub: lang === "ar" ? "هذا الفصل" : "This semester", color: tokens.textPrimary },
+          { label: lang === "ar" ? "مفاهيم خاطئة" : "Misconceptions", value: `${misList.length}`, sub: lang === "ar" ? "مميزة ومشخّصة" : "Distinct, diagnosed", color: tokens.gap },
         ].map((t) => (
           <div key={t.label} style={{ background: tokens.card, border: `1px solid ${tokens.cardBorder}`, borderRadius: 12, padding: "16px 18px" }}>
             {mono(t.label, { marginBottom: 8 })}
@@ -215,7 +215,7 @@ function DemoCourseAnalyticsTab({ state, courseId, dispatch }) {
             <div style={{ fontFamily: hFont, fontWeight: 600, fontSize: 15, color: tokens.textPrimary, letterSpacing: "-0.02em" }}>
               {lang === "ar" ? "فجوات المواضيع على مستوى الدفعة" : "Class-Wide Topic Gaps"}
             </div>
-            <span style={{ fontFamily: MONO, fontSize: 10, color: tokens.textFaint }}>{lang === "ar" ? "مرتبة بالخطورة" : "ranked by severity"}</span>
+            <span style={{ fontFamily: "inherit", fontSize: 12, color: tokens.textFaint }}>{lang === "ar" ? "مرتبة بالخطورة" : "ranked by severity"}</span>
           </div>
           {gaps.length === 0 ? (
             <div style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textFaint }}>{lang === "ar" ? "لا فجوات مواضيع تحت 65%." : "No topic gaps below 65%."}</div>
@@ -230,7 +230,7 @@ function DemoCourseAnalyticsTab({ state, courseId, dispatch }) {
                   <MasteryBar pct={t.pct} evidence={t.evidence} thin tokens={tokens} />
                 </div>
                 <div style={{ textAlign: isRtl ? "left" : "right", flexShrink: 0, width: 74 }}>
-                  <div style={{ fontFamily: MONO, fontSize: 13, fontWeight: 700, color: masteryColor(masteryLevel(t.pct, t.evidence > 0), tokens) }}>{t.pct}%</div>
+                  <div style={{ fontFamily: "inherit", fontSize: 13, fontWeight: 700, color: masteryColor(masteryLevel(t.pct, t.evidence > 0), tokens) }}>{t.pct}%</div>
                   <div style={{ fontFamily: bFont, fontSize: 10.5, color: tokens.textMuted }}>{flagged(t.pct)} {lang === "ar" ? "طالباً" : "students"}</div>
                 </div>
                 <Btn tokens={tokens} lang={lang} variant="soft" style={{ padding: "6px 12px", fontSize: 11.5, flexShrink: 0 }}
@@ -247,7 +247,7 @@ function DemoCourseAnalyticsTab({ state, courseId, dispatch }) {
             <div style={{ fontFamily: hFont, fontWeight: 600, fontSize: 15, color: tokens.textPrimary, letterSpacing: "-0.02em" }}>
               {lang === "ar" ? "المفاهيم الخاطئة الشائعة" : "Common Misconceptions"}
             </div>
-            <span style={{ fontFamily: MONO, fontSize: 10, color: tokens.textFaint }}>{lang === "ar" ? "بالانتشار" : "by prevalence"}</span>
+            <span style={{ fontFamily: "inherit", fontSize: 12, color: tokens.textFaint }}>{lang === "ar" ? "بالانتشار" : "by prevalence"}</span>
           </div>
           {misList.length === 0 ? (
             <div style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textFaint }}>{lang === "ar" ? "لا مفاهيم خاطئة مشخّصة في هذا المقرر." : "No diagnosed misconceptions in this course."}</div>
@@ -285,7 +285,7 @@ function DemoCourseAnalyticsTab({ state, courseId, dispatch }) {
           <div style={{ fontFamily: hFont, fontWeight: 600, fontSize: 15, color: tokens.textPrimary, letterSpacing: "-0.02em" }}>
             {lang === "ar" ? "طلاب يحتاجون انتباهاً" : "Students Requiring Attention"}
           </div>
-          <span style={{ fontFamily: MONO, fontSize: 10, color: tokens.gap, background: tokens.gapBg, border: `1px solid ${tokens.gap}44`, borderRadius: 6, padding: "3px 9px" }}>
+          <span style={{ fontFamily: "inherit", fontSize: 12, color: tokens.gap, background: tokens.gapBg, border: `1px solid ${tokens.gap}44`, borderRadius: 6, padding: "3px 9px" }}>
             {lang === "ar" ? `متوسط إتقان < 40% · ${attention.length} طلاب` : `avg. mastery < 40% · ${attention.length} students`}
           </span>
         </div>
@@ -296,13 +296,13 @@ function DemoCourseAnalyticsTab({ state, courseId, dispatch }) {
             <table style={{ width: "100%", borderCollapse: "collapse", minWidth: mobile ? 640 : undefined }}>
               <thead>
                 <tr>
-                  <Th tokens={tokens}>{lang === "ar" ? "الطالب" : "STUDENT"}</Th>
+                  <Th tokens={tokens}>{lang === "ar" ? "الطالب" : "Student"}</Th>
                   <Th tokens={tokens}>{lang === "ar" ? "الرقم" : "ID"}</Th>
-                  <Th tokens={tokens}>{lang === "ar" ? "متوسط الإتقان" : "AVG. MASTERY"}</Th>
-                  <Th tokens={tokens}>{lang === "ar" ? "الفجوات الأساسية" : "PRIMARY GAPS"}</Th>
-                  <Th tokens={tokens}>{lang === "ar" ? "الاتجاه" : "TREND"}</Th>
-                  <Th tokens={tokens} align="right">{lang === "ar" ? "جلسات الذكاء" : "AI SESSIONS"}</Th>
-                  <Th tokens={tokens} align="right">{lang === "ar" ? "إجراء" : "ACTION"}</Th>
+                  <Th tokens={tokens}>{lang === "ar" ? "متوسط الإتقان" : "Avg. mastery"}</Th>
+                  <Th tokens={tokens}>{lang === "ar" ? "الفجوات الأساسية" : "Primary gaps"}</Th>
+                  <Th tokens={tokens}>{lang === "ar" ? "الاتجاه" : "Trend"}</Th>
+                  <Th tokens={tokens} align="right">{lang === "ar" ? "جلسات الذكاء" : "Ai sessions"}</Th>
+                  <Th tokens={tokens} align="right">{lang === "ar" ? "إجراء" : "Action"}</Th>
                 </tr>
               </thead>
               <tbody>
@@ -310,24 +310,24 @@ function DemoCourseAnalyticsTab({ state, courseId, dispatch }) {
                   <tr key={s.id} style={{ borderBottom: i < attention.length - 1 ? `1px solid ${tokens.cardBorder}` : "none" }}>
                     <td style={{ padding: "11px 10px" }}>
                       <div style={{ display: "flex", gap: 9, alignItems: "center", flexDirection: isRtl ? "row-reverse" : "row" }}>
-                        <span style={{ width: 26, height: 26, borderRadius: "50%", background: tokens.primaryLight, border: `1px solid ${tokens.citationBorder}`, color: tokens.primary, fontFamily: MONO, fontSize: 9.5, fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                        <span style={{ width: 26, height: 26, borderRadius: "50%", background: tokens.primaryLight, border: `1px solid ${tokens.citationBorder}`, color: tokens.primary, fontFamily: "inherit", fontSize: 12, fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                           {s.name.split(" ").map((w) => w[0]).slice(0, 2).join("")}
                         </span>
                         <span style={{ fontFamily: bFont, fontSize: 12.5, fontWeight: 600, color: tokens.textPrimary, whiteSpace: "nowrap" }}>{s.name}</span>
                       </div>
                     </td>
-                    <td style={{ padding: "11px 10px", fontFamily: MONO, fontSize: 11, color: tokens.textMuted, whiteSpace: "nowrap" }}>{s.studentNumber}</td>
+                    <td style={{ padding: "11px 10px", fontFamily: "inherit", fontSize: 11, color: tokens.textMuted, whiteSpace: "nowrap" }}>{s.studentNumber}</td>
                     <td style={{ padding: "11px 10px", minWidth: 130 }}>
                       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                         <div style={{ flex: 1 }}><MasteryBar pct={s.avg} evidence={1} thin tokens={tokens} /></div>
-                        <span style={{ fontFamily: MONO, fontSize: 11.5, fontWeight: 700, color: masteryColor(masteryLevel(s.avg, true), tokens) }}>{s.avg}%</span>
+                        <span style={{ fontFamily: "inherit", fontSize: 11.5, fontWeight: 700, color: masteryColor(masteryLevel(s.avg, true), tokens) }}>{s.avg}%</span>
                       </div>
                     </td>
                     <td style={{ padding: "11px 10px", fontFamily: bFont, fontSize: 12, color: tokens.textSecondary }}>
                       {s.gaps.map((g) => course.topics.find((t) => t.id === g)?.short ?? g).join(", ") || "—"}
                     </td>
                     <td style={{ padding: "11px 10px" }}>{trendPill(s.trend)}</td>
-                    <td style={{ padding: "11px 10px", textAlign: "right", fontFamily: MONO, fontSize: 12, color: tokens.textSecondary }}>{s.sessions}</td>
+                    <td style={{ padding: "11px 10px", textAlign: "right", fontFamily: "inherit", fontSize: 12, color: tokens.textSecondary }}>{s.sessions}</td>
                     <td style={{ padding: "11px 10px", textAlign: "right" }}>
                       <Btn tokens={tokens} lang={lang} variant="soft" style={{ padding: "6px 12px", fontSize: 11.5 }}
                         onClick={() => setInterveneFor(s.id)}>
@@ -356,7 +356,7 @@ function DemoCourseAnalyticsTab({ state, courseId, dispatch }) {
               <div style={{ display: "flex", gap: 8, alignItems: "center", fontFamily: bFont, fontSize: 12.5, fontWeight: 500, color: tokens.textPrimary, flexDirection: isRtl ? "row-reverse" : "row" }}>
                 <IconWarning size={14} color={tokens.gap} />
                 {lang === "ar" ? t.label.ar : t.label.en}
-                <span style={{ fontFamily: MONO, fontSize: 11, color: tokens.textMuted }}>· 0 {lang === "ar" ? "معتمد" : "approved"}</span>
+                <span style={{ fontFamily: "inherit", fontSize: 11, color: tokens.textMuted }}>· 0 {lang === "ar" ? "معتمد" : "approved"}</span>
               </div>
               <Btn tokens={tokens} lang={lang} variant="soft" style={{ padding: "7px 14px", fontSize: 11.5 }} onClick={() => setMaterialsFor(t.id)}>
                 {lang === "ar" ? "فتح المواد" : "Open materials"}
@@ -397,8 +397,8 @@ function DemoCourseAnalyticsTab({ state, courseId, dispatch }) {
                 <div key={m.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, padding: "10px 12px", background: tokens.inset, border: `1px solid ${tokens.cardBorder}`, borderRadius: 10, flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
                   <span style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textPrimary }}>{m.title}</span>
                   {m.status === "approved" ? (
-                    <span style={{ display: "inline-flex", gap: 6, alignItems: "center", fontFamily: MONO, fontSize: 10, color: tokens.mastered }}>
-                      <IconCheck size={12} color={tokens.mastered} /> {lang === "ar" ? "معتمد" : "APPROVED"}
+                    <span style={{ display: "inline-flex", gap: 6, alignItems: "center", fontFamily: "inherit", fontSize: 12, color: tokens.mastered }}>
+                      <IconCheck size={12} color={tokens.mastered} /> {lang === "ar" ? "معتمد" : "Approved"}
                     </span>
                   ) : (
                     <Btn tokens={tokens} lang={lang} variant="soft" style={{ padding: "5px 12px", fontSize: 11 }}
@@ -690,7 +690,7 @@ function RealCourseAnalyticsTab({ state, courseId, dispatch }) {
   const sessions = null;
 
   const mono = (label, extra) => (
-    <div style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "0.09em", color: tokens.textMuted, ...extra }}>{label}</div>
+    <div style={{ fontFamily: "inherit", fontSize: 12, letterSpacing: 0, color: tokens.textMuted, ...extra }}>{label}</div>
   );
 
   const exportReport = () => {
@@ -769,36 +769,35 @@ function RealCourseAnalyticsTab({ state, courseId, dispatch }) {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, marginBottom: 18, flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
           <div style={{ textAlign: isRtl ? "right" : "left", minWidth: 0 }}>
             <h2 style={{ fontFamily: hFont, fontWeight: 700, fontSize: mobile ? 17 : 20, color: tokens.textPrimary, letterSpacing: "-0.02em", margin: "0 0 4px" }}>
-              {t("Course Analytics", "تحليلات المقرر")}
+              {t("Class results", "نتايج الطلاب")}
             </h2>
             <div style={{ fontFamily: bFont, fontSize: 13, color: tokens.textSecondary }}>
               {course?.code ?? courseId} · {topicTitle(course?.title)}
             </div>
-            <div style={{ fontFamily: MONO, fontSize: 11, color: tokens.textMuted, marginTop: 5 }}>
+            <div style={{ fontFamily: "inherit", fontSize: 11, color: tokens.textMuted, marginTop: 5 }}>
               {analytics?.computedAt
-                ? t(`Precomputed snapshot · as of ${fmtWhen(analytics.computedAt, lang)}`, `لقطة محسوبة مسبقاً · بتاريخ ${fmtWhen(analytics.computedAt, lang)}`)
-                : t("Precomputed snapshot · not computed yet", "لقطة محسوبة مسبقاً · لسه محسوبة")}
+                ? t(`Updated ${fmtWhen(analytics.computedAt, lang)}`, `آخر تحديث ${fmtWhen(analytics.computedAt, lang)}`)
+                : t("Results appear after the first graded submission", "النتايج بتظهر بعد أول تسليم يتصحّح")}
             </div>
           </div>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
             <Btn tokens={tokens} lang={lang} variant="ghost" onClick={exportReport}>
               <IconDownload size={13} color={tokens.textMuted} />
-              {t("Export Report", "تصدير التقرير")}
+              {t("Download report", "نزّل التقرير")}
             </Btn>
             <Btn tokens={tokens} lang={lang} variant="soft" onClick={() => setRemedialEntry({ topicId: gaps[0]?.id ?? topics[0]?.id ?? null })} disabled={!gaps[0]?.id && !topics[0]?.id}>
               <IconSparkle size={13} color={tokens.primary} />
-              {t("Generate Content", "توليد محتوى")}
+              {t("Create content", "اعمل محتوى")}
             </Btn>
           </div>
         </div>
 
-        <div className="genai-tiles-5" style={{ display: "grid", gridTemplateColumns: mobile ? "repeat(2, 1fr)" : "repeat(5, 1fr)", gap: 14, marginBottom: 18 }}>
+        <div className="genai-tiles-5" style={{ display: "grid", gridTemplateColumns: mobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: 14, marginBottom: 18 }}>
           {[
-            { label: t("STUDENTS", "الطلاب"), value: `${enrolled}`, sub: t("Enrolled", "مسجلون"), color: tokens.textPrimary },
-            { label: t("AVG. MASTERY", "متوسط الإتقان"), value: `${Math.round(totals?.avgCoursePercentage ?? 0)}%`, sub: t("All topics", "كل المواضيع"), color: tokens.primary },
-            { label: t("NEED ATTENTION", "يحتاج انتباهاً"), value: `${attention.length}`, sub: t("< 40% mastery", "إتقان < 40%"), color: tokens.gap },
-            { label: t("AI SESSIONS", "جلسات الذكاء"), value: sessions === null ? "—" : `${sessions}`, sub: t("not tracked yet", "مش متتبعة لسه"), color: tokens.textPrimary },
-            { label: t("MISCONCEPTIONS", "مفاهيم خاطئة"), value: `${misList.length}`, sub: t("Distinct, diagnosed", "مميزة ومشخّصة"), color: tokens.gap },
+            { label: t("Students", "الطلاب"), value: `${enrolled}`, sub: t("in this course", "في المقرر ده"), color: tokens.textPrimary },
+            { label: t("Class average", "متوسط الدفعة"), value: totals?.avgCoursePercentage == null ? "—" : `${Math.round(totals.avgCoursePercentage)}%`, sub: totals?.avgCoursePercentage == null ? t("no graded work yet", "مفيش شغل متصحّح لسه") : t("on graded work", "في الشغل المتصحّح"), color: tokens.primary },
+            { label: t("Need help", "محتاجين مساعدة"), value: `${attention.length}`, sub: t("students under 40%", "طلاب أقل من 40%"), color: tokens.gap },
+            { label: t("Common mistakes", "أخطاء متكررة"), value: `${misList.length}`, sub: t("found in answers", "ظهرت في الإجابات"), color: tokens.gap },
           ].map((tile) => (
             <div key={tile.label} style={{ background: tokens.card, border: `1px solid ${tokens.cardBorder}`, borderRadius: 12, padding: "16px 18px" }}>
               {mono(tile.label, { marginBottom: 8 })}
@@ -812,9 +811,9 @@ function RealCourseAnalyticsTab({ state, courseId, dispatch }) {
           <Card tokens={tokens} style={{ padding: "18px 20px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexDirection: isRtl ? "row-reverse" : "row" }}>
               <div style={{ fontFamily: hFont, fontWeight: 600, fontSize: 15, color: tokens.textPrimary, letterSpacing: "-0.02em" }}>
-                {t("Class-Wide Topic Gaps", "فجوات المواضيع على مستوى الدفعة")}
+                {t("Weakest topics", "أضعف المواضيع")}
               </div>
-              <span style={{ fontFamily: MONO, fontSize: 10, color: tokens.textFaint }}>{t("ranked by severity", "مرتبة بالخطورة")}</span>
+              <span style={{ fontFamily: "inherit", fontSize: 12, color: tokens.textFaint }}>{t("lowest first", "الأضعف الأول")}</span>
             </div>
             {gaps.length === 0 ? (
               <div style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textFaint }}>{t("No topic gaps below 65%.", "لا فجوات مواضيع تحت 65%.")}</div>
@@ -829,7 +828,7 @@ function RealCourseAnalyticsTab({ state, courseId, dispatch }) {
                     <MasteryBar pct={topic.pct} evidence={topic.evidence} thin tokens={tokens} />
                   </div>
                   <div style={{ textAlign: isRtl ? "left" : "right", flexShrink: 0, width: 74 }}>
-                    <div style={{ fontFamily: MONO, fontSize: 13, fontWeight: 700, color: masteryColor(masteryLevel(topic.pct, topic.evidence > 0), tokens) }}>{topic.pct}%</div>
+                    <div style={{ fontFamily: "inherit", fontSize: 13, fontWeight: 700, color: masteryColor(masteryLevel(topic.pct, topic.evidence > 0), tokens) }}>{topic.pct}%</div>
                     <div style={{ fontFamily: bFont, fontSize: 10.5, color: tokens.textMuted }}>{topic.students} {t("graded", "مُصحح")}</div>
                   </div>
                   <Btn tokens={tokens} lang={lang} variant="soft" style={{ padding: "6px 12px", fontSize: 11.5, flexShrink: 0 }}
@@ -846,10 +845,10 @@ function RealCourseAnalyticsTab({ state, courseId, dispatch }) {
               <div style={{ fontFamily: hFont, fontWeight: 600, fontSize: 15, color: tokens.textPrimary, letterSpacing: "-0.02em" }}>
                 {t("Common Misconceptions", "المفاهيم الخاطئة الشائعة")}
               </div>
-              <span style={{ fontFamily: MONO, fontSize: 10, color: tokens.textFaint }}>{t("by prevalence", "بالانتشار")}</span>
+              <span style={{ fontFamily: "inherit", fontSize: 12, color: tokens.textFaint }}>{t("most frequent first", "الأكثر تكرارًا الأول")}</span>
             </div>
             {misList.length === 0 ? (
-              <div style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textFaint }}>{t("No diagnosed misconceptions in this course.", "لا مفاهيم خاطئة مشخّصة في هذا المقرر.")}</div>
+              <div style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textFaint }}>{t("No repeated mistakes found yet.", "لا مفاهيم خاطئة مشخّصة في هذا المقرر.")}</div>
             ) : (
               misList.map((item, i) => (
                 <div key={item.code} style={{ padding: "11px 0", borderTop: i > 0 ? `1px solid ${tokens.cardBorder}` : "none" }}>
@@ -882,25 +881,25 @@ function RealCourseAnalyticsTab({ state, courseId, dispatch }) {
         <Card tokens={tokens} style={{ padding: "18px 20px", marginBottom: 18 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 8, flexDirection: isRtl ? "row-reverse" : "row" }}>
             <div style={{ fontFamily: hFont, fontWeight: 600, fontSize: 15, color: tokens.textPrimary, letterSpacing: "-0.02em" }}>
-              {t("Students Requiring Attention", "طلاب يحتاجون انتباهاً")}
+              {t("Students who need help", "طلاب محتاجين مساعدة")}
             </div>
-            <span style={{ fontFamily: MONO, fontSize: 10, color: tokens.gap, background: tokens.gapBg, border: `1px solid ${tokens.gap}44`, borderRadius: 6, padding: "3px 9px" }}>
-              {t(`avg. mastery < 40% · ${attention.length} students`, `متوسط إتقان < 40% · ${attention.length} طلاب`)}
+            <span style={{ fontFamily: "inherit", fontSize: 12, color: tokens.gap, background: tokens.gapBg, border: `1px solid ${tokens.gap}44`, borderRadius: 6, padding: "3px 9px" }}>
+              {t(`average under 40% · ${attention.length}`, `متوسط أقل من 40% · ${attention.length}`)}
             </span>
           </div>
           {attention.length === 0 ? (
-            <div style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textFaint }}>{t("No students below 40% average mastery right now.", "لا طلاب تحت متوسط 40% حالياً.")}</div>
+            <div style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textFaint }}>{t("No student is below 40% right now.", "لا طلاب تحت متوسط 40% حالياً.")}</div>
           ) : (
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", minWidth: mobile ? 640 : undefined }}>
                 <thead>
                   <tr>
-                    <Th tokens={tokens}>{t("STUDENT", "الطالب")}</Th>
-                    <Th tokens={tokens}>{t("EMAIL", "البريد")}</Th>
-                    <Th tokens={tokens}>{t("AVG. MASTERY", "متوسط الإتقان")}</Th>
-                    <Th tokens={tokens}>{t("PRIMARY GAPS", "الفجوات الأساسية")}</Th>
-                    <Th tokens={tokens} align="right">{t("SUBMISSIONS", "التسليمات")}</Th>
-                    <Th tokens={tokens} align="right">{t("ACTION", "إجراء")}</Th>
+                    <Th tokens={tokens}>{t("Student", "الطالب")}</Th>
+                    <Th tokens={tokens}>{t("Email", "البريد")}</Th>
+                    <Th tokens={tokens}>{t("Average", "المتوسط")}</Th>
+                    <Th tokens={tokens}>{t("Weak topics", "مواضيع ضعيفة")}</Th>
+                    <Th tokens={tokens} align="right">{t("Submissions", "التسليمات")}</Th>
+                    <Th tokens={tokens} align="right">{t("", "")}</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -908,23 +907,23 @@ function RealCourseAnalyticsTab({ state, courseId, dispatch }) {
                     <tr key={student.id} style={{ borderBottom: i < attention.length - 1 ? `1px solid ${tokens.cardBorder}` : "none" }}>
                       <td style={{ padding: "11px 10px" }}>
                         <div style={{ display: "flex", gap: 9, alignItems: "center", flexDirection: isRtl ? "row-reverse" : "row" }}>
-                          <span style={{ width: 26, height: 26, borderRadius: "50%", background: tokens.primaryLight, border: `1px solid ${tokens.citationBorder}`, color: tokens.primary, fontFamily: MONO, fontSize: 9.5, fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          <span style={{ width: 26, height: 26, borderRadius: "50%", background: tokens.primaryLight, border: `1px solid ${tokens.citationBorder}`, color: tokens.primary, fontFamily: "inherit", fontSize: 12, fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                             {String(student.name).split(" ").map((w) => w[0]).slice(0, 2).join("")}
                           </span>
                           <span style={{ fontFamily: bFont, fontSize: 12.5, fontWeight: 600, color: tokens.textPrimary, whiteSpace: "nowrap" }}>{student.name}</span>
                         </div>
                       </td>
-                      <td style={{ padding: "11px 10px", fontFamily: MONO, fontSize: 11, color: tokens.textMuted, whiteSpace: "nowrap" }}>{student.email || "—"}</td>
+                      <td style={{ padding: "11px 10px", fontFamily: "inherit", fontSize: 11, color: tokens.textMuted, whiteSpace: "nowrap" }}>{student.email || "—"}</td>
                       <td style={{ padding: "11px 10px", minWidth: 130 }}>
                         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                           <div style={{ flex: 1 }}><MasteryBar pct={student.avg} evidence={1} thin tokens={tokens} /></div>
-                          <span style={{ fontFamily: MONO, fontSize: 11.5, fontWeight: 700, color: masteryColor(masteryLevel(student.avg, true), tokens) }}>{student.avg}%</span>
+                          <span style={{ fontFamily: "inherit", fontSize: 11.5, fontWeight: 700, color: masteryColor(masteryLevel(student.avg, true), tokens) }}>{student.avg}%</span>
                         </div>
                       </td>
                       <td style={{ padding: "11px 10px", fontFamily: bFont, fontSize: 12, color: tokens.textSecondary }}>
                         {[...student.codes].join(", ") || "—"}
                       </td>
-                      <td style={{ padding: "11px 10px", textAlign: "right", fontFamily: MONO, fontSize: 12, color: tokens.textSecondary }}>{student.submissions}</td>
+                      <td style={{ padding: "11px 10px", textAlign: "right", fontFamily: "inherit", fontSize: 12, color: tokens.textSecondary }}>{student.submissions}</td>
                       <td style={{ padding: "11px 10px", textAlign: "right" }}>
                         <Btn tokens={tokens} lang={lang} variant="soft" style={{ padding: "6px 12px", fontSize: 11.5 }}
                           onClick={() => dispatch({ type: "NAVIGATE", screen: SCREENS.INSTRUCTOR_STUDENTS, studentId: student.id, courseId })}>
@@ -941,7 +940,7 @@ function RealCourseAnalyticsTab({ state, courseId, dispatch }) {
 
         <Card tokens={tokens} style={{ padding: "18px 20px", marginBottom: 18 }}>
           <div style={{ fontFamily: hFont, fontWeight: 600, fontSize: 15, color: tokens.textPrimary, letterSpacing: "-0.02em", marginBottom: 12 }}>
-            {t("Material Coverage Alerts", "تنبيهات تغطية المواد")}
+            {t("Topics missing questions or files", "مواضيع ناقصها أسئلة أو ملفات")}
           </div>
           {coverageGaps.length === 0 ? (
             <div style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textFaint }}>
@@ -953,7 +952,7 @@ function RealCourseAnalyticsTab({ state, courseId, dispatch }) {
                 <div style={{ display: "flex", gap: 8, alignItems: "center", fontFamily: bFont, fontSize: 12.5, fontWeight: 500, color: tokens.textPrimary, flexDirection: isRtl ? "row-reverse" : "row" }}>
                   <IconWarning size={14} color={tokens.gap} />
                   {item.label.en}
-                  <span style={{ fontFamily: MONO, fontSize: 11, color: tokens.textMuted }}>· 0 {t("questions", "أسئلة")}</span>
+                  <span style={{ fontFamily: "inherit", fontSize: 11, color: tokens.textMuted }}>· 0 {t("questions", "أسئلة")}</span>
                 </div>
                 <Btn tokens={tokens} lang={lang} variant="soft" style={{ padding: "7px 14px", fontSize: 11.5 }}
                   onClick={() => dispatch({ type: "NAVIGATE", screen: SCREENS.COURSE_WORKSPACE, courseId, tab: "materials" })}>
@@ -966,7 +965,7 @@ function RealCourseAnalyticsTab({ state, courseId, dispatch }) {
 
         <Card tokens={tokens} style={{ padding: "18px 20px" }}>
           <div style={{ fontFamily: hFont, fontWeight: 600, fontSize: 15, color: tokens.textPrimary, letterSpacing: "-0.02em", marginBottom: 14 }}>
-            {t("Course-Wide Mastery Distribution", "توزيع الإتقان على مستوى المقرر")}
+            {t("How the class is doing", "توزيع الإتقان على مستوى المقرر")}
           </div>
           {gaps.length === 0 ? (
             <div style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textFaint }}>{t("No topics below 65% — nothing to flag.", "مفيش مواضيع تحت 65% — مفيش حاجة تتعلم.")}</div>

@@ -41,9 +41,13 @@ export const STUDENT_NAV_BOTTOM = [
   { id: SCREENS.PROFILE, en: "Profile", ar: "الملف الشخصي", Icon: IconProfile },
 ];
 
+// Instructor nav: Home (what needs me today) → teaching → creating.
 export const INSTRUCTOR_NAV = [
-  { id: SCREENS.INSTRUCTOR_HOME, en: "My Courses", ar: "مقرراتي", Icon: IconCourses },
+  { id: SCREENS.INSTRUCTOR_HOME, en: "Home", ar: "الرئيسية", Icon: IconDashboard },
+  { section: { en: "Teaching", ar: "التدريس" } },
+  { id: SCREENS.INSTRUCTOR_COURSES, en: "My Courses", ar: "مقرراتي", Icon: IconCourses, match: [SCREENS.COURSE_WORKSPACE, SCREENS.ASSIGNMENT_CREATE, SCREENS.ASSIGNMENT_REVIEW] },
   { id: SCREENS.INSTRUCTOR_STUDENTS, en: "Students", ar: "الطلاب", Icon: IconUsers },
+  { section: { en: "Create", ar: "إنشاء" } },
   { id: SCREENS.CONTENT_STUDIO, en: "Content Builder", ar: "صانع المحتوى", Icon: IconSparkle },
 ];
 

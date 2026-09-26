@@ -25,14 +25,6 @@ export default function Topbar({ state, dispatch, role, onMenu }) {
       ? lang === "ar"
         ? "إدارة المؤسسة"
         : "Institution administration"
-      : role === "instructor"
-      ? state.courseId
-        ? lang === "ar"
-          ? "مساحة المقرر"
-          : "Course workspace"
-        : lang === "ar"
-          ? "لوحة تحكم المدرّس"
-          : "Instructor Dashboard"
       : "";
 
   const iconBtn = {

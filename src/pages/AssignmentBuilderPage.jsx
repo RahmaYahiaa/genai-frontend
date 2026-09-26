@@ -231,7 +231,7 @@ function RealBuilderView({ state, dispatch }) {
                         disabled={busyAction === "feedbackVisibility"}
                         onChange={() => run("feedbackVisibility", () => setFeedbackVisibility(assignment.id, !assignment.showFeedbackToStudent))}
                       />
-                      <span style={{ fontFamily: MONO, fontSize: 10.5, color: tokens.textFaint }}>
+                      <span style={{ fontFamily: "inherit", fontSize: 12.5, color: tokens.textFaint }}>
                         {questions.length} {t("questions", "أسئلة")} · {questions.reduce((sum, q) => sum + q.maxScore, 0)} {t("pts", "درجة")}
                       </span>
                     </div>
@@ -285,10 +285,10 @@ function RealBuilderView({ state, dispatch }) {
                   {questions.map((question) => (
                     <Card tokens={tokens} key={question.id} style={{ padding: "14px 16px" }}>
                       <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 8, flexDirection: isRtl ? "row-reverse" : "row" }}>
-                        <span style={{ fontFamily: MONO, fontSize: 10, color: tokens.textFaint }}>Q{question.orderIndex}</span>
+                        <span style={{ fontFamily: "inherit", fontSize: 12, color: tokens.textFaint }}>Q{question.orderIndex}</span>
                         <Chip tokens={tokens} tone="primary">{lang === "ar" ? QUESTION_TYPE_LABELS[question.type]?.ar : QUESTION_TYPE_LABELS[question.type]?.en}</Chip>
                         <Chip tokens={tokens}>{topicLabel(question.topicId)}</Chip>
-                        <span style={{ fontFamily: MONO, fontSize: 10, color: tokens.textMuted }}>{question.maxScore} {t("pts", "درجة")}</span>
+                        <span style={{ fontFamily: "inherit", fontSize: 12, color: tokens.textMuted }}>{question.maxScore} {t("pts", "درجة")}</span>
                         <div style={{ marginInlineStart: "auto", display: "flex", gap: 4, flexDirection: isRtl ? "row-reverse" : "row" }}>
                           <Btn tokens={tokens} variant="ghost" style={{ padding: "4px 7px" }} onClick={() => setEditor({ mode: "edit", id: question.id, draft: draftFromQuestion(question) })}>
                             <IconPencil size={13} color={tokens.textMuted} />
@@ -307,7 +307,7 @@ function RealBuilderView({ state, dispatch }) {
                             const isCorrect = question.correctOptionIds.includes(option.id);
                             return (
                               <div key={option.id} style={{ display: "flex", gap: 8, alignItems: "center", padding: "7px 10px", borderRadius: 8, border: `1px solid ${isCorrect ? tokens.mastered : tokens.cardBorder}`, background: isCorrect ? `${tokens.mastered}12` : tokens.inset, flexDirection: isRtl ? "row-reverse" : "row" }}>
-                                <span style={{ fontFamily: MONO, fontSize: 10, color: isCorrect ? tokens.mastered : tokens.textFaint }}>{String.fromCharCode(65 + index)}</span>
+                                <span style={{ fontFamily: "inherit", fontSize: 12, color: isCorrect ? tokens.mastered : tokens.textFaint }}>{String.fromCharCode(65 + index)}</span>
                                 <span style={{ fontSize: 12.5, color: tokens.textPrimary, flex: 1, textAlign: isRtl ? "right" : "left" }}>{option.text}</span>
                                 {isCorrect && <IconCheck size={13} color={tokens.mastered} />}
                               </div>
@@ -322,13 +322,13 @@ function RealBuilderView({ state, dispatch }) {
                       )}
                       {question.modelAnswer && (
                         <div style={{ marginTop: 8, padding: "8px 10px", borderRadius: 8, background: tokens.inset, border: `1px solid ${tokens.cardBorder}`, textAlign: isRtl ? "right" : "left" }}>
-                          <div style={{ fontFamily: MONO, fontSize: 9.5, color: tokens.textFaint, marginBottom: 3 }}>{t("MODEL ANSWER — INSTRUCTOR ONLY", "الإجابة النموذجية — للمدرّس فقط")}</div>
+                          <div style={{ fontFamily: "inherit", fontSize: 12.5, color: tokens.textFaint, marginBottom: 3 }}>{t("MODEL ANSWER — INSTRUCTOR ONLY", "الإجابة النموذجية — للمدرّس فقط")}</div>
                           <div style={{ fontSize: 12, color: tokens.textSecondary, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{question.modelAnswer}</div>
                         </div>
                       )}
                       {question.rubricText && (
                         <div style={{ marginTop: 6, padding: "8px 10px", borderRadius: 8, background: tokens.inset, border: `1px solid ${tokens.cardBorder}`, textAlign: isRtl ? "right" : "left" }}>
-                          <div style={{ fontFamily: MONO, fontSize: 9.5, color: tokens.textFaint, marginBottom: 3 }}>{t("RUBRIC — FREE TEXT", "روبريك حر")}</div>
+                          <div style={{ fontFamily: "inherit", fontSize: 12.5, color: tokens.textFaint, marginBottom: 3 }}>{t("RUBRIC — FREE TEXT", "روبريك حر")}</div>
                           <div style={{ fontSize: 12, color: tokens.textSecondary, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{question.rubricText}</div>
                         </div>
                       )}

@@ -266,7 +266,7 @@ export default function AssignmentBuilderPage({ state, dispatch }) {
   };
 
   const monoLabel = (text) => (
-    <div style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "0.09em", color: tokens.textMuted, marginBottom: 7 }}>{text}</div>
+    <div style={{ fontFamily: "inherit", fontSize: 12, letterSpacing: 0, color: tokens.textMuted, marginBottom: 7 }}>{text}</div>
   );
   const caption = (text) => <div style={{ fontFamily: bFont, fontSize: 11, color: tokens.textFaint, marginTop: 6 }}>{text}</div>;
 
@@ -303,7 +303,7 @@ export default function AssignmentBuilderPage({ state, dispatch }) {
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
           <Card tokens={tokens} style={{ padding: "18px 20px" }}>
-            {monoLabel(lang === "ar" ? "عنوان التكليف" : "ASSIGNMENT TITLE")}
+            {monoLabel(lang === "ar" ? "عنوان التكليف" : "Assignment title")}
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -328,7 +328,7 @@ export default function AssignmentBuilderPage({ state, dispatch }) {
               <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 12, padding: "10px 14px", background: tokens.inset, border: `1px solid ${tokens.cardBorder}`, borderRadius: 10, flexDirection: isRtl ? "row-reverse" : "row" }}>
                 <Toggle on={status === "open"} onChange={() => setStatus(status === "open" ? "closed" : "open")} tokens={tokens} />
                 <div style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textSecondary, flex: 1 }}>
-                  {lang === "ar" ? "حالة التكليف: مفتوح / مغلق — بلا مواعيد نهائية إطلاقاً." : "Assignment status: Open / Closed — there is no deadline concept here."}
+                  {lang === "ar" ? "مفتوح يعني الطلاب يقدروا يجاوبوا دلوقتي. اقفله عشان توقف الإجابات الجديدة." : "Open means students can answer now. Turn it off to stop new answers."}
                 </div>
                 <StatusPill status={status} tokens={tokens} lang={lang} />
               </div>
@@ -356,7 +356,7 @@ export default function AssignmentBuilderPage({ state, dispatch }) {
                 )}
               </div>
 
-              {monoLabel(lang === "ar" ? "نوع السؤال" : "QUESTION TYPE")}
+              {monoLabel(lang === "ar" ? "نوع السؤال" : "Question type")}
               <select
                 value={q.kind}
                 onChange={(e) => patchQ(q.key, { kind: e.target.value })}
@@ -370,7 +370,7 @@ export default function AssignmentBuilderPage({ state, dispatch }) {
                 ))}
               </select>
 
-              {monoLabel(lang === "ar" ? "نص السؤال" : "PROMPT")}
+              {monoLabel(lang === "ar" ? "نص السؤال" : "Prompt")}
               <textarea
                 value={q.prompt}
                 onChange={(e) => patchQ(q.key, { prompt: e.target.value })}
@@ -381,7 +381,7 @@ export default function AssignmentBuilderPage({ state, dispatch }) {
 
               {q.kind === "true_false" && (
                 <div style={{ marginTop: 14 }}>
-                  {monoLabel(lang === "ar" ? "الإجابة الصحيحة" : "CORRECT ANSWER")}
+                  {monoLabel(lang === "ar" ? "الإجابة الصحيحة" : "Correct answer")}
                   <div style={{ display: "flex", gap: 10 }}>
                     {[true, false].map((v) => {
                       const sel = (q.tfCorrect ?? true) === v;
@@ -408,7 +408,7 @@ export default function AssignmentBuilderPage({ state, dispatch }) {
 
               {kindNeedsOptions(q.kind) && (
                 <div style={{ marginTop: 14 }}>
-                  {monoLabel(q.kind === "multiple_select" ? (lang === "ar" ? "الخيارات (يُسمح بأكثر من إجابة)" : "OPTIONS (MORE THAN ONE ALLOWED)") : (lang === "ar" ? "الخيارات (إجابة واحدة صحيحة)" : "OPTIONS (ONE CORRECT ANSWER)"))}
+                  {monoLabel(q.kind === "multiple_select" ? (lang === "ar" ? "الخيارات (يُسمح بأكثر من إجابة)" : "Options (more than one allowed)") : (lang === "ar" ? "الخيارات (إجابة واحدة صحيحة)" : "Options (one correct answer)"))}
                   {q.options.map((opt, oi) => (
                     <div key={oi} style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8, flexDirection: isRtl ? "row-reverse" : "row" }}>
                       <button
@@ -417,7 +417,7 @@ export default function AssignmentBuilderPage({ state, dispatch }) {
                         title={lang === "ar" ? "اضغط لتحديد هذا الخيار كإجابة صحيحة" : "Click to mark this option as correct"}
                         aria-label={lang === "ar" ? "تحديد كإجابة صحيحة" : "Mark as correct"}
                         style={{
-                          fontFamily: MONO, fontSize: 11, width: 18, height: 18, flexShrink: 0, display: "inline-flex",
+                          fontFamily: "inherit", fontSize: 11, width: 18, height: 18, flexShrink: 0, display: "inline-flex",
                           alignItems: "center", justifyContent: "center", borderRadius: q.kind === "multiple_select" ? 5 : "50%",
                           cursor: "pointer", padding: 0,
                           border: `1.5px solid ${(q.correct ?? []).includes(oi) ? tokens.primary : tokens.cardBorder}`,
@@ -495,7 +495,7 @@ export default function AssignmentBuilderPage({ state, dispatch }) {
                   )}
                 </div>
                 <div>
-                  {monoLabel(lang === "ar" ? "الدرجة العظمى" : "MAX SCORE")}
+                  {monoLabel(lang === "ar" ? "الدرجة العظمى" : "Max score")}
                   <input
                     type="number"
                     min={1}
@@ -511,7 +511,7 @@ export default function AssignmentBuilderPage({ state, dispatch }) {
                 <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4, flexDirection: isRtl ? "row-reverse" : "row" }}>
                   <IconSparkle size={13} color={tokens.primary} />
                   <span style={{ fontFamily: bFont, fontSize: 12, fontWeight: 600, color: tokens.textPrimary }}>
-                    {lang === "ar" ? "حسّن دقة تقييم الذكاء الاصطناعي" : "Improve AI grading accuracy"}
+                    {lang === "ar" ? "حسّن دقة تقييم الذكاء الاصطناعي" : "Help the automatic grading (optional)"}
                   </span>
                   <span style={{ fontFamily: bFont, fontSize: 10.5, color: tokens.textMuted }}>
                     · {lang === "ar" ? "اختياري" : "optional"}
@@ -519,7 +519,7 @@ export default function AssignmentBuilderPage({ state, dispatch }) {
                 </div>
 
                 <div style={{ marginTop: 8 }}>
-                  {monoLabel(lang === "ar" ? "الإجابة المرجعية (اختياري)" : "REFERENCE ANSWER (OPTIONAL)")}
+                  {monoLabel(lang === "ar" ? "الإجابة المرجعية (اختياري)" : "Reference answer (optional)")}
                   <textarea
                     value={q.referenceAnswer}
                     onChange={(e) => patchQ(q.key, { referenceAnswer: e.target.value })}
@@ -530,13 +530,13 @@ export default function AssignmentBuilderPage({ state, dispatch }) {
                   <div style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 6, flexDirection: isRtl ? "row-reverse" : "row" }}>
                     <IconEyeOff size={12} color={tokens.textFaint} />
                     <span style={{ fontFamily: bFont, fontSize: 11, color: tokens.textFaint }}>
-                      {lang === "ar" ? "لا يراها الطالب — تساعد فقط في تحسين دقة التصحيح الذكي." : "Only you see this — it just makes AI grading more accurate."}
+                      {lang === "ar" ? "لا يراها الطالب — تساعد فقط في تحسين دقة التصحيح الذكي." : "Only you see this. A model answer and marking notes make suggested grades more accurate."}
                     </span>
                   </div>
                 </div>
 
                 <div style={{ marginTop: 12 }}>
-                  {monoLabel(lang === "ar" ? "معايير التصحيح / روبرك (اختياري)" : "GRADING CRITERIA / RUBRIC (OPTIONAL)")}
+                  {monoLabel(lang === "ar" ? "معايير التصحيح / روبرك (اختياري)" : "Grading criteria / rubric (optional)")}
                   <textarea
                     value={q.rubric}
                     onChange={(e) => patchQ(q.key, { rubric: e.target.value })}
@@ -568,7 +568,7 @@ export default function AssignmentBuilderPage({ state, dispatch }) {
             <div style={{ fontFamily: bFont, fontSize: 11.5, color: tokens.textMuted, lineHeight: 1.6, padding: "10px 14px", background: tokens.inset, borderRadius: 10, border: `1px solid ${tokens.cardBorder}`, textAlign: isRtl ? "right" : "left" }}>
               {lang === "ar"
                 ? "سيستمر التصحيح الذكي لكن بثقة أقل — وإذا قلّت مواد الموضوع فستُحال الإجابات مباشرة إلى مراجعتك اليدوية."
-                : "AI still grades, but with less confidence — thin course material goes straight to your manual review."}
+                : "Answers will still be graded, but with little course material they come to you to check."}
             </div>
           )}
 
@@ -601,16 +601,16 @@ export default function AssignmentBuilderPage({ state, dispatch }) {
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5, flexDirection: isRtl ? "row-reverse" : "row" }}>
             <IconSparkle size={15} color={tokens.primary} />
             <span style={{ fontFamily: hFont, fontWeight: 600, fontSize: 15, color: tokens.textPrimary, letterSpacing: "-0.02em" }}>
-              {lang === "ar" ? "معاينة التقييم" : "Preview grading"}
+              {lang === "ar" ? "معاينة التقييم" : "Try a sample answer"}
             </span>
           </div>
           <p style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textMuted, margin: "0 0 16px", lineHeight: 1.55 }}>
             {lang === "ar"
               ? "اكتب إجابة تجريبية وشاهد بالضبط ما سيفعله الذكاء الاصطناعي للطلاب الحقيقيين."
-              : "Type a trial answer and see exactly what the AI will do for real students."}
+              : "Type a sample answer to see the grade and feedback a student would get."}
           </p>
 
-          {monoLabel(lang === "ar" ? "السؤال للمعاينة" : "QUESTION TO PREVIEW")}
+          {monoLabel(lang === "ar" ? "السؤال للمعاينة" : "Question to preview")}
           <select
             value={previewQ}
             onChange={(e) => {
@@ -627,7 +627,7 @@ export default function AssignmentBuilderPage({ state, dispatch }) {
             ))}
           </select>
 
-          {monoLabel(lang === "ar" ? "الإجابة التجريبية" : "TRIAL ANSWER")}
+          {monoLabel(lang === "ar" ? "الإجابة التجريبية" : "Trial answer")}
           <textarea
             value={previewText}
             onChange={(e) => setPreviewText(e.target.value)}
@@ -654,7 +654,7 @@ export default function AssignmentBuilderPage({ state, dispatch }) {
                 <Skeleton h={12} tokens={tokens} />
                 <Skeleton h={12} w="85%" tokens={tokens} />
                 <Skeleton h={12} w="70%" tokens={tokens} />
-                <div style={{ fontFamily: MONO, fontSize: 10, color: tokens.textFaint, textAlign: "center" }}>
+                <div style={{ fontFamily: "inherit", fontSize: 12, color: tokens.textFaint, textAlign: "center" }}>
                   {lang === "ar" ? "استدعاء حقيقي للتقييم — ثوانٍ قليلة" : "real evaluation call — a few seconds"}
                 </div>
               </div>
@@ -664,7 +664,7 @@ export default function AssignmentBuilderPage({ state, dispatch }) {
                 max={Math.max(1, Number(questions[previewQ]?.maxScore) || 10)}
                 tokens={tokens}
                 lang={lang}
-                title={lang === "ar" ? "نتيجة المعاينة" : "PREVIEW RESULT"}
+                title={lang === "ar" ? "نتيجة المعاينة" : "Preview result"}
               />
             ) : null}
             {previewResult && (

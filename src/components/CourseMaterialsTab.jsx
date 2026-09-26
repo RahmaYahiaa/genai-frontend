@@ -49,12 +49,12 @@ function DemoMaterialsTab({ state, courseId }) {
 
   const statusChip = (status) => (
     <span style={{
-      fontFamily: MONO, fontSize: 9.5, letterSpacing: "0.07em", fontWeight: 700, borderRadius: 6, padding: "2px 8px", whiteSpace: "nowrap",
+      fontFamily: "inherit", fontSize: 12, letterSpacing: 0, fontWeight: 700, borderRadius: 6, padding: "2px 8px", whiteSpace: "nowrap",
       color: status === "approved" ? tokens.mastered : tokens.developing,
       background: status === "approved" ? `${tokens.mastered}1a` : `${tokens.developing}1a`,
       border: `1px solid ${status === "approved" ? tokens.mastered : tokens.developing}44`
     }}>
-      {status === "approved" ? (lang === "ar" ? "معتمد" : "APPROVED") : (lang === "ar" ? "بانتظار الاعتماد" : "PENDING")}
+      {status === "approved" ? (lang === "ar" ? "معتمد" : "Approved") : (lang === "ar" ? "بانتظار الاعتماد" : "Pending")}
     </span>
   );
 
@@ -73,13 +73,13 @@ function DemoMaterialsTab({ state, courseId }) {
 
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16, flexDirection: isRtl ? "row-reverse" : "row" }}>
         {[
-          { l: lang === "ar" ? "معتمدة" : "APPROVED", v: totals.approved, c: tokens.mastered },
-          { l: lang === "ar" ? "بانتظار الاعتماد" : "PENDING", v: totals.pending, c: tokens.developing },
-          { l: lang === "ar" ? "مواضيع بلا مواد" : "TOPICS WITH NO MATERIALS", v: gaps.length, c: gaps.length ? tokens.gap : tokens.textMuted },
+          { l: lang === "ar" ? "معتمدة" : "Approved", v: totals.approved, c: tokens.mastered },
+          { l: lang === "ar" ? "بانتظار الاعتماد" : "Pending", v: totals.pending, c: tokens.developing },
+          { l: lang === "ar" ? "مواضيع بلا مواد" : "Topics with no materials", v: gaps.length, c: gaps.length ? tokens.gap : tokens.textMuted },
         ].map((t) => (
           <div key={t.l} style={{ display: "inline-flex", gap: 8, alignItems: "center", background: tokens.card, border: `1px solid ${tokens.cardBorder}`, borderRadius: 10, padding: "8px 14px" }}>
-            <span style={{ fontFamily: MONO, fontSize: 14, fontWeight: 700, color: t.c }}>{t.v}</span>
-            <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "0.08em", color: tokens.textMuted }}>{t.l}</span>
+            <span style={{ fontFamily: "inherit", fontSize: 14, fontWeight: 700, color: t.c }}>{t.v}</span>
+            <span style={{ fontFamily: "inherit", fontSize: 12, letterSpacing: 0, color: tokens.textMuted }}>{t.l}</span>
           </div>
         ))}
       </div>
@@ -115,7 +115,7 @@ function DemoMaterialsTab({ state, courseId }) {
             {lang === "ar" ? "رفع مواد جديدة" : "Upload new materials"}
           </div>
           <label style={{ display: "inline-flex", gap: 8, alignItems: "center", flexDirection: isRtl ? "row-reverse" : "row" }}>
-            <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "0.08em", color: tokens.textMuted }}>{lang === "ar" ? "الموضوع" : "TOPIC"}</span>
+            <span style={{ fontFamily: "inherit", fontSize: 12, letterSpacing: 0, color: tokens.textMuted }}>{lang === "ar" ? "الموضوع" : "Topic"}</span>
             <select value={topic} onChange={(e) => setTopic(e.target.value)} style={{ ...inputStyle(tokens, bFont), cursor: "pointer", width: mobile ? 170 : 240 }} className="genai-input">
               {course.topics.map((t) => (
                 <option key={t.id} value={t.id}>{lang === "ar" ? t.label.ar : t.label.en}</option>
@@ -159,7 +159,7 @@ function DemoMaterialsTab({ state, courseId }) {
         )}
       </div>
       {filtersActive && (
-        <div style={{ fontFamily: MONO, fontSize: 10.5, color: tokens.textMuted, marginBottom: 12 }}>
+        <div style={{ fontFamily: "inherit", fontSize: 12.5, color: tokens.textMuted, marginBottom: 12 }}>
           {lang === "ar" ? `معروض ${shownCount} مادة مطابقة` : `${shownCount} matching material${shownCount === 1 ? "" : "s"} shown`}
         </div>
       )}
@@ -179,7 +179,7 @@ function DemoMaterialsTab({ state, courseId }) {
                   </span>
                   {approved === 0 && <IconWarning size={13} color={tokens.gap} />}
                 </div>
-                <span style={{ fontFamily: MONO, fontSize: 10.5, color: tokens.textMuted }}>
+                <span style={{ fontFamily: "inherit", fontSize: 12.5, color: tokens.textMuted }}>
                   {approved} {lang === "ar" ? "معتمد" : "approved"} · {pending} {lang === "ar" ? "معلق" : "pending"}
                 </span>
               </div>
@@ -200,13 +200,13 @@ function DemoMaterialsTab({ state, courseId }) {
                       <div style={{ flex: "1 1 200px", minWidth: 0, textAlign: isRtl ? "right" : "left" }}>
                         <div style={{ fontFamily: bFont, fontSize: 12.5, fontWeight: 600, color: tokens.textPrimary, marginBottom: 3 }}>{m.title}</div>
                         <div style={{ display: "flex", gap: 7, alignItems: "center", flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
-                          <span style={{ fontFamily: MONO, fontSize: 9.5, color: kind.color, border: `1px solid ${kind.color}55`, borderRadius: 5, padding: "1px 6px" }}>{kind.tag}</span>
+                          <span style={{ fontFamily: "inherit", fontSize: 12, color: kind.color, border: `1px solid ${kind.color}55`, borderRadius: 5, padding: "1px 6px" }}>{kind.tag}</span>
                           {m.file && (
-                            <span style={{ fontFamily: MONO, fontSize: 10.5, color: tokens.textMuted }}>
+                            <span style={{ fontFamily: "inherit", fontSize: 12.5, color: tokens.textMuted }}>
                               {m.file.fileName} · {fmtBytes(m.file.size)}
                             </span>
                           )}
-                          <span style={{ fontFamily: MONO, fontSize: 10.5, color: tokens.textFaint }}>{fmtWhen(m.addedAt, lang)}</span>
+                          <span style={{ fontFamily: "inherit", fontSize: 12.5, color: tokens.textFaint }}>{fmtWhen(m.addedAt, lang)}</span>
                         </div>
                       </div>
                       {statusChip(m.status)}
@@ -362,7 +362,7 @@ function RealMaterialsTab({ state, courseId }) {
               {t("Course Materials", "مواد المقرر")}
             </h2>
             <p style={{ fontFamily: bFont, fontSize: 13, color: tokens.textMuted, margin: 0 }}>
-              {t("Upload sources for each topic — only ready ones feed the AI.", "ارفع مصادر لكل موضوع — لا يصل إلى الذكاء الاصطناعي إلا الجاهز منها.")}
+              {t("Upload files for each topic. Students' AI tutor and study tools use the ready ones.", "ارفع مصادر لكل موضوع — لا يصل إلى الذكاء الاصطناعي إلا الجاهز منها.")}
             </p>
           </div>
           <Chip tokens={tokens} tone={readyTotal ? "primary" : "slate"}>
@@ -399,7 +399,7 @@ function RealMaterialsTab({ state, courseId }) {
               {t("Upload new materials", "رفع مواد جديدة")}
             </div>
             <label style={{ display: "inline-flex", gap: 8, alignItems: "center", flexDirection: isRtl ? "row-reverse" : "row" }}>
-              <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "0.08em", color: tokens.textMuted }}>{t("TOPIC", "الموضوع")}</span>
+              <span style={{ fontFamily: "inherit", fontSize: 12, letterSpacing: 0, color: tokens.textMuted }}>{t("Topic", "الموضوع")}</span>
               <select value={uploadTopic} onChange={(e) => setUploadTopic(e.target.value)} style={{ ...inputStyle(tokens, bFont), cursor: "pointer", width: mobile ? 170 : 240 }} className="genai-input">
                 {topics.map((topic) => (
                   <option key={topic.id} value={topic.id}>{topic.label?.[lang] ?? topic.label?.en}</option>
@@ -446,7 +446,7 @@ function RealMaterialsTab({ state, courseId }) {
           )}
         </div>
         {filtersActive && (
-          <div style={{ fontFamily: MONO, fontSize: 10.5, color: tokens.textMuted, marginBottom: 12 }}>
+          <div style={{ fontFamily: "inherit", fontSize: 12.5, color: tokens.textMuted, marginBottom: 12 }}>
             {t(`${shownCount} matching material${shownCount === 1 ? "" : "s"} shown`, `معروض ${shownCount} مادة مطابقة`)}
           </div>
         )}
@@ -466,7 +466,7 @@ function RealMaterialsTab({ state, courseId }) {
                     </span>
                     {ready === 0 && group.id !== "none" && <IconWarning size={13} color={tokens.gap} />}
                   </div>
-                  <span style={{ fontFamily: MONO, fontSize: 10.5, color: tokens.textMuted }}>
+                  <span style={{ fontFamily: "inherit", fontSize: 12.5, color: tokens.textMuted }}>
                     {ready} {t("ready", "جاهزة")}{processing > 0 ? ` · ${processing} ${t("processing", "قيد التجهيز")}` : ""}
                   </span>
                 </div>
@@ -504,16 +504,16 @@ function RealMaterialsTab({ state, courseId }) {
                             <div style={{ fontFamily: bFont, fontSize: 12.5, fontWeight: 600, color: tokens.textPrimary, marginBottom: 3 }}>{m.title}</div>
                           )}
                           <div style={{ display: "flex", gap: 7, alignItems: "center", flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
-                            <span style={{ fontFamily: MONO, fontSize: 9.5, color: kind.color, border: `1px solid ${kind.color}55`, borderRadius: 5, padding: "1px 6px" }}>{kind.tag}</span>
+                            <span style={{ fontFamily: "inherit", fontSize: 12, color: kind.color, border: `1px solid ${kind.color}55`, borderRadius: 5, padding: "1px 6px" }}>{kind.tag}</span>
                             {m.file && (
-                              <span style={{ fontFamily: MONO, fontSize: 10.5, color: tokens.textMuted }}>
+                              <span style={{ fontFamily: "inherit", fontSize: 12.5, color: tokens.textMuted }}>
                                 {m.file.fileName} · {fmtBytes(m.file.size)}
                               </span>
                             )}
-                            {m.createdAt && <span style={{ fontFamily: MONO, fontSize: 10.5, color: tokens.textFaint }}>{fmtWhen(m.createdAt, lang)}</span>}
+                            {m.createdAt && <span style={{ fontFamily: "inherit", fontSize: 12.5, color: tokens.textFaint }}>{fmtWhen(m.createdAt, lang)}</span>}
                           </div>
                         </div>
-                        <span style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: "0.07em", fontWeight: 700, borderRadius: 6, padding: "2px 8px", whiteSpace: "nowrap", color: statusColor, background: `${statusColor}1a`, border: `1px solid ${statusColor}44` }}>
+                        <span style={{ fontFamily: "inherit", fontSize: 12, letterSpacing: 0, fontWeight: 700, borderRadius: 6, padding: "2px 8px", whiteSpace: "nowrap", color: statusColor, background: `${statusColor}1a`, border: `1px solid ${statusColor}44` }}>
                           {lang === "ar" ? statusLabel.ar : statusLabel.en.toUpperCase()}
                         </span>
                         <div style={{ display: "flex", gap: 4, alignItems: "center", flexShrink: 0, flexDirection: isRtl ? "row-reverse" : "row" }}>

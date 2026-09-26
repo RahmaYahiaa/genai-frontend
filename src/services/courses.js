@@ -62,7 +62,7 @@ export async function listEnrollments(courseId, params = {}) {
   query.set("page", String(params.page ?? 1));
   query.set("limit", String(params.limit ?? 100));
   const result = await apiFull(`/courses/${courseId}/enrollments?${query.toString()}`);
-  return { items: result.data ?? [], total: result.meta?.total ?? 0 };
+  return { items: result.data ?? [], total: result.meta?.pagination?.total ?? result.meta?.total ?? (result.data ?? []).length };
 }
 
 export async function createPersonalCourse(title) {

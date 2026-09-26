@@ -119,11 +119,11 @@ function DemoAuditTrailTab({ state, courseId }) {
             <table style={{ width: "100%", borderCollapse: "collapse", minWidth: mobile ? 620 : undefined }}>
               <thead>
                 <tr>
-                  <Th tokens={tokens}>{lang === "ar" ? "التاريخ / الوقت" : "DATE / TIME"}</Th>
-                  <Th tokens={tokens}>{lang === "ar" ? "الإجراء" : "ACTION"}</Th>
-                  <Th tokens={tokens} align="right">{lang === "ar" ? "درجة الذكاء" : "AI SCORE"}</Th>
-                  <Th tokens={tokens} align="right">{lang === "ar" ? "الدرجة النهائية" : "FINAL SCORE"}</Th>
-                  <Th tokens={tokens}>{lang === "ar" ? "المدرّس" : "INSTRUCTOR"}</Th>
+                  <Th tokens={tokens}>{lang === "ar" ? "التاريخ / الوقت" : "Date / time"}</Th>
+                  <Th tokens={tokens}>{lang === "ar" ? "الإجراء" : "Action"}</Th>
+                  <Th tokens={tokens} align="right">{lang === "ar" ? "درجة الذكاء" : "Ai score"}</Th>
+                  <Th tokens={tokens} align="right">{lang === "ar" ? "الدرجة النهائية" : "Final score"}</Th>
+                  <Th tokens={tokens}>{lang === "ar" ? "المدرّس" : "Instructor"}</Th>
                 </tr>
               </thead>
               <tbody>
@@ -145,10 +145,10 @@ function DemoAuditTrailTab({ state, courseId }) {
                         <div style={{ fontFamily: bFont, fontSize: 11.5, color: tokens.textSecondary, marginTop: 4 }}>{e.note}</div>
                       ) : null}
                     </td>
-                    <td style={{ padding: "15px 10px", textAlign: "right", fontFamily: MONO, fontSize: 13, fontWeight: 700, color: e.aiScore === null ? tokens.textFaint : tokens.textPrimary }}>
+                    <td style={{ padding: "15px 10px", textAlign: "right", fontFamily: "inherit", fontSize: 13, fontWeight: 700, color: e.aiScore === null ? tokens.textFaint : tokens.textPrimary }}>
                       {e.aiScore === null ? "—" : e.aiScore}
                     </td>
-                    <td style={{ padding: "15px 10px", textAlign: "right", fontFamily: MONO, fontSize: 13, fontWeight: 700, color: e.finalScore === null ? tokens.textFaint : tokens.primary }}>
+                    <td style={{ padding: "15px 10px", textAlign: "right", fontFamily: "inherit", fontSize: 13, fontWeight: 700, color: e.finalScore === null ? tokens.textFaint : tokens.primary }}>
                       {e.finalScore === null ? "—" : e.finalScore}
                     </td>
                     <td style={{ padding: "15px 10px", fontFamily: bFont, fontSize: 12.5, color: tokens.textSecondary, whiteSpace: "nowrap" }}>{e.instructor}</td>
@@ -305,11 +305,11 @@ function RealAuditTrailTab({ state, courseId }) {
               <table style={{ width: "100%", borderCollapse: "collapse", minWidth: mobile ? 620 : undefined }}>
                 <thead>
                   <tr>
-                    <Th tokens={tokens}>{lang === "ar" ? "التاريخ / الوقت" : "DATE / TIME"}</Th>
-                    <Th tokens={tokens}>{lang === "ar" ? "الإجراء" : "ACTION"}</Th>
-                    <Th tokens={tokens} align="right">{lang === "ar" ? "درجة الذكاء" : "AI SCORE"}</Th>
-                    <Th tokens={tokens} align="right">{lang === "ar" ? "الدرجة النهائية" : "FINAL SCORE"}</Th>
-                    <Th tokens={tokens}>{lang === "ar" ? "المدرّس" : "INSTRUCTOR"}</Th>
+                    <Th tokens={tokens}>{lang === "ar" ? "التاريخ / الوقت" : "Date / time"}</Th>
+                    <Th tokens={tokens}>{lang === "ar" ? "الإجراء" : "Action"}</Th>
+                    <Th tokens={tokens} align="right">{lang === "ar" ? "درجة الذكاء" : "Ai score"}</Th>
+                    <Th tokens={tokens} align="right">{lang === "ar" ? "الدرجة النهائية" : "Final score"}</Th>
+                    <Th tokens={tokens}>{lang === "ar" ? "المدرّس" : "Instructor"}</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -331,10 +331,10 @@ function RealAuditTrailTab({ state, courseId }) {
                           <div style={{ fontFamily: bFont, fontSize: 11.5, color: tokens.textSecondary, marginTop: 4 }}>{e.note}</div>
                         ) : null}
                       </td>
-                      <td style={{ padding: "15px 10px", textAlign: "right", fontFamily: MONO, fontSize: 13, fontWeight: 700, color: e.aiScore === null ? tokens.textFaint : tokens.textPrimary }}>
+                      <td style={{ padding: "15px 10px", textAlign: "right", fontFamily: "inherit", fontSize: 13, fontWeight: 700, color: e.aiScore === null ? tokens.textFaint : tokens.textPrimary }}>
                         {e.aiScore === null ? "—" : e.aiScore}
                       </td>
-                      <td style={{ padding: "15px 10px", textAlign: "right", fontFamily: MONO, fontSize: 13, fontWeight: 700, color: e.finalScore === null ? tokens.textFaint : tokens.primary }}>
+                      <td style={{ padding: "15px 10px", textAlign: "right", fontFamily: "inherit", fontSize: 13, fontWeight: 700, color: e.finalScore === null ? tokens.textFaint : tokens.primary }}>
                         {e.finalScore === null ? "—" : e.finalScore}
                       </td>
                       <td style={{ padding: "15px 10px", fontFamily: bFont, fontSize: 12.5, color: tokens.textSecondary, whiteSpace: "nowrap" }}>{e.instructor}</td>

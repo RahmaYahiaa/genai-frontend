@@ -3,13 +3,12 @@ import useAsync from "@/hooks/useAsync";
 import { tk } from "@/constants/tokens";
 import useMediaQuery from "@/hooks/useMediaQuery";
 import { useInstructorModule } from "@/store/InstructorProvider";
-import { PillTabs, BackCircle, bFontFor, hFontFor } from "@/components/ModuleUI";
-import { IconWarning } from "@/components/Icons";
 import { SCREENS } from "@/constants/routes";
 import { demoMode } from "@/services/auth";
-import { getCourse } from "@/services/courses";
-import { approvedMaterials } from "@/data/instructorModule";
-import { AsyncGate } from "@/components/ui";
+import { getCourse, listEnrollments } from "@/services/courses";
+import { getCourseAnalytics } from "@/services/analytics";
+import { LoadingBlock, ErrorBlock } from "@/components/study/StudyKit";
+import { InstructorPage, CodeBadge } from "@/components/instructor/InstructorKit";
 import AssignmentsTab from "@/components/AssignmentsTab";
 import CourseMaterialsTab from "@/components/CourseMaterialsTab";
 import CourseAnalyticsTab from "@/components/CourseAnalyticsTab";
@@ -17,77 +16,75 @@ import AuditTrailTab from "@/components/AuditTrailTab";
 
 const TAB_IDS = ["assignments", "materials", "analytics", "audit"];
 
+/** One course, four clear areas: assignments, materials, class results, activity. */
 export default function CourseWorkspacePage({ state, dispatch }) {
   const { state: mod } = useInstructorModule();
   const mobile = useMediaQuery("(max-width: 760px)");
   const tokens = tk(state.dark);
   const lang = state.lang;
-  const isRtl = lang === "ar";
-  const hFont = hFontFor(lang);
-  const bFont = bFontFor(lang);
+  const t = (en, ar) => (lang === "ar" ? ar : en);
   const real = !demoMode();
 
   const courseId = state.courseId ?? "CS301";
-  const load = useCallback(() => (real ? getCourse(courseId) : Promise.resolve(null)), [real, courseId]);
-  const { data: liveCourse, loading, error, reload } = useAsync(load);
-  const course = real ? liveCourse : mod.courses.find((c) => c.id === courseId) ?? mod.courses[0];
+  const load = useCallback(async () => {
+    if (!real) return null;
+    const [course, roster, analytics] = await Promise.all([
+      getCourse(courseId),
+      listEnrollments(courseId, { page: 1, limit: 1 }).catch(() => null),
+      getCourseAnalytics(courseId).catch(() => null),
+    ]);
+    return { course, students: roster?.total ?? null, totals: analytics?.totals ?? null };
+  }, [real, courseId]);
+  const { data, loading, error, reload } = useAsync(load);
+  const course = real ? data?.course : mod.courses.find((c) => c.id === courseId) ?? mod.courses[0];
   const tab = TAB_IDS.includes(state.tab) ? state.tab : "assignments";
-  const coverageGaps = real ? 0 : course.topics.filter((t) => approvedMaterials(t) === 0).length;
+  const L = (v) => (typeof v === "string" ? v : v?.[lang] ?? v?.en ?? "");
+
+  const tabs = [
+    { id: "assignments", label: t("Assignments", "التكليفات") },
+    { id: "materials", label: t("Materials", "المواد") },
+    { id: "analytics", label: t("Class results", "نتايج الطلاب") },
+    { id: "audit", label: t("Activity", "النشاط") },
+  ];
+  const totals = data?.totals;
+  const facts = real && course
+    ? [
+        data?.students != null && t(`${data.students} students`, `${data.students} طالب`),
+        totals?.assignments && t(`${totals.assignments.openCount} open assignments`, `${totals.assignments.openCount} تكليف مفتوح`),
+        totals?.materials && t(`${totals.materials.readyCount} files ready`, `${totals.materials.readyCount} ملف جاهز`),
+        (course.topics ?? []).length > 0 && t(`${course.topics.length} topics`, `${course.topics.length} موضوع`),
+      ].filter(Boolean)
+    : [];
 
   return (
-    <div
-      className="genai-pad"
-      style={{ padding: mobile ? "20px 16px" : "26px 32px", maxWidth: 1180, margin: "0 auto", direction: isRtl ? "rtl" : "ltr" }}
-    >
-      <AsyncGate tokens={tokens} lang={lang} loading={real && loading} error={error} reload={reload} label={lang === "ar" ? "جاري تحميل المقرر…" : "Loading course…"}>
-        {course && (
-          <>
-            <div style={{ display: "flex", gap: 14, alignItems: "flex-start", marginBottom: 20, flexDirection: isRtl ? "row-reverse" : "row" }}>
-              <BackCircle tokens={tokens} rtl={isRtl} onClick={() => dispatch({ type: "NAVIGATE", screen: SCREENS.INSTRUCTOR_HOME, tab: undefined })} />
-              <div style={{ textAlign: isRtl ? "right" : "left", minWidth: 0 }}>
-                <h1 style={{ fontFamily: hFont, fontWeight: 700, fontSize: mobile ? 19 : 22, color: tokens.textPrimary, letterSpacing: "-0.025em", margin: "0 0 4px" }}>
-                  {real ? course.title[lang] : `${course.id} · ${lang === "ar" ? course.title.ar : course.title.en}`}
-                </h1>
-                <p style={{ fontSize: 13, color: tokens.textMuted, margin: 0, fontFamily: bFont, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
-                  {real ? (
-                    course.description ? <span>{course.description}</span> : null
-                  ) : (
-                    <span>
-                      {course.instructor} · {course.enrolled} {lang === "ar" ? "طالباً" : "students"}
-                    </span>
-                  )}
-                  {coverageGaps > 0 && (
-                    <span style={{ display: "inline-flex", gap: 5, alignItems: "center", fontFamily: bFont, fontSize: 11, fontWeight: 600, color: tokens.gap, background: tokens.gapBg, border: `1px solid ${tokens.gap}44`, borderRadius: 6, padding: "2px 8px" }}>
-                      <IconWarning size={11} color={tokens.gap} />
-                      {coverageGaps} {lang === "ar" ? "فجوة تغطية" : `coverage gap${coverageGaps > 1 ? "s" : ""}`}
-                    </span>
-                  )}
-                </p>
-              </div>
-            </div>
-
-            <PillTabs
-              tokens={tokens}
-              lang={lang}
-              active={tab}
-              onSelect={(id) => dispatch({ type: "NAVIGATE", screen: SCREENS.COURSE_WORKSPACE, courseId: course.id, tab: id })}
-              tabs={[
-                { id: "assignments", label: lang === "ar" ? "التكليفات" : "Assignments" },
-                { id: "materials", label: lang === "ar" ? "المواد" : "Materials" },
-                { id: "analytics", label: lang === "ar" ? "التحليلات" : "Analytics" },
-                { id: "audit", label: lang === "ar" ? "سجل التدقيق" : "Audit Trail" },
-              ]}
-            />
-
-            <div style={{ marginTop: 24 }}>
-              {tab === "assignments" && <AssignmentsTab state={state} dispatch={dispatch} courseId={course.id} />}
-              {tab === "materials" && <CourseMaterialsTab state={state} dispatch={dispatch} courseId={course.id} />}
-              {tab === "analytics" && <CourseAnalyticsTab state={state} dispatch={dispatch} courseId={course.id} />}
-              {tab === "audit" && <AuditTrailTab state={state} courseId={course.id} />}
-            </div>
-          </>
-        )}
-      </AsyncGate>
-    </div>
+    <InstructorPage tokens={tokens} lang={lang} mobile={mobile} width={1120}
+      back={{ label: t("My courses", "مقرراتي"), onClick: () => dispatch({ type: "NAVIGATE", screen: SCREENS.INSTRUCTOR_COURSES, tab: undefined }) }}
+      title={course ? <span style={{ display: "inline-flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>{L(course.title)}<CodeBadge tokens={tokens}>{course.code ?? (real ? "" : course.id)}</CodeBadge></span> : t("Course", "المقرر")}
+      subtitle={facts.length ? facts.join(" · ") : undefined}>
+      {real && loading ? (
+        <LoadingBlock tokens={tokens} label={t("Loading course…", "بنحمّل المقرر…")} />
+      ) : error ? (
+        <ErrorBlock tokens={tokens} lang={lang} onRetry={reload} />
+      ) : course ? (
+        <>
+          <div role="tablist" style={{ display: "flex", gap: 4, borderBottom: `1px solid ${tokens.cardBorder}`, marginBottom: 24, overflowX: "auto" }}>
+            {tabs.map((item) => {
+              const active = item.id === tab;
+              return (
+                <button key={item.id} role="tab" aria-selected={active} type="button"
+                  onClick={() => dispatch({ type: "NAVIGATE", screen: SCREENS.COURSE_WORKSPACE, courseId: course.id, tab: item.id })}
+                  style={{ padding: "10px 14px", background: "none", border: "none", borderBottom: `2px solid ${active ? tokens.primary : "transparent"}`, marginBottom: -1, color: active ? tokens.primary : tokens.textMuted, fontWeight: active ? 650 : 500, fontSize: 14, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
+                  {item.label}
+                </button>
+              );
+            })}
+          </div>
+          {tab === "assignments" && <AssignmentsTab state={state} dispatch={dispatch} courseId={course.id} />}
+          {tab === "materials" && <CourseMaterialsTab state={state} dispatch={dispatch} courseId={course.id} />}
+          {tab === "analytics" && <CourseAnalyticsTab state={state} dispatch={dispatch} courseId={course.id} />}
+          {tab === "audit" && <AuditTrailTab state={state} courseId={course.id} />}
+        </>
+      ) : null}
+    </InstructorPage>
   );
 }

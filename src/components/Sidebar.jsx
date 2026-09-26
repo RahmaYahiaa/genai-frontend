@@ -107,7 +107,7 @@ export default function Sidebar({ state, dispatch, role, onNavigate, collapsed =
         {!collapsed && (
           <div style={{ flex: 1 }}>
             <div style={{ fontFamily: hFont, fontWeight: 700, fontSize: 18, lineHeight: 1, color: tokens.textPrimary, letterSpacing: "-0.01em" }}>Lerna</div>
-            {role !== "student" && <div style={{ fontFamily: MONO, fontSize: 7.5, color: tokens.textFaint, letterSpacing: "0.12em" }}>LEARN SMARTER</div>}
+            {role === "admin" && <div style={{ fontFamily: MONO, fontSize: 7.5, color: tokens.textFaint, letterSpacing: "0.12em" }}>LEARN SMARTER</div>}
           </div>
         )}
         {onToggle && (
@@ -121,7 +121,7 @@ export default function Sidebar({ state, dispatch, role, onNavigate, collapsed =
         )}
       </div>
 
-      <div style={{ padding: "10px 16px 4px", display: role === "student" || collapsed ? "none" : "block" }}>
+      <div style={{ padding: "10px 16px 4px", display: role !== "admin" || collapsed ? "none" : "block" }}>
         <span
           style={{
             fontFamily: MONO,

@@ -76,7 +76,7 @@ function DemoInstructorStudentsPage({ state, dispatch }) {
     };
     const m = map[t] ?? map.stable;
     return (
-      <span style={{ fontFamily: MONO, fontSize: 10, color: m.fg, background: m.bg, border: `1px solid ${m.fg}44`, borderRadius: 5, padding: "2px 8px", whiteSpace: "nowrap" }}>
+      <span style={{ fontFamily: "inherit", fontSize: 12, color: m.fg, background: m.bg, border: `1px solid ${m.fg}44`, borderRadius: 5, padding: "2px 8px", whiteSpace: "nowrap" }}>
         {lang === "ar" ? m.ar : m.en}
       </span>
     );
@@ -138,7 +138,7 @@ function DemoInstructorStudentsPage({ state, dispatch }) {
                 <Chip tokens={tokens} tone="peri">{lang === "ar" ? `دفعة ${s.cohort}` : `cohort ${s.cohort}`}</Chip>
                 {trendPill(s.trend)}
               </div>
-              <p style={{ fontFamily: MONO, fontSize: 11.5, color: tokens.textMuted, margin: 0 }}>
+              <p style={{ fontFamily: "inherit", fontSize: 11.5, color: tokens.textMuted, margin: 0 }}>
                 {s.studentNumber} · {course.id} · {lang === "ar" ? "ملف الطالب" : "student file"}
               </p>
             </div>
@@ -150,13 +150,13 @@ function DemoInstructorStudentsPage({ state, dispatch }) {
 
         <div className="genai-tiles-4" style={{ display: "grid", gridTemplateColumns: mobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: 14, marginBottom: 18 }}>
           {[
-            { l: lang === "ar" ? "متوسط الإتقان" : "AVG MASTERY", v: `${s.avg}%`, c: masteryColor(masteryLevel(s.avg, true), tokens) },
-            { l: lang === "ar" ? "جلسات الذكاء" : "AI SESSIONS", v: `${s.sessions}`, c: tokens.textPrimary },
-            { l: lang === "ar" ? "معلّق الآن" : "OPEN NOW", v: `${openCount(s.id)}`, c: tokens.textPrimary },
-            { l: lang === "ar" ? "متوسط النهايات" : "FINAL AVG", v: finals.length ? `${Math.round(finals.reduce((a, b) => a + b, 0) / finals.length)}/10` : "—", c: tokens.primary },
+            { l: lang === "ar" ? "متوسط الإتقان" : "Avg mastery", v: `${s.avg}%`, c: masteryColor(masteryLevel(s.avg, true), tokens) },
+            { l: lang === "ar" ? "جلسات الذكاء" : "Ai sessions", v: `${s.sessions}`, c: tokens.textPrimary },
+            { l: lang === "ar" ? "معلّق الآن" : "Open now", v: `${openCount(s.id)}`, c: tokens.textPrimary },
+            { l: lang === "ar" ? "متوسط النهايات" : "Final avg", v: finals.length ? `${Math.round(finals.reduce((a, b) => a + b, 0) / finals.length)}/10` : "—", c: tokens.primary },
           ].map((t) => (
             <div key={t.l} style={{ background: tokens.card, border: `1px solid ${tokens.cardBorder}`, borderRadius: 12, padding: "14px 16px" }}>
-              <div style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: "0.09em", color: tokens.textMuted, marginBottom: 6 }}>{t.l}</div>
+              <div style={{ fontFamily: "inherit", fontSize: 12.5, letterSpacing: 0, color: tokens.textMuted, marginBottom: 6 }}>{t.l}</div>
               <div style={{ fontFamily: hFont, fontWeight: 700, fontSize: 22, color: t.c, letterSpacing: "-0.03em" }}>{t.v}</div>
             </div>
           ))}
@@ -176,7 +176,7 @@ function DemoInstructorStudentsPage({ state, dispatch }) {
                     {lang === "ar" ? t.label.ar : t.label.en}
                   </span>
                   <div style={{ width: mobile ? 70 : 110, flexShrink: 0 }}><MasteryBar pct={pct} evidence={1} thin tokens={tokens} /></div>
-                  <span style={{ fontFamily: MONO, fontSize: 11, fontWeight: 700, color: masteryColor(masteryLevel(pct, true), tokens), width: 34, textAlign: isRtl ? "left" : "right" }}>{pct}%</span>
+                  <span style={{ fontFamily: "inherit", fontSize: 11, fontWeight: 700, color: masteryColor(masteryLevel(pct, true), tokens), width: 34, textAlign: isRtl ? "left" : "right" }}>{pct}%</span>
                 </div>
               );
             })}
@@ -194,7 +194,7 @@ function DemoInstructorStudentsPage({ state, dispatch }) {
               receivedRemedial.map((r) => (
                 <div key={r.id} style={{ padding: "9px 0", borderTop: `1px solid ${tokens.cardBorder}` }}>
                   <div style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textPrimary }}>{r.title}</div>
-                  <div style={{ fontFamily: MONO, fontSize: 10, color: tokens.textMuted, marginTop: 3 }}>
+                  <div style={{ fontFamily: "inherit", fontSize: 12, color: tokens.textMuted, marginTop: 3 }}>
                     {r.type === "explanation" ? (lang === "ar" ? "شرح + مثال" : "explanation + worked example") : (lang === "ar" ? "تدريب إضافي" : "extra practice")} · {fmtWhen(r.createdAt, lang)}
                   </div>
                 </div>
@@ -216,11 +216,11 @@ function DemoInstructorStudentsPage({ state, dispatch }) {
               <table style={{ width: "100%", borderCollapse: "collapse", minWidth: mobile ? 560 : undefined }}>
                 <thead>
                   <tr>
-                    <Th tokens={tokens}>{lang === "ar" ? "التكليف" : "ASSIGNMENT"}</Th>
-                    <Th tokens={tokens}>{lang === "ar" ? "الحالة" : "STATUS"}</Th>
-                    <Th tokens={tokens} align="right">{lang === "ar" ? "درجة الذكاء" : "AI SCORE"}</Th>
-                    <Th tokens={tokens} align="right">{lang === "ar" ? "النهائية" : "FINAL"}</Th>
-                    <Th tokens={tokens}>{lang === "ar" ? "التاريخ" : "DATE"}</Th>
+                    <Th tokens={tokens}>{lang === "ar" ? "التكليف" : "Assignment"}</Th>
+                    <Th tokens={tokens}>{lang === "ar" ? "الحالة" : "Status"}</Th>
+                    <Th tokens={tokens} align="right">{lang === "ar" ? "درجة الذكاء" : "Ai score"}</Th>
+                    <Th tokens={tokens} align="right">{lang === "ar" ? "النهائية" : "Final"}</Th>
+                    <Th tokens={tokens}>{lang === "ar" ? "التاريخ" : "Date"}</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -241,9 +241,9 @@ function DemoInstructorStudentsPage({ state, dispatch }) {
                           <ScoreValue kind="ai" score={at.eval.aiScore} max={10} tokens={tokens} lang={lang} />
                         </td>
                         <td style={{ padding: "11px 10px", textAlign: "right" }}>
-                          {u.status === "final" ? <ScoreValue kind="final" score={at.decision?.finalScore ?? null} max={10} tokens={tokens} lang={lang} /> : <span style={{ fontFamily: MONO, fontSize: 11, color: tokens.textFaint }}>—</span>}
+                          {u.status === "final" ? <ScoreValue kind="final" score={at.decision?.finalScore ?? null} max={10} tokens={tokens} lang={lang} /> : <span style={{ fontFamily: "inherit", fontSize: 11, color: tokens.textFaint }}>—</span>}
                         </td>
-                        <td style={{ padding: "11px 10px", fontFamily: MONO, fontSize: 10.5, color: tokens.textMuted, whiteSpace: "nowrap" }}>{fmtWhen(at.submittedAt, lang)}</td>
+                        <td style={{ padding: "11px 10px", fontFamily: "inherit", fontSize: 12.5, color: tokens.textMuted, whiteSpace: "nowrap" }}>{fmtWhen(at.submittedAt, lang)}</td>
                       </tr>
                     );
                   })}
@@ -317,13 +317,13 @@ function DemoInstructorStudentsPage({ state, dispatch }) {
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: mobile ? 760 : undefined }}>
             <thead>
               <tr>
-                <Th tokens={tokens}>{lang === "ar" ? "الطالب" : "STUDENT"}</Th>
-                <Th tokens={tokens}>{lang === "ar" ? "الدفعة" : "COHORT"}</Th>
-                <Th tokens={tokens}>{lang === "ar" ? "متوسط الإتقان" : "AVG MASTERY"}</Th>
-                <Th tokens={tokens}>{lang === "ar" ? "الاتجاه" : "TREND"}</Th>
-                <Th tokens={tokens} align="right">{lang === "ar" ? "جلسات" : "SESSIONS"}</Th>
-                <Th tokens={tokens} align="right">{lang === "ar" ? "معلّق" : "OPEN"}</Th>
-                <Th tokens={tokens} align="right">{lang === "ar" ? "إجراء" : "ACTION"}</Th>
+                <Th tokens={tokens}>{lang === "ar" ? "الطالب" : "Student"}</Th>
+                <Th tokens={tokens}>{lang === "ar" ? "الدفعة" : "Cohort"}</Th>
+                <Th tokens={tokens}>{lang === "ar" ? "متوسط الإتقان" : "Avg mastery"}</Th>
+                <Th tokens={tokens}>{lang === "ar" ? "الاتجاه" : "Trend"}</Th>
+                <Th tokens={tokens} align="right">{lang === "ar" ? "جلسات" : "Sessions"}</Th>
+                <Th tokens={tokens} align="right">{lang === "ar" ? "معلّق" : "Open"}</Th>
+                <Th tokens={tokens} align="right">{lang === "ar" ? "إجراء" : "Action"}</Th>
               </tr>
             </thead>
             <tbody>
@@ -331,12 +331,12 @@ function DemoInstructorStudentsPage({ state, dispatch }) {
                 <tr key={s.id} style={{ borderBottom: i < filtered.length - 1 ? `1px solid ${tokens.cardBorder}` : "none" }}>
                   <td style={{ padding: "11px 10px" }}>
                     <div style={{ display: "flex", gap: 9, alignItems: "center", flexDirection: isRtl ? "row-reverse" : "row" }}>
-                      <span style={{ width: 26, height: 26, borderRadius: "50%", background: tokens.primaryLight, border: `1px solid ${tokens.citationBorder}`, color: tokens.primary, fontFamily: MONO, fontSize: 9.5, fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <span style={{ width: 26, height: 26, borderRadius: "50%", background: tokens.primaryLight, border: `1px solid ${tokens.citationBorder}`, color: tokens.primary, fontFamily: "inherit", fontSize: 12, fontWeight: 700, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                         {initials(s.name)}
                       </span>
                       <span>
                         <span style={{ display: "block", fontFamily: bFont, fontSize: 12.5, fontWeight: 600, color: tokens.textPrimary }}>{s.name}</span>
-                        <span style={{ display: "block", fontFamily: MONO, fontSize: 10, color: tokens.textMuted }}>{s.studentNumber}</span>
+                        <span style={{ display: "block", fontFamily: "inherit", fontSize: 12, color: tokens.textMuted }}>{s.studentNumber}</span>
                       </span>
                     </div>
                   </td>
@@ -344,13 +344,13 @@ function DemoInstructorStudentsPage({ state, dispatch }) {
                   <td style={{ padding: "11px 10px", minWidth: 130 }}>
                     <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                       <div style={{ flex: 1 }}><MasteryBar pct={s.avg} evidence={1} thin tokens={tokens} /></div>
-                      <span style={{ fontFamily: MONO, fontSize: 11.5, fontWeight: 700, color: masteryColor(masteryLevel(s.avg, true), tokens) }}>{s.avg}%</span>
+                      <span style={{ fontFamily: "inherit", fontSize: 11.5, fontWeight: 700, color: masteryColor(masteryLevel(s.avg, true), tokens) }}>{s.avg}%</span>
                     </div>
                   </td>
                   <td style={{ padding: "11px 10px" }}>{trendPill(s.trend)}</td>
-                  <td style={{ padding: "11px 10px", textAlign: "right", fontFamily: MONO, fontSize: 12, color: tokens.textSecondary }}>{s.sessions}</td>
+                  <td style={{ padding: "11px 10px", textAlign: "right", fontFamily: "inherit", fontSize: 12, color: tokens.textSecondary }}>{s.sessions}</td>
                   <td style={{ padding: "11px 10px", textAlign: "right" }}>
-                    <span style={{ fontFamily: MONO, fontSize: 12, fontWeight: 700, color: openCount(s.id) > 0 ? tokens.primary : tokens.textFaint }}>{openCount(s.id)}</span>
+                    <span style={{ fontFamily: "inherit", fontSize: 12, fontWeight: 700, color: openCount(s.id) > 0 ? tokens.primary : tokens.textFaint }}>{openCount(s.id)}</span>
                   </td>
                   <td style={{ padding: "11px 10px", textAlign: "right" }}>
                     <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
@@ -558,7 +558,7 @@ function RealInstructorStudents({ state }) {
                 <h1 style={{ fontFamily: hFont, fontWeight: 700, fontSize: mobile ? 19 : 22, color: tokens.textPrimary, letterSpacing: "-0.025em", margin: 0 }}>{s.name}</h1>
                 {s.avg !== null && <Chip tokens={tokens} tone="primary">{t("Avg final", "متوسط النهائي")}: {s.avg}%</Chip>}
               </div>
-              <p style={{ fontFamily: MONO, fontSize: 11.5, color: tokens.textMuted, margin: 0 }}>
+              <p style={{ fontFamily: "inherit", fontSize: 11.5, color: tokens.textMuted, margin: 0 }}>
                 {s.email} · {courseLabel(selectedCourse)} · {t("student file", "ملف الطالب")}{s.enrolledAt ? ` · ${fmtDate(s.enrolledAt)}` : ""}
               </p>
             </div>
@@ -567,13 +567,13 @@ function RealInstructorStudents({ state }) {
 
         <div className="genai-tiles-4" style={{ display: "grid", gridTemplateColumns: mobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: 14, marginBottom: 18 }}>
           {[
-            { l: t("SUBMISSIONS", "تسليمات"), v: `${s.stats.subs}`, c: tokens.textPrimary },
-            { l: t("PENDING NOW", "معلّق الآن"), v: `${s.stats.pending}`, c: s.stats.pending > 0 ? tokens.primary : tokens.textPrimary },
-            { l: t("DECIDED", "تم البت"), v: `${s.stats.decided}`, c: tokens.textPrimary },
-            { l: t("AVG FINAL", "متوسط النهائي"), v: s.avg === null ? "—" : `${s.avg}%`, c: s.avg === null ? tokens.textFaint : masteryColor(masteryLevel(s.avg, true), tokens) },
+            { l: t("Submissions", "تسليمات"), v: `${s.stats.subs}`, c: tokens.textPrimary },
+            { l: t("Waiting now", "معلّق الآن"), v: `${s.stats.pending}`, c: s.stats.pending > 0 ? tokens.primary : tokens.textPrimary },
+            { l: t("Graded", "تم البت"), v: `${s.stats.decided}`, c: tokens.textPrimary },
+            { l: t("Avg final", "متوسط النهائي"), v: s.avg === null ? "—" : `${s.avg}%`, c: s.avg === null ? tokens.textFaint : masteryColor(masteryLevel(s.avg, true), tokens) },
           ].map((tile) => (
             <div key={tile.l} style={{ background: tokens.card, border: `1px solid ${tokens.cardBorder}`, borderRadius: 12, padding: "14px 16px" }}>
-              <div style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: "0.09em", color: tokens.textMuted, marginBottom: 6 }}>{tile.l}</div>
+              <div style={{ fontFamily: "inherit", fontSize: 12.5, letterSpacing: 0, color: tokens.textMuted, marginBottom: 6 }}>{tile.l}</div>
               <div style={{ fontFamily: hFont, fontWeight: 700, fontSize: 22, color: tile.c, letterSpacing: "-0.03em" }}>{tile.v}</div>
             </div>
           ))}
@@ -592,11 +592,11 @@ function RealInstructorStudents({ state }) {
               <table style={{ width: "100%", borderCollapse: "collapse", minWidth: mobile ? 560 : undefined, marginBottom: 10 }}>
                 <thead>
                   <tr>
-                    <Th tokens={tokens}>{t("ASSIGNMENT", "التكليف")}</Th>
-                    <Th tokens={tokens}>{t("STATUS", "الحالة")}</Th>
-                    <Th tokens={tokens} align="right">{t("AI SCORE", "درجة الذكاء")}</Th>
-                    <Th tokens={tokens} align="right">{t("FINAL", "النهائية")}</Th>
-                    <Th tokens={tokens}>{t("DATE", "التاريخ")}</Th>
+                    <Th tokens={tokens}>{t("Assignment", "التكليف")}</Th>
+                    <Th tokens={tokens}>{t("Status", "الحالة")}</Th>
+                    <Th tokens={tokens} align="right">{t("Suggested score", "درجة الذكاء")}</Th>
+                    <Th tokens={tokens} align="right">{t("Final", "النهائية")}</Th>
+                    <Th tokens={tokens}>{t("Date", "التاريخ")}</Th>
                   </tr>
                 </thead>
                 <tbody>
@@ -610,15 +610,15 @@ function RealInstructorStudents({ state }) {
                           {lang === "ar" ? SUBMISSION_STATUS_LABELS[row.status]?.ar ?? row.status : SUBMISSION_STATUS_LABELS[row.status]?.en ?? row.status}
                         </Chip>
                       </td>
-                      <td style={{ padding: "11px 10px", textAlign: "right", fontFamily: MONO, fontSize: 11.5, color: tokens.textSecondary }}>
+                      <td style={{ padding: "11px 10px", textAlign: "right", fontFamily: "inherit", fontSize: 11.5, color: tokens.textSecondary }}>
                         {row.aiTotalScore}/{row.maxTotalScore}
                       </td>
                       <td style={{ padding: "11px 10px", textAlign: "right" }}>
                         {row.decided && row.finalScoreTotal != null
-                          ? <span style={{ fontFamily: MONO, fontSize: 11.5, fontWeight: 700, color: tokens.mastered }}>{row.finalScoreTotal}/{row.maxTotalScore}</span>
-                          : <span style={{ fontFamily: MONO, fontSize: 11, color: tokens.textFaint }}>—</span>}
+                          ? <span style={{ fontFamily: "inherit", fontSize: 11.5, fontWeight: 700, color: tokens.mastered }}>{row.finalScoreTotal}/{row.maxTotalScore}</span>
+                          : <span style={{ fontFamily: "inherit", fontSize: 11, color: tokens.textFaint }}>—</span>}
                       </td>
-                      <td style={{ padding: "11px 10px", fontFamily: MONO, fontSize: 10.5, color: tokens.textMuted, whiteSpace: "nowrap" }}>{fmtDate(row.at)}</td>
+                      <td style={{ padding: "11px 10px", fontFamily: "inherit", fontSize: 12.5, color: tokens.textMuted, whiteSpace: "nowrap" }}>{fmtDate(row.at)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -691,12 +691,12 @@ function RealInstructorStudents({ state }) {
             <table style={{ width: "100%", borderCollapse: "collapse", minWidth: mobile ? 700 : undefined }}>
               <thead>
                 <tr>
-                  <Th tokens={tokens}>{t("STUDENT", "الطالب")}</Th>
-                  <Th tokens={tokens} align="right">{t("SUBMISSIONS", "تسليمات")}</Th>
-                  <Th tokens={tokens} align="right">{t("PENDING", "معلّق")}</Th>
-                  <Th tokens={tokens} align="right">{t("DECIDED", "تم البت")}</Th>
-                  <Th tokens={tokens}>{t("AVG FINAL", "متوسط النهائي")}</Th>
-                  <Th tokens={tokens} align="right">{t("ACTION", "إجراء")}</Th>
+                  <Th tokens={tokens}>{t("Student", "الطالب")}</Th>
+                  <Th tokens={tokens} align="right">{t("Submissions", "تسليمات")}</Th>
+                  <Th tokens={tokens} align="right">{t("Waiting", "معلّق")}</Th>
+                  <Th tokens={tokens} align="right">{t("Graded", "تم البت")}</Th>
+                  <Th tokens={tokens}>{t("Avg final", "متوسط النهائي")}</Th>
+                  <Th tokens={tokens} align="right">{t("", "إجراء")}</Th>
                 </tr>
               </thead>
               <tbody>
@@ -707,22 +707,22 @@ function RealInstructorStudents({ state }) {
                         {avatar(student.name)}
                         <span>
                           <span style={{ display: "block", fontFamily: bFont, fontSize: 12.5, fontWeight: 600, color: tokens.textPrimary }}>{student.name}</span>
-                          <span style={{ display: "block", fontFamily: MONO, fontSize: 10, color: tokens.textMuted }}>{student.email}</span>
+                          <span style={{ display: "block", fontFamily: "inherit", fontSize: 12, color: tokens.textMuted }}>{student.email}</span>
                         </span>
                       </div>
                     </td>
-                    <td style={{ padding: "11px 10px", textAlign: "right", fontFamily: MONO, fontSize: 12, color: tokens.textSecondary }}>{student.stats.subs}</td>
+                    <td style={{ padding: "11px 10px", textAlign: "right", fontFamily: "inherit", fontSize: 12, color: tokens.textSecondary }}>{student.stats.subs}</td>
                     <td style={{ padding: "11px 10px", textAlign: "right" }}>
-                      <span style={{ fontFamily: MONO, fontSize: 12, fontWeight: 700, color: student.stats.pending > 0 ? tokens.primary : tokens.textFaint }}>{student.stats.pending}</span>
+                      <span style={{ fontFamily: "inherit", fontSize: 12, fontWeight: 700, color: student.stats.pending > 0 ? tokens.primary : tokens.textFaint }}>{student.stats.pending}</span>
                     </td>
-                    <td style={{ padding: "11px 10px", textAlign: "right", fontFamily: MONO, fontSize: 12, color: tokens.textSecondary }}>{student.stats.decided}</td>
+                    <td style={{ padding: "11px 10px", textAlign: "right", fontFamily: "inherit", fontSize: 12, color: tokens.textSecondary }}>{student.stats.decided}</td>
                     <td style={{ padding: "11px 10px", minWidth: 130 }}>
                       {student.avg === null ? (
-                        <span style={{ fontFamily: MONO, fontSize: 11, color: tokens.textFaint }}>—</span>
+                        <span style={{ fontFamily: "inherit", fontSize: 11, color: tokens.textFaint }}>—</span>
                       ) : (
                         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                           <div style={{ flex: 1 }}><MasteryBar pct={student.avg} evidence={1} thin tokens={tokens} /></div>
-                          <span style={{ fontFamily: MONO, fontSize: 11.5, fontWeight: 700, color: masteryColor(masteryLevel(student.avg, true), tokens) }}>{student.avg}%</span>
+                          <span style={{ fontFamily: "inherit", fontSize: 11.5, fontWeight: 700, color: masteryColor(masteryLevel(student.avg, true), tokens) }}>{student.avg}%</span>
                         </div>
                       )}
                     </td>

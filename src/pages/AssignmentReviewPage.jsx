@@ -112,14 +112,14 @@ function DemoAssignmentReviewPage({ state, dispatch }) {
   };
 
   const mono = (t) => (
-    <div style={{ fontFamily: MONO, fontSize: 10, letterSpacing: "0.09em", color: tokens.textMuted, margin: "0 0 7px" }}>{t}</div>
+    <div style={{ fontFamily: "inherit", fontSize: 12, letterSpacing: 0, color: tokens.textMuted, margin: "0 0 7px" }}>{t}</div>
   );
   const sectionHead = (title, sub, count) => (
     <div style={{ marginBottom: 14 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexDirection: isRtl ? "row-reverse" : "row" }}>
         <div style={{ fontFamily: hFont, fontWeight: 600, fontSize: 15, color: tokens.textPrimary, letterSpacing: "-0.02em" }}>{title}</div>
         {count !== undefined && (
-          <span style={{ fontFamily: MONO, fontSize: 11, fontWeight: 700, color: tokens.primary, background: tokens.primaryLight, border: `1px solid ${tokens.citationBorder}`, borderRadius: 6, padding: "2px 8px" }}>{count}</span>
+          <span style={{ fontFamily: "inherit", fontSize: 11, fontWeight: 700, color: tokens.primary, background: tokens.primaryLight, border: `1px solid ${tokens.citationBorder}`, borderRadius: 6, padding: "2px 8px" }}>{count}</span>
         )}
       </div>
       <div style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textMuted, marginTop: 3 }}>{sub}</div>
@@ -180,7 +180,7 @@ function DemoAssignmentReviewPage({ state, dispatch }) {
                 <div style={{ height: 5, background: tokens.inset, borderRadius: 4, overflow: "hidden", border: `1px solid ${tokens.cardBorder}`, margin: "8px 0 6px", marginInlineStart: 22, maxWidth: 320 }}>
                   <div style={{ width: `${m.pct}%`, height: "100%", background: tokens.gap }} />
                 </div>
-                <div style={{ fontFamily: MONO, fontSize: 11, color: tokens.textMuted, marginInlineStart: 22 }}>
+                <div style={{ fontFamily: "inherit", fontSize: 11, color: tokens.textMuted, marginInlineStart: 22 }}>
                   {m.count} {lang === "ar" ? "تسلميات" : "submissions"} · {m.pct}%{m.addressed ? ` · ${lang === "ar" ? "عولج" : "addressed"}` : ""}
                 </div>
               </div>
@@ -374,7 +374,7 @@ function DemoAssignmentReviewPage({ state, dispatch }) {
                     {attempts.map((a, i) => (
                       <button key={a.n} onClick={() => setAttemptIdx(i)}
                         style={{
-                          padding: "4px 10px", borderRadius: 6, cursor: "pointer", fontFamily: MONO, fontSize: 10.5,
+                          padding: "4px 10px", borderRadius: 6, cursor: "pointer", fontFamily: "inherit", fontSize: 12,
                           background: i === sel ? tokens.primaryLight : tokens.inset,
                           border: `1px solid ${i === sel ? tokens.primary : tokens.cardBorder}`,
                           color: i === sel ? tokens.primary : tokens.textMuted,
@@ -403,7 +403,7 @@ function DemoAssignmentReviewPage({ state, dispatch }) {
               )}
 
               <div style={{ margin: "14px 0" }}>
-                {mono(lang === "ar" ? "إجابة الطالب" : "STUDENT ANSWER")}
+                {mono(lang === "ar" ? "إجابة الطالب" : "Student answer")}
                 <div style={{ background: tokens.inset, border: `1px solid ${tokens.cardBorder}`, borderRadius: 10, padding: "12px 14px", fontFamily: bFont, fontSize: 13, color: tokens.textPrimary, lineHeight: 1.65, whiteSpace: "pre-wrap" }}>
                   {shown.text || (lang === "ar" ? "(لا نص)" : "(no text)")}
                 </div>
@@ -414,7 +414,7 @@ function DemoAssignmentReviewPage({ state, dispatch }) {
                 )}
               </div>
 
-              <AIGradingResultCard eval={ev} max={max} tokens={tokens} lang={lang} title={lang === "ar" ? "تقييم الذكاء الاصطناعي" : "AI GRADING RESULT"} />
+              <AIGradingResultCard eval={ev} max={max} tokens={tokens} lang={lang} title={lang === "ar" ? "تقييم الذكاء الاصطناعي" : "Ai grading result"} />
 
               {(q?.referenceAnswer || q?.rubric) && (
                 <div style={{ marginTop: 12, border: `1px solid ${tokens.cardBorder}`, borderRadius: 10, overflow: "hidden" }}>
@@ -425,8 +425,8 @@ function DemoAssignmentReviewPage({ state, dispatch }) {
                   </button>
                   {refOpen && (
                     <div style={{ padding: "12px 14px", fontFamily: bFont, fontSize: 12, color: tokens.textSecondary, lineHeight: 1.6, whiteSpace: "pre-wrap", textAlign: isRtl ? "right" : "left" }}>
-                      {q.referenceAnswer && <><div style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: "0.08em", color: tokens.textMuted, marginBottom: 4 }}>{lang === "ar" ? "الإجابة المرجعية — لا يراها الطلاب" : "REFERENCE — never shown to students"}</div>{q.referenceAnswer}<br /><br /></>}
-                      {q.rubric && <><div style={{ fontFamily: MONO, fontSize: 9.5, letterSpacing: "0.08em", color: tokens.textMuted, marginBottom: 4 }}>{lang === "ar" ? "الروبرك" : "RUBRIC"}</div>{q.rubric}</>}
+                      {q.referenceAnswer && <><div style={{ fontFamily: "inherit", fontSize: 12.5, letterSpacing: 0, color: tokens.textMuted, marginBottom: 4 }}>{lang === "ar" ? "الإجابة المرجعية — لا يراها الطلاب" : "REFERENCE — never shown to students"}</div>{q.referenceAnswer}<br /><br /></>}
+                      {q.rubric && <><div style={{ fontFamily: "inherit", fontSize: 12.5, letterSpacing: 0, color: tokens.textMuted, marginBottom: 4 }}>{lang === "ar" ? "الروبرك" : "Rubric"}</div>{q.rubric}</>}
                     </div>
                   )}
                 </div>
@@ -434,7 +434,7 @@ function DemoAssignmentReviewPage({ state, dispatch }) {
 
               {isFinal && at.decision && (
                 <div style={{ marginTop: 14, padding: "10px 14px", background: tokens.inset, border: `1px solid ${tokens.cardBorder}`, borderRadius: 10 }}>
-                  {mono(lang === "ar" ? "قرار المدرّس" : "INSTRUCTOR DECISION")}
+                  {mono(lang === "ar" ? "قرار المدرّس" : "Instructor decision")}
                   <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
                     <ScoreValue kind="final" score={at.decision.finalScore} max={max} tokens={tokens} lang={lang} />
                     <span style={{ fontFamily: bFont, fontSize: 11.5, color: tokens.textMuted }}>
@@ -462,11 +462,11 @@ function DemoAssignmentReviewPage({ state, dispatch }) {
                 <div style={{ marginTop: 18, paddingTop: 14, borderTop: `1px solid ${tokens.cardBorder}` }}>
                   <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "120px 1fr", gap: 12 }}>
                     <div>
-                      {mono(lang === "ar" ? "الدرجة النهائية" : "FINAL SCORE")}
+                      {mono(lang === "ar" ? "الدرجة النهائية" : "Final score")}
                       <input type="number" min={0} max={max} value={editScore} onChange={(e) => setEditScore(e.target.value)} style={inputStyle(tokens, bFont)} className="genai-input" />
                     </div>
                     <div>
-                      {mono(lang === "ar" ? "التغذية النهائية" : "FINAL FEEDBACK")}
+                      {mono(lang === "ar" ? "التغذية النهائية" : "Final feedback")}
                       <textarea rows={2} value={editFeedback} onChange={(e) => setEditFeedback(e.target.value)} style={textareaStyle(tokens, bFont)} className="genai-input" />
                     </div>
                   </div>
@@ -483,11 +483,11 @@ function DemoAssignmentReviewPage({ state, dispatch }) {
                 <div style={{ marginTop: 18, paddingTop: 14, borderTop: `1px solid ${tokens.cardBorder}` }}>
                   <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "120px 1fr", gap: 12 }}>
                     <div>
-                      {mono(lang === "ar" ? "الدرجة النهائية" : "FINAL SCORE")}
+                      {mono(lang === "ar" ? "الدرجة النهائية" : "Final score")}
                       <input type="number" min={0} max={max} value={editScore} onChange={(e) => setEditScore(e.target.value)} style={inputStyle(tokens, bFont)} className="genai-input" />
                     </div>
                     <div>
-                      {mono(lang === "ar" ? "التقييم اليدوي (اختياري)" : "MANUAL EVALUATION NOTES (OPTIONAL)")}
+                      {mono(lang === "ar" ? "التقييم اليدوي (اختياري)" : "Manual evaluation notes (optional)")}
                       <textarea rows={2} value={editFeedback} onChange={(e) => setEditFeedback(e.target.value)} style={textareaStyle(tokens, bFont)} className="genai-input" />
                     </div>
                   </div>
@@ -504,7 +504,7 @@ function DemoAssignmentReviewPage({ state, dispatch }) {
 
               {!isFinal && mode === "resubmit" && (
                 <div style={{ marginTop: 18, paddingTop: 14, borderTop: `1px solid ${tokens.cardBorder}` }}>
-                  {mono(lang === "ar" ? "السبب الذي سيراه الطالب (إجباري)" : "REASON THE STUDENT WILL SEE (REQUIRED)")}
+                  {mono(lang === "ar" ? "السبب الذي سيراه الطالب (إجباري)" : "Reason the student will see (required)")}
                   <textarea rows={2} value={resubmitReason} onChange={(e) => setResubmitReason(e.target.value)} style={textareaStyle(tokens, bFont)} className="genai-input" placeholder={lang === "ar" ? "مثال: أظهر الحساب ووضّح هل إعادة التحجيم عاجلة." : "e.g. Show the computation and state whether a resize is urgent."} />
                   <div style={{ display: "flex", gap: 10, marginTop: 12, flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
                     <Btn tokens={tokens} lang={lang} disabled={!resubmitReason.trim()} onClick={() => { requestResubmission(openUnit.id, resubmitReason.trim()); afterDecision(lang === "ar" ? `طُلبت إعادة التسليم من ${openUnit.studentName}.` : `Resubmission requested from ${openUnit.studentName}.`, openUnit.id); }}>
@@ -657,11 +657,11 @@ function SubmissionDetailModal({ submissionId, tokens, lang, onClose, onDone }) 
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
               <StatusChip status={status} tokens={tokens} lang={lang} />
-              <span style={{ fontFamily: MONO, fontSize: 11, color: tokens.textMuted }}>
-                {t("AI total", "مجموع الذكاء الاصطناعي")}: {aiTotal}
+              <span style={{ fontFamily: "inherit", fontSize: 11, color: tokens.textMuted }}>
+                {t("Suggested total", "مجموع الذكاء الاصطناعي")}: {aiTotal}
               </span>
               {status === "FINALIZED" && (
-                <span style={{ fontFamily: MONO, fontSize: 11, color: tokens.textSecondary }}>
+                <span style={{ fontFamily: "inherit", fontSize: 11, color: tokens.textSecondary }}>
                   {t("Final", "النهائي")}: {data.submission.finalScoreTotal} · {data.submission.finalDecision}
                 </span>
               )}
@@ -676,7 +676,7 @@ function SubmissionDetailModal({ submissionId, tokens, lang, onClose, onDone }) 
                 lang={lang}
                 tone="peri"
                 icon={<IconWarning size={13} color={tokens.developing} />}
-                title={t("AI grading is still running", "تصحيح الذكاء الاصطناعي ما زال جاريًا")}
+                title={t("Grading is still in progress", "تصحيح الذكاء الاصطناعي ما زال جاريًا")}
                 body={t("Decisions unlock once the submission reaches GRADED.", "تُتاح القرارات عند وصول التسليم إلى حالة «تم التصحيح».")}
               />
             )}
@@ -689,15 +689,15 @@ function SubmissionDetailModal({ submissionId, tokens, lang, onClose, onDone }) 
               return (
                 <div key={answer.id} style={{ background: tokens.card, border: `1px solid ${tokens.cardBorder}`, borderRadius: 10, padding: "12px 14px" }}>
                   <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 8, flexDirection: isRtl ? "row-reverse" : "row" }}>
-                    <span style={{ fontFamily: MONO, fontSize: 10, color: tokens.textFaint }}>Q{question?.orderIndex ?? "?"}</span>
+                    <span style={{ fontFamily: "inherit", fontSize: 12, color: tokens.textFaint }}>Q{question?.orderIndex ?? "?"}</span>
                     <span style={{ fontFamily: bFont, fontSize: 12.5, fontWeight: 600, color: tokens.textPrimary, flex: 1, textAlign: isRtl ? "right" : "left" }}>
                       {question?.questionText ?? t("Question removed", "حُذف هذا السؤال")}
                     </span>
-                    <span style={{ fontFamily: MONO, fontSize: 10, color: tokens.textMuted }}>{question?.maxScore ?? "—"} {t("pts", "درجة")}</span>
+                    <span style={{ fontFamily: "inherit", fontSize: 12, color: tokens.textMuted }}>{question?.maxScore ?? "—"} {t("pts", "درجة")}</span>
                   </div>
                   <div style={{ background: tokens.inset, border: `1px solid ${tokens.cardBorder}`, borderRadius: 8, padding: "9px 11px", marginBottom: 8 }}>
-                    <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: "0.08em", color: tokens.textFaint, marginBottom: 4 }}>
-                      {t("STUDENT ANSWER", "إجابة الطالب")}
+                    <div style={{ fontFamily: "inherit", fontSize: 12, letterSpacing: 0, color: tokens.textFaint, marginBottom: 4 }}>
+                      {t("Student answer", "إجابة الطالب")}
                     </div>
                     {answer.answerText ? (
                       <p style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textSecondary, lineHeight: 1.65, margin: 0, whiteSpace: "pre-wrap", textAlign: isRtl ? "right" : "left" }}>
@@ -719,12 +719,12 @@ function SubmissionDetailModal({ submissionId, tokens, lang, onClose, onDone }) 
                     <AIGradingResultCard
                       tokens={tokens}
                       lang={lang}
-                      title={t("AI EVALUATION — PROVISIONAL", "تقييم الذكاء الاصطناعي — مبدئي")}
+                      title={t("Suggested grade (not final yet)", "تقييم الذكاء الاصطناعي — مبدئي")}
                       max={question?.maxScore ?? 0}
                       eval={{
                         aiScore: answer.evaluation.score ?? 0,
                         confidence: (answer.evaluation.confidence ?? "INSUFFICIENT_EVIDENCE").toLowerCase(),
-                        feedback: answer.evaluation.feedbackText ?? t("No AI feedback.", "لا يوجد تعليق من الذكاء الاصطناعي."),
+                        feedback: answer.evaluation.feedbackText ?? t("No feedback.", "لا يوجد تعليق من الذكاء الاصطناعي."),
                         criteria: [],
                         misconceptions: (answer.evaluation.misconceptions ?? []).map((item) => item.code),
                         sources: [],
@@ -733,8 +733,8 @@ function SubmissionDetailModal({ submissionId, tokens, lang, onClose, onDone }) 
                   )}
                   {(question?.modelAnswer || question?.rubricText) && (
                     <div style={{ marginTop: 8, background: tokens.gapBg, border: `1px solid ${tokens.gapBorder}`, borderRadius: 8, padding: "9px 11px" }}>
-                      <div style={{ fontFamily: MONO, fontSize: 9, letterSpacing: "0.08em", color: tokens.gap, marginBottom: 4 }}>
-                        {t("PRIVATE — MODEL ANSWER & RUBRIC (NEVER SHOWN TO STUDENTS)", "خاص — الإجابة النموذجية ومعايير التصحيح (لا تُعرض للطلاب إطلاقًا)")}
+                      <div style={{ fontFamily: "inherit", fontSize: 12, letterSpacing: 0, color: tokens.gap, marginBottom: 4 }}>
+                        {t("Only you see this: model answer and marking notes", "خاص — الإجابة النموذجية ومعايير التصحيح (لا تُعرض للطلاب إطلاقًا)")}
                       </div>
                       {question.modelAnswer && (
                         <p style={{ fontFamily: bFont, fontSize: 11.5, color: tokens.textSecondary, lineHeight: 1.6, margin: 0, whiteSpace: "pre-wrap", textAlign: isRtl ? "right" : "left" }}>
@@ -760,7 +760,7 @@ function SubmissionDetailModal({ submissionId, tokens, lang, onClose, onDone }) 
                     lang={lang}
                     variant="solid"
                     disabled={busy}
-                    label={t("Approve AI grades", "اعتماد درجات الذكاء الاصطناعي")}
+                    label={t("Approve suggested grades", "اعتماد الدرجات المقترحة")}
                     confirmLabel={t("Confirm approve", "أكّد الاعتماد")}
                     onConfirm={() => void run("approve")}
                   />
@@ -827,7 +827,7 @@ function SubmissionDetailModal({ submissionId, tokens, lang, onClose, onDone }) 
                       </Btn>
                     </div>
                     <div style={{ fontFamily: bFont, fontSize: 11, color: tokens.textMuted, textAlign: isRtl ? "right" : "left" }}>
-                      {t("While the request is open the student sees no grade and no AI feedback — only this reason.", "طالما كان الطلب مفتوحًا، لا يرى الطالب درجة ولا تعليق ذكاء اصطناعي — يرى هذا السبب فقط.")}
+                      {t("Until they resubmit, the student sees only this reason, not a grade.", "طالما كان الطلب مفتوحًا، لا يرى الطالب درجة ولا تعليق ذكاء اصطناعي — يرى هذا السبب فقط.")}
                     </div>
                   </div>
                 )}
@@ -928,7 +928,7 @@ function RealReviewView({ state, dispatch }) {
     setNotice(null);
     try {
       const result = await bulkApprove(assignmentId, selectedIds);
-      refresh(t(`Approved ${result.count} submissions exactly as the AI graded them.`, `تم اعتماد ${result.count} من التسليمات كما قيّمها الذكاء الاصطناعي.`));
+      refresh(t(`Approved ${result.count} submissions with their suggested grades.`, `اتعتمد ${result.count} تسليم بالدرجات المقترحة.`));
     } catch (err) {
       setNotice({ text: bulkErrorText(err, lang) });
       setSelected({});
@@ -952,12 +952,22 @@ function RealReviewView({ state, dispatch }) {
         <div style={{ flex: 1, minWidth: 0, textAlign: isRtl ? "right" : "left" }}>
           <div style={{ fontFamily: bFont, fontSize: 13, fontWeight: 600, color: tokens.textPrimary }}>{row.studentName}</div>
           <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginTop: 4 }}>
-            <StatusChip status={row.submission.status} tokens={tokens} lang={lang} />
-            {row.decided && <Chip tokens={tokens} tone="slate">{t("Decided", "تم البت")}</Chip>}
-            <ConfidenceRow answers={row.answers} tokens={tokens} lang={lang} />
+            {row.decided ? (
+              <Chip tokens={tokens} tone="slate">{row.submission.finalDecision === "REJECTED" ? t("Rejected", "مرفوض") : t("Final grade sent", "الدرجة النهائية اتبعتت")}</Chip>
+            ) : row.submission.status === "RESUBMISSION_REQUESTED" ? (
+              <Chip tokens={tokens} tone="primary">{t("Waiting for resubmission", "مستني إعادة تسليم")}</Chip>
+            ) : row.submission.status === "SUBMITTED" || row.submission.status === "GRADING" ? (
+              <Chip tokens={tokens} tone="primary">{t("Being graded", "بيتصحّح")}</Chip>
+            ) : (
+              <ConfidenceRow answers={row.answers} tokens={tokens} lang={lang} />
+            )}
           </div>
         </div>
-        <ScoreValue kind="ai" score={row.aiTotalScore} max={row.maxTotalScore} tokens={tokens} lang={lang} />
+        {row.decided && row.submission.finalScoreTotal != null ? (
+          <span style={{ fontSize: 14, fontWeight: 700, color: tokens.textPrimary }}>{row.submission.finalScoreTotal}/{row.maxTotalScore}</span>
+        ) : (
+          <ScoreValue kind="ai" score={row.aiTotalScore} max={row.maxTotalScore} tokens={tokens} lang={lang} />
+        )}
         <Btn tokens={tokens} lang={lang} variant="ghost" onClick={() => setOpenSubmissionId(row.submission.id)}>
           {t("Open", "فتح")}
         </Btn>
@@ -981,7 +991,7 @@ function RealReviewView({ state, dispatch }) {
             )}
           </div>
           <p style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textMuted, margin: 0, lineHeight: 1.6 }}>
-            {t("AI grades are provisional until you approve, edit, reject or return them. Every decision is audit-logged.", "درجات الذكاء الاصطناعي مبدئية إلى أن تعتمدها أو تعدِّلها أو ترفضها أو تعيدها — وكل قرار يُسجَّل في سجل التدقيق.")}
+            {t("Grades are suggested automatically. Nothing reaches students until you approve or change them.", "الدرجات بتتقترح تلقائي. مفيش حاجة بتوصل للطلاب غير لما تعتمدها أو تعدّلها.")}
           </p>
         </div>
       </div>
@@ -1001,7 +1011,7 @@ function RealReviewView({ state, dispatch }) {
           {stats && (
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <Chip tokens={tokens} tone="slate">{t("Total", "الإجمالي")}: {stats.total}</Chip>
-              <Chip tokens={tokens} tone="primary">{t("Fast track", "اعتماد سريع")}: {fastTrack.length}</Chip>
+              <Chip tokens={tokens} tone="primary">{t("Ready to approve", "اعتماد سريع")}: {fastTrack.length}</Chip>
               <Chip tokens={tokens} tone="violet">{t("Needs review", "تحتاج مراجعة")}: {needsReview.length}</Chip>
               <Chip tokens={tokens} tone="slate">{t("Decided", "تم البت")}: {decidedRows.length}</Chip>
             </div>
@@ -1015,7 +1025,7 @@ function RealReviewView({ state, dispatch }) {
               style={{ ...inputStyle(tokens, bFont), width: "auto", flex: 1, minWidth: 160 }}
             />
             <select value={confFilter} onChange={(event) => setConfFilter(event.target.value)} style={{ ...inputStyle(tokens, bFont), width: "auto", minWidth: 140 }}>
-              <option value="all">{t("All confidences", "كل مستويات الثقة")}</option>
+              <option value="all">{t("Any reliability", "كل مستويات الثقة")}</option>
               {Object.entries(CONFIDENCE_FILTER_LABELS).map(([key, label]) => (
                 <option key={key} value={key}>{lang === "ar" ? label.ar : label.en}</option>
               ))}
@@ -1034,7 +1044,7 @@ function RealReviewView({ state, dispatch }) {
           <div>
             <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", marginBottom: 8, flexDirection: isRtl ? "row-reverse" : "row" }}>
               <h2 style={{ fontFamily: hFont, fontSize: 14, fontWeight: 700, color: tokens.textPrimary, margin: 0 }}>
-                {t("Fast track — all answers high confidence", "اعتماد سريع — كل الإجابات بثقة عالية")}
+                {t("Ready to approve — the suggested grades look reliable", "اعتماد سريع — كل الإجابات بثقة عالية")}
               </h2>
               {selectedIds.length > 0 && (
                 <ConfirmBtn
@@ -1051,7 +1061,7 @@ function RealReviewView({ state, dispatch }) {
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {fastTrack.length === 0 && (
                 <div style={{ fontFamily: bFont, fontSize: 12, color: tokens.textFaint }}>
-                  {t("No fast-track submissions right now.", "لا توجد تسليمات للاعتماد السريع حاليًا.")}
+                  {t("Nothing ready to approve right now.", "لا توجد تسليمات للاعتماد السريع حاليًا.")}
                 </div>
               )}
               {fastTrack.map((row) => rowCard(row, true))}
@@ -1100,7 +1110,7 @@ function RealReviewView({ state, dispatch }) {
                   <Card tokens={tokens} key={item.code} style={{ padding: "10px 12px" }}>
                     <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 6, flexDirection: isRtl ? "row-reverse" : "row" }}>
                       <Chip tokens={tokens} tone="violet">{item.code}</Chip>
-                      <span style={{ fontFamily: MONO, fontSize: 10.5, color: tokens.textSecondary }}>
+                      <span style={{ fontFamily: "inherit", fontSize: 12.5, color: tokens.textSecondary }}>
                         {item.affectedStudentsCount} · {item.affectedStudentsPercentage}%
                       </span>
                     </div>
