@@ -26,6 +26,8 @@ function toAppUser(publicUser) {
     accountType: publicUser.accountType ?? null,
     institutionId: publicUser.institutionId ?? null,
     languagePreference: publicUser.languagePreference ?? "en",
+    // false only for self-registered accounts that have not entered the emailed code yet
+    emailVerified: publicUser.emailVerified !== false,
     initials: `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase(),
     name: { en: fullName, ar: fullName },
   };
@@ -83,6 +85,27 @@ export async function restoreSession() {
     clearSession();
     return null;
   }
+}
+
+/** Confirms the email with the 6-digit code; returns the updated user. */
+export async function verifyEmail(code) {
+  const me = await api("/auth/verify-email", { method: "POST", body: { code } });
+  const session = readSession();
+  const user = toAppUser(me);
+  if (session) writeSession({ ...session, user });
+  return user;
+}
+
+export function resendVerification() {
+  return api("/auth/verify-email/resend", { method: "POST" });
+}
+
+export function forgotPassword(email) {
+  return api("/auth/forgot-password", { method: "POST", body: { email } });
+}
+
+export function resetPassword({ email, code, password }) {
+  return api("/auth/reset-password", { method: "POST", body: { email, code, password } });
 }
 
 export function applyAuthData(data) {

@@ -95,7 +95,8 @@ export default function RegisterPage({ state, dispatch }) {
       if (guidance?.institution?.id) payload.institutionId = guidance.institution.id;
       const user = await register(payload, role);
       dispatch({ type: "SET_USER", user });
-      dispatch({ type: "NAVIGATE", screen: homeScreenFor(user.role) });
+      // New accounts confirm their email with the code we just sent.
+      dispatch({ type: "NAVIGATE", screen: user.emailVerified === false ? SCREENS.VERIFY_EMAIL : homeScreenFor(user.role) });
     } catch (err) {
       setError(apiErrorText(err, lang));
       setStep(1);

@@ -93,9 +93,10 @@ export default function LoginPage({ state, dispatch }) {
       <div style={{ marginBottom: 16 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
           <label style={{ ...labelStyle, marginBottom: 0 }}>{lang === "ar" ? "كلمة المرور" : "Password"}</label>
-          <span style={{ fontSize: 11, color: tokens.primary, fontWeight: 600, cursor: "pointer", fontFamily: bFont }}>
-            {lang === "ar" ? "نسيت؟" : "Forgot?"}
-          </span>
+          <button type="button" onClick={() => dispatch({ type: "NAVIGATE", screen: SCREENS.FORGOT_PASSWORD })}
+            style={{ fontSize: 11.5, color: tokens.primary, fontWeight: 600, cursor: "pointer", fontFamily: bFont, background: "none", border: "none", padding: 0 }}>
+            {lang === "ar" ? "نسيت كلمة السر؟" : "Forgot password?"}
+          </button>
         </div>
         <div style={{ position: "relative" }}>
           <input

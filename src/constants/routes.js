@@ -2,6 +2,8 @@ export const SCREENS = Object.freeze({
   WELCOME: "welcome",
   LOGIN: "login",
   REGISTER: "register",
+  VERIFY_EMAIL: "verify-email",
+  FORGOT_PASSWORD: "forgot-password",
   DASHBOARD: "dashboard",
   COURSES: "courses",
   BROWSE_COURSES: "browse-courses",

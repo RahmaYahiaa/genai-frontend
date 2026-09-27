@@ -14,6 +14,20 @@ export class ApiError extends Error {
 }
 
 const AR_MESSAGES = [
+  ["Wrong code.", "الكود غلط. جرّب تاني أو اطلب كود جديد."],
+  ["This code has expired", "الكود انتهت صلاحيته. اطلب كود جديد."],
+  ["This code is not valid", "الكود ده مش صالح. اطلب كود جديد."],
+  ["Too many wrong codes", "دخّلت كود غلط كتير. اطلب كود جديد."],
+  ["before asking for a new code", "استنى دقيقة قبل ما تطلب كود جديد."],
+  ["The code is 6 digits", "الكود 6 أرقام."],
+  ["Confirm your email address to use this feature", "أكّد بريدك الإلكتروني الأول عشان تستخدم الخاصية دي."],
+  ["Too many sign-up attempts", "محاولات تسجيل كتير. جرّب تاني بعد شوية."],
+  ["Too many password reset requests", "طلبات تغيير كلمة سر كتير. جرّب تاني بعد شوية."],
+  ["You have sent a lot of questions to the tutor", "بعت أسئلة كتير للمعلم الذكي في وقت قصير. استنى شوية وكمّل."],
+  ["You have started a lot of", "بدأت اختبارات كتير في وقت قصير. استنى شوية وكمّل."],
+  ["You have created a lot of study material", "عملت مواد مذاكرة كتير في وقت قصير. استنى شوية وكمّل."],
+  ["You have uploaded a lot of files", "رفعت ملفات كتير في وقت قصير. استنى شوية وكمّل."],
+  ["Too many requests", "طلبات كتير في وقت قصير. استنى شوية وحاول تاني."],
   ["Invalid email or password", "البريد الإلكتروني أو كلمة المرور غير صحيحة."],
   ["An account with this email already exists", "فيه حساب مسجل بالإيميل ده بالفعل — سجّل دخول بدل ما تعمل حساب جديد."],
   ["students of a contracted university register through their institution", "الإيميل ده تابع لجامعة متعاقدة مع المنصة — هتتسجل من خلال مؤسستك في الخطوة الجاية."],

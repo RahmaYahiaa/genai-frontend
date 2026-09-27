@@ -10,6 +10,7 @@ import DashboardPage from "@/pages/DashboardPage";
 import CoursesPage from "@/pages/CoursesPage";
 import StudentBrowseCoursesPage from "@/pages/StudentBrowseCoursesPage";
 import DiagnosticPage from "@/pages/DiagnosticPage";
+import { VerifyEmailPage, ForgotPasswordPage } from "@/pages/AccountCodePages";
 import PracticePage from "@/pages/PracticePage";
 import ReassessmentPage from "@/pages/ReassessmentPage";
 import ProfilePage from "@/pages/ProfilePage";
@@ -78,6 +79,8 @@ function AppContent() {
   if (state.screen === SCREENS.WELCOME) return <WelcomePage />;
   if (state.screen === SCREENS.LOGIN) return <LoginPage state={state} dispatch={dispatch} />;
   if (state.screen === SCREENS.REGISTER) return <RegisterPage state={state} dispatch={dispatch} />;
+  if (state.screen === SCREENS.VERIFY_EMAIL) return <VerifyEmailPage state={state} dispatch={dispatch} />;
+  if (state.screen === SCREENS.FORGOT_PASSWORD) return <ForgotPasswordPage state={state} dispatch={dispatch} />;
 
   const role = state.role === ROLES.INSTRUCTOR || state.role === ROLES.ADMIN ? state.role : ROLES.STUDENT;
   const ActivePage = PAGES[state.screen] ?? DashboardPage;

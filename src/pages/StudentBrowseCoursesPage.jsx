@@ -249,6 +249,18 @@ export default function StudentBrowseCoursesPage({ state, dispatch }) {
             </div>
           </Card>
 
+          {error?.code === "EMAIL_NOT_VERIFIED" ? (
+            <Card tokens={tokens} style={{ padding: "28px 24px", textAlign: "center" }}>
+              <div style={{ fontSize: 16, fontWeight: 650, color: tokens.textPrimary, marginBottom: 6 }}>{t("Confirm your email first", "أكّد بريدك الأول")}</div>
+              <p style={{ margin: "0 0 16px", fontSize: 13.5, color: tokens.textMuted, lineHeight: 1.6 }}>
+                {t("University courses are only open to confirmed university emails. It takes a minute.", "مقررات الجامعة متاحة بس للبريد الجامعي المؤكَّد. مش هياخد غير دقيقة.")}
+              </p>
+              <button type="button" onClick={() => dispatch({ type: "NAVIGATE", screen: SCREENS.VERIFY_EMAIL })}
+                style={{ padding: "10px 20px", borderRadius: 10, border: "none", background: tokens.primaryBtn ?? tokens.primary, color: "white", fontWeight: 650, fontSize: 13.5, cursor: "pointer", fontFamily: "inherit" }}>
+                {t("Confirm my email", "أكّد بريدي")}
+              </button>
+            </Card>
+          ) : (
           <AsyncGate
             tokens={tokens}
             lang={lang}
@@ -333,6 +345,7 @@ export default function StudentBrowseCoursesPage({ state, dispatch }) {
               </div>
             </div>
           </AsyncGate>
+          )}
         </>
       )}
 
