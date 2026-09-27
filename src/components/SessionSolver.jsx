@@ -1,3 +1,4 @@
+import { textDir } from "@/utils/textDir";
 import { useRef, useState } from "react";
 import { bFontFor, inputStyle } from "@/components/ModuleUI";
 import { Panel, PrimaryButton, TextButton, STATUS, normCorrectness } from "@/components/study/StudyKit";
@@ -82,7 +83,7 @@ export function EvaluationCard({ evaluation, tokens, lang }) {
   return (
     <div aria-live="polite" style={{ marginTop: 16, padding: "14px 16px", borderRadius: 12, background: c.bg, border: `1px solid ${c.border}` }}>
       {copy && <div style={{ fontSize: 14, fontWeight: 650, color: c.fg, marginBottom: evaluation.feedback ? 6 : 0 }}>{lang === "ar" ? copy.ar : copy.en}</div>}
-      {evaluation.feedback && <p style={{ margin: 0, fontSize: 14, lineHeight: 1.7, color: tokens.textPrimary }}>{evaluation.feedback}</p>}
+      {evaluation.feedback && <p dir={textDir(evaluation.feedback)} style={{ textAlign: "start", margin: 0, fontSize: 14, lineHeight: 1.7, color: tokens.textPrimary }}>{evaluation.feedback}</p>}
       {misconceptions.length > 0 && (
         <div style={{ marginTop: 8, fontSize: 13, color: tokens.textSecondary }}>
           <span style={{ fontWeight: 600 }}>{lang === "ar" ? "راجع: " : "Review: "}</span>
@@ -128,9 +129,9 @@ export function QuestionFlow({ questions, evaluations, answeredIds, responses = 
             return (
               <Panel key={q.id} tokens={tokens} padding={mobile ? 18 : 24}>
                 <div style={{ fontSize: 12.5, fontWeight: 600, color: tokens.textMuted, marginBottom: 6 }}>{t(`Question ${i + 1} of ${total}`, `سؤال ${i + 1} من ${total}`)}</div>
-                <div style={{ fontSize: 15.5, fontWeight: 600, lineHeight: 1.6, color: tokens.textPrimary, marginBottom: 12 }}>{q.prompt}</div>
+                <div dir={textDir(q.prompt)} style={{ textAlign: "start", fontSize: 15.5, fontWeight: 600, lineHeight: 1.6, color: tokens.textPrimary, marginBottom: 12 }}>{q.prompt}</div>
                 <div style={{ fontSize: 12.5, fontWeight: 600, color: tokens.textSecondary, marginBottom: 6 }}>{t("Your answer", "إجابتك")}</div>
-                <div style={{ padding: "12px 14px", borderRadius: 10, background: tokens.inset, border: `1px solid ${tokens.cardBorder}`, fontSize: 14.5, lineHeight: 1.6, color: ans ? tokens.textPrimary : tokens.textMuted, whiteSpace: "pre-wrap" }}>
+                <div dir="auto" style={{ textAlign: "start", padding: "12px 14px", borderRadius: 10, background: tokens.inset, border: `1px solid ${tokens.cardBorder}`, fontSize: 14.5, lineHeight: 1.6, color: ans ? tokens.textPrimary : tokens.textMuted, whiteSpace: "pre-wrap" }}>
                   {ans || (done ? t("Marked as not known yet", "اتسجّلت إنك لسه مش عارفها") : t("Not answered", "ما اتجاوبش"))}
                 </div>
                 <EvaluationCard evaluation={evaluations[q.id] ?? null} tokens={tokens} lang={lang} />
@@ -195,16 +196,16 @@ export function QuestionFlow({ questions, evaluations, answeredIds, responses = 
       </div>
 
       <Panel tokens={tokens} padding={mobile ? 20 : 28}>
-        <div style={{ fontSize: mobile ? 16 : 17, fontWeight: 600, lineHeight: 1.6, color: tokens.textPrimary, marginBottom: 16 }}>{question.prompt}</div>
+        <div dir={textDir(question.prompt)} style={{ textAlign: "start", fontSize: mobile ? 16 : 17, fontWeight: 600, lineHeight: 1.6, color: tokens.textPrimary, marginBottom: 16 }}>{question.prompt}</div>
         {answered ? (
           <div>
             <div style={{ fontSize: 12.5, fontWeight: 600, color: tokens.textSecondary, marginBottom: 6 }}>{t("Your answer", "إجابتك")}</div>
-            <div style={{ padding: "12px 14px", borderRadius: 10, background: tokens.inset, border: `1px solid ${tokens.cardBorder}`, fontSize: 14.5, lineHeight: 1.6, color: answerOf(question) ? tokens.textPrimary : tokens.textMuted, whiteSpace: "pre-wrap" }}>
+            <div dir="auto" style={{ textAlign: "start", padding: "12px 14px", borderRadius: 10, background: tokens.inset, border: `1px solid ${tokens.cardBorder}`, fontSize: 14.5, lineHeight: 1.6, color: answerOf(question) ? tokens.textPrimary : tokens.textMuted, whiteSpace: "pre-wrap" }}>
               {answerOf(question) || t("Marked as not known yet", "اتسجّلت إنك لسه مش عارفها")}
             </div>
           </div>
         ) : (
-        <textarea
+        <textarea dir="auto"
           value={text}
           disabled={answered || busy}
           aria-label={t("Your answer", "إجابتك")}

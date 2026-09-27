@@ -1,3 +1,4 @@
+import { textDir } from "@/utils/textDir";
 import { demoMode } from "@/services/auth";
 import useStudyCourse from "@/hooks/useStudyCourse";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -373,7 +374,7 @@ function RealTutorPage({ state, dispatch }) {
                   <div key={m.id} style={{ display: "flex", gap: 10, justifyContent: mine ? "flex-end" : "flex-start", margin: "16px 0" }}>
                     {!mine && <IconTile tokens={tokens} Icon={IconTutor} size={32} />}
                     <div style={{ maxWidth: mobile ? "88%" : "78%" }}>
-                      <div style={{ padding: mine ? "10px 14px" : "12px 16px", borderRadius: 14, background: mine ? tokens.primaryBtn : tokens.card, color: mine ? "#fff" : tokens.textPrimary, border: mine ? "none" : `1px solid ${tokens.cardBorder}`, fontSize: 14.5, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>
+                      <div style={{ padding: mine ? "10px 14px" : "12px 16px", borderRadius: 14, background: mine ? tokens.primaryBtn : tokens.card, color: mine ? "#fff" : tokens.textPrimary, border: mine ? "none" : `1px solid ${tokens.cardBorder}`, fontSize: 14.5, lineHeight: 1.7, whiteSpace: "pre-wrap", direction: textDir(m.content), textAlign: "start", unicodeBidi: "isolate" }} dir={textDir(m.content)}>
                         {m.content}
                       </div>
                       {!mine && m.evidenceLimitation && (
@@ -413,7 +414,7 @@ function RealTutorPage({ state, dispatch }) {
 
           <div style={{ ...column, paddingBottom: mobile ? 14 : 22, paddingTop: 8 }}>
             <div style={{ border: `1px solid ${tokens.cardBorder}`, borderRadius: 16, background: tokens.card, boxShadow: "0 4px 16px rgba(16,24,40,0.06)", padding: "10px 12px 10px 14px" }}>
-              <textarea
+              <textarea dir="auto"
                 value={input}
                 rows={2}
                 aria-label={t("Your question", "سؤالك")}
