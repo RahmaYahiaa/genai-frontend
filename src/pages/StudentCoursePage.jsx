@@ -14,7 +14,7 @@ import { demoMode } from "@/services/auth";
 import {
   getCourse,
   listMaterials,
-  addTopic,
+
   uploadMaterialFile,
   renameMaterial,
   deleteMaterial,
@@ -113,25 +113,7 @@ function RealCourseView({ state, dispatch, tokens, lang, isRtl, hFont, bFont, mo
     [courseId],
   );
   const { data, loading, error, reload } = useAsync(load);
-  const [topicDraft, setTopicDraft] = useState("");
   const [editing, setEditing] = useState(null);
-  const [busyTopic, setBusyTopic] = useState(false);
-
-  const addTopicReal = async () => {
-    const label = topicDraft.trim();
-    if (!label || busyTopic) return;
-    setBusyTopic(true);
-    try {
-      await addTopic(courseId, label);
-      setTopicDraft("");
-      toast(lang === "ar" ? `أُضيف الموضوع «${label}».` : `Topic "${label}" added.`);
-      reload();
-    } catch (err) {
-      toast(apiErrorText(err, lang));
-    } finally {
-      setBusyTopic(false);
-    }
-  };
 
   const commitRename = async () => {
     if (!editing) return;
@@ -169,6 +151,9 @@ function RealCourseView({ state, dispatch, tokens, lang, isRtl, hFont, bFont, mo
       await uploadMaterialFile(courseId, item.file, item.title.trim() || item.file.name);
     }
     reload();
+    // Topics are found in the background after upload; refresh to show them.
+    setTimeout(reload, 8000);
+    setTimeout(reload, 20000);
   };
 
   return (
@@ -211,28 +196,14 @@ function RealCourseView({ state, dispatch, tokens, lang, isRtl, hFont, bFont, mo
               />
             )}
 
-            {canManage && (
-              <Card tokens={tokens} style={{ padding: "14px 16px", margin: "16px 0", display: "flex", gap: 10, alignItems: "center", flexDirection: isRtl ? "row-reverse" : "row" }}>
-                <input
-                  value={topicDraft}
-                  onChange={(e) => setTopicDraft(e.target.value)}
-                  placeholder={lang === "ar" ? "اسم موضوع جديد — مثال: المتجهات" : "New topic name — e.g. Vectors"}
-                  onKeyDown={(e) => { if (e.key === "Enter") addTopicReal(); }}
-                  style={{ ...inputStyle(tokens, bFont), flex: 1, minWidth: 0 }}
-                  className="genai-input"
-                />
-                <Btn tokens={tokens} lang={lang} variant="soft" disabled={!topicDraft.trim() || busyTopic} onClick={addTopicReal} style={{ padding: "9px 16px", fontSize: 12.5, flexShrink: 0, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
-                  <IconPlus size={13} color={tokens.primary} />
-                  {lang === "ar" ? "إضافة موضوع" : "Add topic"}
-                </Btn>
-              </Card>
-            )}
-
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               <Card tokens={tokens} style={{ padding: "18px 20px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 12, flexDirection: isRtl ? "row-reverse" : "row" }}>
                   <div style={{ fontFamily: hFont, fontWeight: 600, fontSize: 15, color: tokens.textPrimary, letterSpacing: "-0.02em" }}>
-                    {lang === "ar" ? "مواضيع المقرر" : "Course topics"}
+                    {lang === "ar" ? "المقرر بيغطي إيه" : "What this course covers"}
+                    <div style={{ fontFamily: bFont, fontWeight: 400, fontSize: 12, color: tokens.textMuted, marginTop: 2, letterSpacing: 0 }}>
+                      {lang === "ar" ? "بتطلع لوحدها من ملفات المقرر" : "Found automatically from the course files"}
+                    </div>
                   </div>
                   <Chip tokens={tokens} tone={course.topics.length ? "primary" : "slate"}>
                     {course.topics.length} {lang === "ar" ? "مواضيع" : "topics"}
@@ -244,16 +215,18 @@ function RealCourseView({ state, dispatch, tokens, lang, isRtl, hFont, bFont, mo
                       <IconBookOpen size={22} color={tokens.textFaint} />
                     </div>
                     <div style={{ fontFamily: hFont, fontWeight: 600, fontSize: 15, color: tokens.textPrimary, marginBottom: 4 }}>
-                      {lang === "ar" ? "مفيش مواضيع لسه" : "No topics yet"}
+                      {materials.some((m) => m.topicDetection === "pending")
+                        ? lang === "ar" ? "بنقرا الملفات…" : "Reading the files…"
+                        : lang === "ar" ? "لسه مفيش" : "Nothing here yet"}
                     </div>
                     <div style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textMuted, lineHeight: 1.6 }}>
                       {canManage
                         ? lang === "ar"
-                          ? "ضيف أول موضوع فوق، وبعدها ارفع مواده (PDF، ملاحظات، شرائح)."
-                          : "Add your first topic above, then upload its materials (PDFs, notes, slides)."
+                          ? "ارفع ملفات المقرر تحت (PDF، ملاحظات، شرائح) وهنطلّع منها المواضيع لوحدنا."
+                          : "Upload your course files below (PDFs, notes, slides) and the topics will be found from them."
                         : lang === "ar"
-                          ? "لسه مسؤولي المقرر ما نشروا مواضيع."
-                          : "Course staff have not published topics yet."}
+                          ? "المواضيع هتظهر أول ما مسؤولي المقرر يرفعوا الملفات."
+                          : "Topics will appear once course staff upload the course files."}
                     </div>
                   </div>
                 ) : (

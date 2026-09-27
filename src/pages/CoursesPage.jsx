@@ -54,7 +54,7 @@ export default function CoursesPage({ state, dispatch }) {
       const id = addPersonalCourse(title);
       setCreateOpen(false);
       setNewTitle("");
-      toast(t("Self-study course created — add your topics and materials.", "اتعمل مقرر الدراسة الذاتية — ضيف مواضيعك وموادك."));
+      toast(t("Self-study course created. Upload your files to get started.", "اتعمل مقرر الدراسة الذاتية. ارفع ملفاتك عشان تبدأ."));
       dispatch({ type: "NAVIGATE", screen: SCREENS.STUDENT_COURSE, courseId: id });
       return;
     }
@@ -63,7 +63,7 @@ export default function CoursesPage({ state, dispatch }) {
       const course = await createPersonalCourse(title);
       setCreateOpen(false);
       setNewTitle("");
-      toast(t("Self-study course created — add your topics and materials.", "اتعمل مقرر الدراسة الذاتية — ضيف مواضيعك وموادك."));
+      toast(t("Self-study course created. Upload your files to get started.", "اتعمل مقرر الدراسة الذاتية. ارفع ملفاتك عشان تبدأ."));
       dispatch({ type: "NAVIGATE", screen: SCREENS.STUDENT_COURSE, courseId: course.id });
     } catch (err) {
       toast(apiErrorText(err, lang));
@@ -178,8 +178,8 @@ export default function CoursesPage({ state, dispatch }) {
         title={t("New self-study course", "مقرر دراسة ذاتية جديد")}>
         <p style={{ fontFamily: bFont, fontSize: 12.5, color: tokens.textMuted, margin: "0 0 14px", lineHeight: 1.6 }}>
           {t(
-            "Your own course: you add the topics and upload the materials. Everything is active immediately — no approval gate, and only you can see it.",
-            "مقررك الخاص: إنت بتضيف المواضيع وبترفع المواد. كل حاجة مفعّلة فوراً — من غير بوابة اعتماد، وإنت بس اللي تشوفها."
+            "Your own course: upload your files and the topics are found for you. Only you can see it.",
+            "مقررك الخاص: ارفع ملفاتك والمواضيع هتطلع لوحدها. إنت بس اللي تشوفه."
           )}
         </p>
         <input

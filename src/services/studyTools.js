@@ -54,10 +54,14 @@ export const LANGUAGE_OPTIONS = [
   { value: "zu", en: "Zulu", ar: "الزولو" },
 ];
 
-export function generateResources(courseId, { topic, kinds, language }) {
+export function generateResources(courseId, { topic, materialId, kinds, language }) {
+  // At least one of topic / materialId; with a file only, the file is the subject.
+  const body = { kinds, language };
+  if (topic) body.topic = topic;
+  if (materialId) body.materialId = materialId;
   return api(`/courses/${courseId}/learning-resources`, {
     method: "POST",
-    body: { topic, kinds, language },
+    body,
   });
 }
 

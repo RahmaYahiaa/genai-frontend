@@ -1,11 +1,11 @@
 import { demoMode } from "@/services/auth";
 import useStudyCourse from "@/hooks/useStudyCourse";
 import { useCallback, useEffect, useState } from "react";
-import { listCourses } from "@/services/courses";
+import { listCourses, listMaterials } from "@/services/courses";
 import { createPracticeSession, getPracticeSession, submitPracticeAnswer, listPracticeSessions } from "@/services/learning";
 import { apiErrorText } from "@/services/http";
 import { QuestionFlow } from "@/components/SessionSolver";
-import { StudyPage, StartPanel, Field, Select, NumberStepper, PrimaryButton, SecondaryButton, TextButton, Notice, LoadingBlock, ErrorBlock, EmptyBlock, PastAttempts, ResultPanel, STATUS, summarize } from "@/components/study/StudyKit";
+import { StudyPage, StartPanel, Field, Select, Segmented, NumberStepper, PrimaryButton, SecondaryButton, TextButton, Notice, LoadingBlock, ErrorBlock, EmptyBlock, PastAttempts, ResultPanel, STATUS, summarize } from "@/components/study/StudyKit";
 import { IconPractice } from "@/components/Icons";
 import { AlertStrip, inputStyle } from "@/components/ModuleUI";
 import useAsync from "@/hooks/useAsync";
@@ -173,7 +173,11 @@ function RealPracticePage({ state, dispatch }) {
   const topics = course?.topics ?? [];
   const storeKey = `genai-practice-${effectiveCourseId ?? "none"}`;
   const [sessionId, setSessionId] = useState("");
-  const [topicId, setTopicId] = useState("");
+  // What to practise: "suggest" (AI picks your weakest topic), "subject"
+  // (type anything), or "file" (one of the course files).
+  const [mode, setMode] = useState("suggest");
+  const [focus, setFocus] = useState("");
+  const [materialId, setMaterialId] = useState("");
   const [count, setCount] = useState(3);
   const [tab, setTab] = useState("new");
   const [busy, setBusy] = useState(false);
@@ -182,9 +186,17 @@ function RealPracticePage({ state, dispatch }) {
 
   useEffect(() => {
     setSessionId(readStore(`genai-practice-${effectiveCourseId ?? "none"}`) ?? "");
-    setTopicId("");
+    setFocus("");
+    setMaterialId("");
     setNotice(null);
   }, [effectiveCourseId]);
+
+  const loadMaterials = useCallback(
+    () => (effectiveCourseId ? listMaterials(effectiveCourseId).catch(() => []) : Promise.resolve([])),
+    [effectiveCourseId],
+  );
+  const materialsAsync = useAsync(loadMaterials);
+  const materials = (materialsAsync.data ?? []).filter((item) => item.status === "ready");
 
   const loadSession = useCallback(
     () =>
@@ -207,7 +219,8 @@ function RealPracticePage({ state, dispatch }) {
   const topicLabel = (id) =>
     topics.find((topic) => topic.id === id)?.label?.[lang] ??
     topics.find((topic) => topic.id === id)?.label?.en ??
-    id;
+    null;
+  const rowTitle = (row) => row.topicTitle || topicLabel(row.topicId) || row.focus || t("Practice", "تدريب");
   const session = sessionAsync.data;
   const answeredIds = (session?.answers ?? []).map((answer) => answer.questionId);
   const evaluations = {};
@@ -218,7 +231,10 @@ function RealPracticePage({ state, dispatch }) {
     setBusy(true);
     setNotice(null);
     try {
-      const created = await createPracticeSession(effectiveCourseId, { topicId, questionsCount: count });
+      const body = { questionsCount: count };
+      if (mode === "subject") body.focus = focus.trim();
+      if (mode === "file") body.materialId = materialId;
+      const created = await createPracticeSession(effectiveCourseId, body);
       writeStore(storeKey, created.id);
       setSessionId(created.id);
       setTab("new");
@@ -251,34 +267,56 @@ function RealPracticePage({ state, dispatch }) {
   // must not unmount the question flow, or the student never sees feedback.
   const loading = (coursesAsync.loading && coursesAsync.data == null) || (sessionAsync.loading && sessionAsync.data == null) || (listAsync.loading && listAsync.data == null);
   const failed = coursesAsync.error ?? sessionAsync.error ?? listAsync.error;
-  const topicOptions = topics.map((topic) => ({ value: topic.id, label: topic.label?.[lang] ?? topic.label?.en ?? topic.id }));
+  const canStart =
+    Boolean(effectiveCourseId) &&
+    (mode === "suggest" ? topics.length > 0 : mode === "subject" ? focus.trim().length >= 2 : Boolean(materialId));
 
   return (
     <StudyPage tokens={tokens} lang={lang} mobile={mobile} course={courseProps}
       title={t("Practice", "تدرّب")}
-      subtitle={t("Pick a topic and answer a few questions. You'll get feedback on every answer right away.", "اختار موضوع وجاوب على كام سؤال. هتاخد تعليق على كل إجابة على طول.")}
+      subtitle={t("Answer a few questions and get feedback on every answer right away.", "جاوب على كام سؤال وخد تعليق على كل إجابة على طول.")}
       actions={sessionId && !complete ? <TextButton tokens={tokens} muted onClick={reset}>{t("Leave and start over", "اخرج وابدأ من الأول")}</TextButton> : null}
     >
-      {notice && <Notice tokens={tokens} tone="danger" title={t("Something didn't work", "في حاجة ماشتغلتش")}>{t("Please try again in a moment.", "جرّب تاني كمان شوية.")}</Notice>}
+      {notice && <Notice tokens={tokens} tone="danger" title={t("Something didn't work", "في حاجة ماشتغلتش")}>{notice || t("Please try again in a moment.", "جرّب تاني كمان شوية.")}</Notice>}
       {loading ? (
         <LoadingBlock tokens={tokens} label={t("Loading…", "جاري التحميل…")} />
       ) : failed ? (
         <ErrorBlock tokens={tokens} lang={lang} onRetry={() => { coursesAsync.reload(); sessionAsync.reload(); listAsync.reload(); }} />
       ) : courses.length === 0 ? (
-        <EmptyBlock tokens={tokens} Icon={IconPractice} title={t("Join a course first", "اشترك في مقرر الأول")} body={t("Practice questions come from your course topics.", "أسئلة التدريب جاية من مواضيع مقررك.")}
+        <EmptyBlock tokens={tokens} Icon={IconPractice} title={t("Join a course first", "اشترك في مقرر الأول")} body={t("Practice questions come from your courses.", "أسئلة التدريب جاية من مقرراتك.")}
           action={<PrimaryButton tokens={tokens} onClick={() => dispatch({ type: "NAVIGATE", screen: SCREENS.COURSES })}>{t("Go to my courses", "روح لمقرراتي")}</PrimaryButton>} />
       ) : !sessionId ? (
         <>
           <StartPanel tokens={tokens} mobile={mobile} Icon={IconPractice}
-            title={t("Set up your practice", "جهّز التدريب")}
-            body={t("Choose what you want to work on. Tip: start with a topic you found hard in your level check.", "اختار عايز تشتغل على إيه. نصيحة: ابدأ بموضوع كان صعب عليك في اختبار المستوى.")}
-            primary={<PrimaryButton tokens={tokens} busy={busy} disabled={!topicId} onClick={() => void start()}>{busy ? t("Preparing your questions…", "بنجهّز أسئلتك…") : t("Start practice", "ابدأ التدريب")}</PrimaryButton>}
+            title={t("What do you want to practise?", "عايز تتدرّب على إيه؟")}
+            body={t("Let us pick what you need most, type any subject, or practise on one of the course files.", "سيبنا نختار اللي محتاجه أكتر، أو اكتب أي موضوع، أو اتدرّب على ملف من ملفات المقرر.")}
+            primary={<PrimaryButton tokens={tokens} busy={busy} disabled={!canStart} onClick={() => void start()}>{busy ? t("Preparing your questions…", "بنجهّز أسئلتك…") : t("Start practice", "ابدأ التدريب")}</PrimaryButton>}
           >
-            {topicOptions.length === 0 ? (
-              <Notice tokens={tokens} tone="info">{t("This course has no topics yet, so there's nothing to practise.", "المقرر ده لسه مفيهوش مواضيع، فمفيش حاجة تتدرّب عليها.")}</Notice>
-            ) : (
-              <Field tokens={tokens} label={t("Topic", "الموضوع")}>
-                <Select tokens={tokens} value={topicId} onChange={setTopicId} options={topicOptions} placeholder={t("Choose a topic", "اختار موضوع")} ariaLabel={t("Topic", "الموضوع")} />
+            <Segmented tokens={tokens} value={mode} onChange={setMode} ariaLabel={t("What to practise", "تتدرّب على إيه")}
+              options={[
+                { value: "suggest", label: t("Suggest for me", "اقترح عليّا") },
+                { value: "subject", label: t("A subject", "موضوع معيّن") },
+                ...(materials.length ? [{ value: "file", label: t("A course file", "ملف من المقرر") }] : []),
+              ]} />
+            {mode === "suggest" && (
+              <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.6, color: tokens.textMuted }}>
+                {topics.length
+                  ? t("We'll choose the part of the course you haven't practised yet or found hardest.", "هنختار الجزء من المقرر اللي لسه ما اتدرّبتش عليه أو كان أصعب عليك.")
+                  : t("Your course files are still being read. Type a subject for now.", "لسه بنقرا ملفات المقرر. اكتب موضوع دلوقتي.")}
+              </p>
+            )}
+            {mode === "subject" && (
+              <Field tokens={tokens} label={t("Subject", "الموضوع")} hint={t("Anything from your course, in your own words.", "أي حاجة من المقرر، بكلامك.")}>
+                <input dir="auto" value={focus} onChange={(e) => setFocus(e.target.value)} maxLength={200}
+                  placeholder={t("e.g. Banker's algorithm", "مثلاً: Banker's algorithm")} aria-label={t("Subject", "الموضوع")}
+                  onKeyDown={(e) => { if (e.key === "Enter" && canStart) void start(); }}
+                  style={{ height: 46, padding: "0 14px", borderRadius: 10, border: `1px solid ${tokens.cardBorder}`, background: tokens.card, color: tokens.textPrimary, fontSize: 14, fontFamily: "inherit", outline: "none" }} />
+              </Field>
+            )}
+            {mode === "file" && (
+              <Field tokens={tokens} label={t("Course file", "ملف المقرر")}>
+                <Select tokens={tokens} value={materialId} onChange={setMaterialId} placeholder={t("Choose a file", "اختار ملف")} ariaLabel={t("Course file", "ملف المقرر")}
+                  options={materials.map((m) => ({ value: m.id, label: m.title }))} />
               </Field>
             )}
             <Field tokens={tokens} label={t("Number of questions", "عدد الأسئلة")}>
@@ -287,7 +325,7 @@ function RealPracticePage({ state, dispatch }) {
           </StartPanel>
           <PastAttempts tokens={tokens} lang={lang} rows={historyRows}
             onOpen={(row) => { writeStore(storeKey, row.id); setSessionId(row.id); }}
-            renderTitle={(row) => topicLabel(row.topicId)}
+            renderTitle={rowTitle}
             renderMeta={(row) => `${row.createdAt ? new Date(row.createdAt).toLocaleDateString(lang === "ar" ? "ar-EG" : "en-GB") + " · " : ""}${(row.answers ?? []).length}/${(row.questions ?? []).length} ${t("answered", "اتجاوبت")}`}
             isDone={(row) => row.status === "completed"} />
         </>

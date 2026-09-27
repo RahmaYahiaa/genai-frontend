@@ -174,7 +174,6 @@ function RealTutorPage({ state, dispatch }) {
   const isRtl = lang === "ar";
   const [courseId, setCourseId] = useStudyCourse();
   const [sessionId, setSessionId] = useState("");
-  const [topicId, setTopicId] = useState("");
   const [mode, setMode] = useState("explanation");
   const [showHistory, setShowHistory] = useState(false);
   const [input, setInput] = useState("");
@@ -205,7 +204,6 @@ function RealTutorPage({ state, dispatch }) {
 
   useEffect(() => {
     setSessionId("");
-    setTopicId("");
     setShowHistory(false);
     setNotice(null);
     setSelectedMaterialIds([]);
@@ -248,12 +246,9 @@ function RealTutorPage({ state, dispatch }) {
     try {
       let activeId = sessionId;
       if (!activeId) {
-        const chosen = preferredTopicId || topicId || topics[0]?.id;
-        if (!chosen) {
-          setNotice(t("Choose a topic first so the tutor knows where to look.", "اختر موضوعًا أولًا حتى يعرف المعلم أين يبحث."));
-          return;
-        }
-        const created = await createTutorSession(effectiveCourseId, { topicId: chosen, mode });
+        // Open chat: no topic to pick. The tutor recognises the course topic
+        // of the question itself (a suggested prompt may still pass one).
+        const created = await createTutorSession(effectiveCourseId, preferredTopicId ? { topicId: preferredTopicId, mode } : { mode });
         activeId = created.id;
         setSessionId(activeId);
         listAsync.reload();
@@ -288,7 +283,7 @@ function RealTutorPage({ state, dispatch }) {
   const suggestedPrompts = [
     topics[0] && { label: t(`Explain «${topics[0].label?.[lang] ?? topics[0].label?.en}» simply`, `اشرح «${topics[0].label?.[lang] ?? topics[0].label?.en}» ببساطة`), topicId: topics[0].id },
     topics[1] && { label: t(`Give me a worked example from «${topics[1].label?.[lang] ?? topics[1].label?.en}»`, `أعطني مثالًا محلولًا من «${topics[1].label?.[lang] ?? topics[1].label?.en}»`), topicId: topics[1].id },
-    { label: t("Quiz me with one question on this topic", "اختبرني بسؤال واحد على هذا الموضوع"), topicId: null },
+    { label: t("Quiz me with one question from this course", "اختبرني بسؤال واحد من المقرر ده"), topicId: null },
     { label: t("Summarize what matters for revision", "لخّص لي أهم ما في المراجعة"), topicId: null },
   ].filter(Boolean);
 
@@ -425,12 +420,6 @@ function RealTutorPage({ state, dispatch }) {
               />
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: 6 }}>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-                  {!sessionId && topics.length > 0 && (
-                    <select aria-label={t("Topic", "الموضوع")} value={topicId} onChange={(e) => setTopicId(e.target.value)} style={smallSelect}>
-                      <option value="">{t("Any topic", "أي موضوع")}</option>
-                      {topics.map((topic) => <option key={topic.id} value={topic.id}>{topic.label?.[lang] ?? topic.label?.en}</option>)}
-                    </select>
-                  )}
                   {!sessionId && (
                     <select aria-label={t("Answer style", "أسلوب الإجابة")} value={mode} onChange={(e) => setMode(e.target.value)} style={smallSelect}>
                       {Object.entries(TUTOR_MODE_LABELS).map(([key, label]) => <option key={key} value={key}>{lang === "ar" ? label.ar : label.en}</option>)}

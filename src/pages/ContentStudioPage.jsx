@@ -8,7 +8,7 @@ import {
   IconSparkle, IconDoc, IconPencil, IconClipboard, IconDoubleCheck, IconInbox, IconRefresh,
   IconDownload, IconCheck, IconTrash, IconUpload, IconBookOpen, IconDiagnostic, IconPractice, IconImageAttach, IconFilter,
 } from "@/components/Icons";
-import { getCourse, listCourses, uploadMaterialFile } from "@/services/courses";
+import { getCourse, listCourses, uploadMaterialFile, listMaterials } from "@/services/courses";
 import {
   RESOURCE_KINDS, KIND_LABELS, LANGUAGE_OPTIONS, generateResources, listResources, deleteResource,
   downloadAnyResource, resourceToMarkdown,
@@ -19,7 +19,7 @@ import { ResourceBody } from "@/pages/StudyToolsPage";
 // Content Builder — the instructor's AI content generator.
 // Real backend: POST /courses/:courseId/learning-resources (grounded in the
 // course's uploaded files), GET for the instructor's own library, DELETE, and
-// "Add to course materials" uploads the result as a course file for a topic.
+// "Add to course materials" uploads the result as a course file (topics are found automatically).
 
 const KIND_ICONS = {
   summary: IconDoc, notes: IconBookOpen, flashcards: IconRefresh, quiz: IconDoubleCheck, code: IconClipboard,
@@ -72,6 +72,11 @@ export default function ContentStudioPage({ state }) {
     .map((item) => ({ id: item.id, label: item.label?.[lang] ?? item.label?.en ?? (typeof item.title === "string" ? item.title : "") }))
     .filter((item) => item.label);
 
+  const materialsAsync = useAsync(
+    useCallback(() => (effectiveCourseId ? listMaterials(effectiveCourseId).catch(() => []) : Promise.resolve([])), [effectiveCourseId]),
+  );
+  const files = (materialsAsync.data ?? []).filter((item) => item.status === "ready");
+
   const listAsync = useAsync(
     useCallback(
       () => (effectiveCourseId ? listResources(effectiveCourseId).catch(() => ({ items: [] })) : Promise.resolve({ items: [] })),
@@ -81,6 +86,7 @@ export default function ContentStudioPage({ state }) {
 
   useEffect(() => {
     courseAsync.reload();
+    materialsAsync.reload();
     listAsync.reload();
     setTopicId("");
     setActiveId(null);
@@ -98,8 +104,10 @@ export default function ContentStudioPage({ state }) {
   const runItems = runIds.map((id) => library.find((item) => item.id === id)).filter(Boolean);
   const olderItems = library.filter((item) => !runIds.includes(item.id));
 
-  const topicLabel = topicId === "__custom" ? customTopic.trim() : topics.find((item) => item.id === topicId)?.label ?? "";
-  const canGenerate = !busy && effectiveCourseId && topicLabel.length >= 3 && kinds.length > 0;
+  // "file:<id>" = build from one whole course file (no topic needed).
+  const fileId = topicId.startsWith("file:") ? topicId.slice(5) : "";
+  const topicLabel = topicId === "__custom" ? customTopic.trim() : fileId ? "" : topics.find((item) => item.id === topicId)?.label ?? "";
+  const canGenerate = !busy && effectiveCourseId && (fileId || topicLabel.length >= 3) && kinds.length > 0;
 
   const toggleKind = (kind) =>
     setKinds((current) => (current.includes(kind) ? current.filter((k) => k !== kind) : current.length >= MAX_KINDS ? current : [...current, kind]));
@@ -110,7 +118,7 @@ export default function ContentStudioPage({ state }) {
     setNotice(null);
     setActiveId(null);
     try {
-      const result = await generateResources(effectiveCourseId, { topic: topicLabel, kinds, language });
+      const result = await generateResources(effectiveCourseId, { topic: topicLabel || undefined, materialId: fileId || undefined, kinds, language });
       const items = result?.items ?? [];
       const ready = items.filter((item) => item.status === "ready").map((item) => item.id);
       const failed = items.filter((item) => item.status !== "ready").map((item) => KIND_LABELS[item.kind]?.[lang] ?? item.kind);
@@ -130,18 +138,13 @@ export default function ContentStudioPage({ state }) {
   }
 
   async function addToMaterials(resource) {
-    const topic = topics.find((item) => item.label === resource.topic);
-    if (!topic) {
-      toast(t("Pick a course topic to add this to the course files.", "اختار موضوع من المقرر عشان تضيفه لملفات المقرر."));
-      return;
-    }
     setFiling(true);
     try {
       const label = KIND_LABELS[resource.kind]?.[lang] ?? resource.kind;
       const title = `${label} — ${resource.topic}`;
       const safe = String(resource.topic).replace(/[^\p{L}\p{N}]+/gu, "-").slice(0, 40);
       const file = new File([resourceToMarkdown(resource, lang)], `${resource.kind}-${safe}.md`, { type: "text/markdown" });
-      await uploadMaterialFile(effectiveCourseId, file, title, topic.id);
+      await uploadMaterialFile(effectiveCourseId, file, title);
       setFiled((f) => [...f, resource.id]);
       toast(t("Added to the course files. Students can use it once it is ready.", "اتضاف لملفات المقرر. الطلاب هيقدروا يستخدموه أول ما يجهز."));
     } catch (err) {
@@ -243,13 +246,20 @@ export default function ContentStudioPage({ state }) {
                     </select>
                   </div>
                   <div>
-                    {label(t("Topic", "الموضوع"))}
+                    {label(t("Topic or file", "الموضوع أو الملف"))}
                     <select value={topicId} onChange={(e) => setTopicId(e.target.value)} style={selectStyle} className="genai-input">
                       <option value="">{courseAsync.loading ? t("Loading…", "جارٍ التحميل…") : t("Choose…", "اختار…")}</option>
                       {topics.map((item) => (
                         <option key={item.id} value={item.id}>{item.label}</option>
                       ))}
                       <option value="__custom">{t("Another topic…", "موضوع تاني…")}</option>
+                      {files.length > 0 && (
+                        <optgroup label={t("A whole course file", "ملف كامل من المقرر")}>
+                          {files.map((f) => (
+                            <option key={f.id} value={`file:${f.id}`}>{f.title}</option>
+                          ))}
+                        </optgroup>
+                      )}
                     </select>
                   </div>
                 </div>
@@ -334,7 +344,7 @@ export default function ContentStudioPage({ state }) {
                     <ResourceBody resource={active} tokens={tokens} lang={lang} t={t} mobile={mobile} />
                   </div>
                   <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                    <Btn tokens={tokens} lang={lang} variant="soft" disabled={filing || filed.includes(active.id) || !topics.some((item) => item.label === active.topic)} onClick={() => addToMaterials(active)}>
+                    <Btn tokens={tokens} lang={lang} variant="soft" disabled={filing || filed.includes(active.id) } onClick={() => addToMaterials(active)}>
                       <IconUpload size={13} color={tokens.primary} />
                       {filing ? t("Adding…", "بنضيف…") : filed.includes(active.id) ? t("Added", "اتضاف") : t("Add to course files", "ضيفه لملفات المقرر")}
                     </Btn>

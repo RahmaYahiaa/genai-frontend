@@ -133,7 +133,8 @@ export default function AssignmentBuilderPage({ state, dispatch }) {
   const toDraft = (q) => {
     const draft = {
       text: q.prompt.trim(),
-      topicId: q.topicId,
+      // Topic is matched automatically from the question text when left out.
+      topicId: q.topicId || undefined,
       maxScore: Math.max(1, Number(q.maxScore) || 10),
       type: q.kind,
       modelAnswer: q.referenceAnswer.trim() || undefined,
@@ -158,7 +159,6 @@ export default function AssignmentBuilderPage({ state, dispatch }) {
   const questionsValid = questions.every(
     (q) =>
       q.prompt.trim().length > 0 &&
-      q.topicId &&
       Number(q.maxScore) > 0 &&
       (!kindNeedsOptions(q.kind) || (q.options.filter((o) => o.trim()).length >= 2 && objectiveValid(q)))
   );
@@ -235,7 +235,7 @@ export default function AssignmentBuilderPage({ state, dispatch }) {
 
   const runPreview = async () => {
     const q = questions[previewQ];
-    if (!q || !q.topicId || !previewText.trim() || previewing) return;
+    if (!q || !previewText.trim() || previewing) return;
     setPreviewing(true);
     setPreviewResult(null);
     try {
@@ -471,29 +471,7 @@ export default function AssignmentBuilderPage({ state, dispatch }) {
                 </div>
               )}
 
-              <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "minmax(0, 2fr) minmax(0, 1fr)", gap: 14, marginTop: 14 }}>
-                <div>
-                  {monoLabel(lang === "ar" ? "الموضوع (إجباري)" : "TOPIC (REQUIRED) *")}
-                  <select
-                    value={q.topicId}
-                    onChange={(e) => patchQ(q.key, { topicId: e.target.value })}
-                    style={{ ...inputStyle(tokens, bFont), cursor: "pointer", borderColor: touched && !q.topicId ? tokens.gap : undefined }}
-                    className="genai-input"
-                  >
-                    <option value="">{lang === "ar" ? "اختر موضوعاً..." : "Choose a topic..."}</option>
-                    {(course.topics ?? []).map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {lang === "ar" ? t.label.ar : t.label.en}
-                      </option>
-                    ))}
-                  </select>
-                  {touched && !q.topicId && (
-                    <div style={{ display: "flex", gap: 6, alignItems: "center", fontFamily: bFont, fontSize: 11, color: tokens.gap, marginTop: 6, flexDirection: isRtl ? "row-reverse" : "row" }}>
-                      <IconWarning size={12} color={tokens.gap} />
-                      {lang === "ar" ? "الموضوع إجباري — التقييم يستند إلى مواد الموضوع." : "Topic is required — grading grounds on the topic's materials."}
-                    </div>
-                  )}
-                </div>
+              <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "minmax(0, 220px)", gap: 14, marginTop: 14 }}>
                 <div>
                   {monoLabel(lang === "ar" ? "الدرجة العظمى" : "Max score")}
                   <input
@@ -567,7 +545,7 @@ export default function AssignmentBuilderPage({ state, dispatch }) {
           {accuracyEmpty && (
             <div style={{ fontFamily: bFont, fontSize: 11.5, color: tokens.textMuted, lineHeight: 1.6, padding: "10px 14px", background: tokens.inset, borderRadius: 10, border: `1px solid ${tokens.cardBorder}`, textAlign: isRtl ? "right" : "left" }}>
               {lang === "ar"
-                ? "سيستمر التصحيح الذكي لكن بثقة أقل — وإذا قلّت مواد الموضوع فستُحال الإجابات مباشرة إلى مراجعتك اليدوية."
+                ? "سيستمر التصحيح الذكي لكن بثقة أقل — وإذا قلّت مواد المقرر فستُحال الإجابات مباشرة إلى مراجعتك اليدوية."
                 : "Answers will still be graded, but with little course material they come to you to check."}
             </div>
           )}
@@ -591,8 +569,8 @@ export default function AssignmentBuilderPage({ state, dispatch }) {
           {touched && !canSave && (
             <div style={{ fontFamily: bFont, fontSize: 11.5, color: tokens.gap, textAlign: isRtl ? "right" : "left" }}>
               {lang === "ar"
-                ? "العنوان إجباري، وكل سؤال يحتاج نصاً وموضوعاً ودرجة عظمى صالحة."
-                : "A title is required, and every question needs a prompt, a topic, and a valid max score."}
+                ? "العنوان إجباري، وكل سؤال يحتاج نصاً ودرجة عظمى صالحة."
+                : "A title is required, and every question needs a prompt and a valid max score."}
             </div>
           )}
         </div>
@@ -640,7 +618,7 @@ export default function AssignmentBuilderPage({ state, dispatch }) {
             tokens={tokens}
             lang={lang}
             variant="soft"
-            disabled={!previewText.trim() || !questions[previewQ]?.topicId || previewing}
+            disabled={!previewText.trim() || previewing}
             onClick={runPreview}
             style={{ width: "100%", padding: "10px 0", fontSize: 12.5, marginTop: 12 }}
           >

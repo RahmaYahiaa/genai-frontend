@@ -18,6 +18,9 @@ export function mapCourse(course) {
       label: { en: topic.title, ar: topic.title },
       order: topic.order ?? 0,
       description: topic.description ?? null,
+      // "ai" = found by the AI in the course files; "manual" = typed by staff.
+      source: topic.source ?? "manual",
+      materialIds: topic.materialIds ?? [],
       materials: [],
     })),
     overall: null,
@@ -30,6 +33,9 @@ export function mapMaterial(material) {
     id: material.id,
     title: material.title,
     topicId: material.topicId ?? null,
+    topicIds: material.topicIds ?? [],
+    // AI topic detection: pending | done | failed | skipped
+    topicDetection: material.topicDetection ?? "pending",
     status: material.status ?? "pending",
     statusError: material.statusError ?? null,
     mimeType: material.mimeType ?? null,
@@ -75,6 +81,20 @@ export async function addTopic(courseId, title) {
 
 export async function deleteTopic(courseId, topicId) {
   return api(`/courses/${courseId}/topics/${topicId}`, { method: "DELETE" });
+}
+
+export async function renameTopic(courseId, topicId, title) {
+  return api(`/courses/${courseId}/topics/${topicId}`, { method: "PATCH", body: { title } });
+}
+
+/** Merge a topic the AI split in two: everything moves into `intoTopicId`. */
+export async function mergeTopics(courseId, fromTopicId, intoTopicId) {
+  return api(`/courses/${courseId}/topics/merge`, { method: "POST", body: { fromTopicId, intoTopicId } });
+}
+
+/** Ask the AI to read files whose topics were not found yet (or failed). */
+export async function detectTopics(courseId) {
+  return api(`/courses/${courseId}/topics/detect`, { method: "POST" });
 }
 
 export async function listMaterials(courseId) {

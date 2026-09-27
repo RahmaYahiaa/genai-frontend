@@ -7,6 +7,7 @@ import { apiErrorText } from "@/services/http";
 import { QuestionFlow } from "@/components/SessionSolver";
 import { StudyPage, StartPanel, Panel, Field, Select, NumberStepper, PrimaryButton, SecondaryButton, TextButton, Notice, LoadingBlock, ErrorBlock, EmptyBlock, PastAttempts, ResultPanel, StatusText, STATUS, summarize } from "@/components/study/StudyKit";
 import { IconReassessment } from "@/components/Icons";
+import { AlertStrip, inputStyle } from "@/components/ModuleUI";
 import useAsync from "@/hooks/useAsync";
 import useMediaQuery from "@/hooks/useMediaQuery";
 import { fetchReassessmentQuestions } from "@/services/api";
@@ -15,6 +16,7 @@ import { SCREENS } from "@/constants/routes";
 import { getCourse } from "@/data/courses";
 import { Card, Btn, Chip, Bar, AsyncGate } from "@/components/ui";
 import MasteryBar from "@/components/MasteryBar";
+import { LearningHeader, GuidedIntro, SessionHistoryList, DonePanel, GainTable, sessionStatusTone } from "@/components/learning";
 
 function DemoReassessmentPage({ state, dispatch }) {
   const tokens = tk(state.dark);
@@ -177,6 +179,7 @@ function RealReassessmentPage({ state, dispatch }) {
   const [sessionId, setSessionId] = useState("");
   const [topicId, setTopicId] = useState("");
   const [count, setCount] = useState(2);
+  const [tab, setTab] = useState("new");
   const [busy, setBusy] = useState(false);
   const [busyQuestion, setBusyQuestion] = useState(null);
   const [notice, setNotice] = useState(null);
@@ -240,13 +243,17 @@ function RealReassessmentPage({ state, dispatch }) {
   }
 
   const courseProps = { courses, value: effectiveCourseId ?? "", onChange: setCourseId };
-  const reset = () => { setSessionId(""); listAsync.reload(); gainAsync.reload(); };
+  const reset = () => { setSessionId(""); setTab("new"); listAsync.reload(); gainAsync.reload(); };
   const summary = summarize(evaluations);
   // Only the first load blocks the page; background reloads (after each answer)
   // must not unmount the question flow, or the student never sees feedback.
   const loading = (coursesAsync.loading && coursesAsync.data == null) || (listAsync.loading && listAsync.data == null) || (sessionAsync.loading && sessionAsync.data == null) || (gainAsync.loading && gainAsync.data == null);
   const failed = coursesAsync.error ?? listAsync.error ?? sessionAsync.error ?? gainAsync.error;
-  const topicOptions = topics.map((topic) => ({ value: topic.id, label: topic.label?.[lang] ?? topic.label?.en ?? topic.id }));
+  // Only what the student has actually worked on can be re-measured.
+  const studiedIds = new Set(gains.filter((row) => (row.evidenceCount ?? 0) > 0).map((row) => row.topicId));
+  const topicOptions = topics
+    .filter((topic) => studiedIds.has(topic.id))
+    .map((topic) => ({ value: topic.id, label: topic.label?.[lang] ?? topic.label?.en ?? topic.id }));
   const LEVELS = {
     no_evidence: t("Not checked", "لسه ماتقاسش"), beginner: t("Beginner", "مبتدئ"), intermediate: t("Intermediate", "متوسط"),
     advanced: t("Advanced", "متقدم"), mastered: t("Mastered", "متقن"),
@@ -304,9 +311,13 @@ function RealReassessmentPage({ state, dispatch }) {
             body={t("Works best after you've practised a topic. Your results are compared with your first level check.", "بيبقى أحسن بعد ما تتدرّب على الموضوع. نتيجتك بتتقارن بأول اختبار مستوى عملته.")}
             primary={<PrimaryButton tokens={tokens} busy={busy} disabled={!topicId} onClick={() => void start()}>{busy ? t("Preparing your questions…", "بنجهّز أسئلتك…") : t("Start progress check", "ابدأ قياس التقدّم")}</PrimaryButton>}
           >
-            <Field tokens={tokens} label={t("Topic", "الموضوع")}>
-              <Select tokens={tokens} value={topicId} onChange={setTopicId} options={topicOptions} placeholder={t("Choose a topic", "اختار موضوع")} ariaLabel={t("Topic", "الموضوع")} />
-            </Field>
+            {topicOptions.length === 0 ? (
+              <Notice tokens={tokens} tone="info">{t("Practise something first. The parts of the course you've worked on will show up here.", "اتدرّب على حاجة الأول. الأجزاء اللي اشتغلت عليها من المقرر هتظهر هنا.")}</Notice>
+            ) : (
+              <Field tokens={tokens} label={t("What you've studied", "اللي ذاكرته")}>
+                <Select tokens={tokens} value={topicId} onChange={setTopicId} options={topicOptions} placeholder={t("Choose one", "اختار واحد")} ariaLabel={t("What you've studied", "اللي ذاكرته")} />
+              </Field>
+            )}
             <Field tokens={tokens} label={t("Number of questions", "عدد الأسئلة")}>
               <NumberStepper tokens={tokens} value={count} onChange={setCount} min={1} max={10} ariaLabel={t("Number of questions", "عدد الأسئلة")} hint={t("Type a number from 1 to 10, or use the buttons.", "اكتب رقم من 1 لـ 10، أو استخدم الأزرار.")} />
             </Field>

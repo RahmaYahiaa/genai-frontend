@@ -1,7 +1,7 @@
 import { langDir, textDir } from "@/utils/textDir";
 import { useCallback, useEffect, useState } from "react";
 import useStudyCourse from "@/hooks/useStudyCourse";
-import { getCourse, listCourses } from "@/services/courses";
+import { getCourse, listCourses, listMaterials } from "@/services/courses";
 import {
   KIND_LABELS,
   LANGUAGE_OPTIONS,
@@ -446,6 +446,7 @@ export default function StudyToolsPage({ state }) {
   const mobile = useMediaQuery("(max-width: 760px)");
   const [courseId, setCourseId] = useStudyCourse();
   const [topic, setTopic] = useState("");
+  const [materialId, setMaterialId] = useState("");
   const [kinds, setKinds] = useState(["summary", "flashcards", "quiz"]);
   const [resourceLanguage, setResourceLanguage] = useState("");
   const [busy, setBusy] = useState(false);
@@ -468,6 +469,14 @@ export default function StudyToolsPage({ state }) {
     .map((item) => item.label?.[lang] ?? item.label?.en ?? (typeof item.title === "string" ? item.title : ""))
     .filter(Boolean);
 
+  // Optional: build everything from one course file.
+  const loadMaterials = useCallback(
+    () => (effectiveCourseId ? listMaterials(effectiveCourseId).catch(() => []) : Promise.resolve([])),
+    [effectiveCourseId],
+  );
+  const materialsAsync = useAsync(loadMaterials);
+  const materials = (materialsAsync.data ?? []).filter((item) => item.status === "ready");
+
   const loadList = useCallback(
     () => (effectiveCourseId ? listResources(effectiveCourseId).catch(() => ({ items: [] })) : Promise.resolve({ items: [] })),
     [effectiveCourseId],
@@ -476,6 +485,8 @@ export default function StudyToolsPage({ state }) {
   useEffect(() => {
     listAsync.reload();
     courseAsync.reload();
+    materialsAsync.reload();
+    setMaterialId("");
     setNotice(null);
     setFreshIds([]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -491,11 +502,11 @@ export default function StudyToolsPage({ state }) {
 
   async function generate() {
     const clean = topic.trim();
-    if (!clean || kinds.length === 0 || !effectiveCourseId || busy) return;
+    if ((!clean && !materialId) || kinds.length === 0 || !effectiveCourseId || busy) return;
     setBusy(true);
     setNotice(null);
     try {
-      const result = await generateResources(effectiveCourseId, { topic: clean, kinds, language: resourceLanguage || lang });
+      const result = await generateResources(effectiveCourseId, { topic: clean || undefined, materialId: materialId || undefined, kinds, language: resourceLanguage || lang });
       const items = result?.items ?? [];
       setFreshIds(items.filter((item) => item.status === "ready").map((item) => item.id));
       const failed = items.filter((item) => item.status !== "ready").map((item) => KIND_LABELS[item.kind]?.[lang] ?? item.kind);
@@ -580,7 +591,7 @@ export default function StudyToolsPage({ state }) {
             list="study-topic-options"
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
-            placeholder={topics.length ? t("Choose a topic or type your own", "اختار موضوع أو اكتب موضوعك") : t("Type a topic, e.g. Deadlocks", "اكتب موضوع، مثلاً Deadlocks")}
+            placeholder={materialId ? t("Optional: a part of the file to focus on", "اختياري: جزء من الملف تركّز عليه") : topics.length ? t("Choose a topic or type your own", "اختار موضوع أو اكتب موضوعك") : t("Type a topic, e.g. Deadlocks", "اكتب موضوع، مثلاً Deadlocks")}
             style={field}
             autoComplete="off"
           />
@@ -611,6 +622,23 @@ export default function StudyToolsPage({ state }) {
                 </button>
               ))}
             </div>
+          )}
+
+          {materials.length > 0 && (
+            <>
+              <label htmlFor="study-file" style={{ ...labelStyle, marginTop: 14, display: "block" }}>{t("From a course file (optional)", "من ملف في المقرر (اختياري)")}</label>
+              <select id="study-file" value={materialId} onChange={(e) => setMaterialId(e.target.value)} style={{ ...field, cursor: "pointer" }}>
+                <option value="">{t("Any course file", "أي ملف في المقرر")}</option>
+                {materials.map((m) => (
+                  <option key={m.id} value={m.id}>{m.title}</option>
+                ))}
+              </select>
+              {materialId && !topic.trim() && (
+                <div style={{ fontSize: 11.5, color: tokens.textMuted, marginTop: 6 }}>
+                  {t("No topic needed: we'll cover the whole file.", "مش محتاج موضوع: هنغطي الملف كله.")}
+                </div>
+              )}
+            </>
           )}
 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", margin: "16px 0 8px" }}>
@@ -648,7 +676,7 @@ export default function StudyToolsPage({ state }) {
               );
             })}
           </div>
-          <Btn tokens={tokens} lang={lang} onClick={generate} disabled={busy || !topic.trim() || kinds.length === 0 || !effectiveCourseId}>
+          <Btn tokens={tokens} lang={lang} onClick={generate} disabled={busy || (!topic.trim() && !materialId) || kinds.length === 0 || !effectiveCourseId}>
             {busy
               ? t(`Creating ${kinds.length}… this can take a minute`, `بنعمل ${kinds.length}… ممكن ياخد دقيقة`)
               : t("Create", "إنشاء")}
@@ -670,7 +698,7 @@ export default function StudyToolsPage({ state }) {
           <Card tokens={tokens} style={{ textAlign: "center", padding: "26px 18px" }}>
             <div style={{ fontSize: 13.5, fontWeight: 650, color: tokens.textPrimary }}>{t("Nothing here yet", "لسه مفيش حاجة")}</div>
             <div style={{ fontSize: 12.5, color: tokens.textMuted, marginTop: 4 }}>
-              {t("Pick a topic above and choose what to create.", "اختار موضوع فوق وحدد عايز تعمل إيه.")}
+              {t("Pick a topic or a file above and choose what to create.", "اختار موضوع أو ملف فوق وحدد عايز تعمل إيه.")}
             </div>
           </Card>
         ) : (
