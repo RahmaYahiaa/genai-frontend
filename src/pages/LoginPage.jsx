@@ -8,6 +8,7 @@ import { IconEye, IconEyeOff } from "@/components/Icons";
 import { login } from "@/services/auth";
 import { apiErrorText } from "@/services/http";
 import { homeScreenFor } from "@/utils";
+import { DemoAccessPanel } from "@/components/DemoAccess";
 
 const MONO = "'JetBrains Mono', monospace";
 
@@ -58,7 +59,7 @@ export default function LoginPage({ state, dispatch }) {
     try {
       const user = await login(email.trim(), pass, state.role);
       dispatch({ type: "SET_USER", user });
-      dispatch({ type: "NAVIGATE", screen: homeScreenFor(user.role) });
+      dispatch({ type: "NAVIGATE", screen: user.emailVerified === false ? SCREENS.VERIFY_EMAIL : homeScreenFor(user.role) });
     } catch (err) {
       setError(apiErrorText(err, lang));
     } finally {
@@ -177,6 +178,8 @@ export default function LoginPage({ state, dispatch }) {
             ? "دخول"
             : "Sign In"}
       </button>
+
+      <DemoAccessPanel state={state} dispatch={dispatch} />
 
       <p style={{ textAlign: "center", fontSize: 12, color: tokens.textMuted, margin: "18px 0 0", fontFamily: bFont }}>
         {lang === "ar" ? "جديد على Lerna؟" : "New to Lerna?"}{" "}
