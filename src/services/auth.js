@@ -123,3 +123,13 @@ export function signOut() {
     }).catch(() => null);
   }
 }
+/** Emailed invitation link (/?invite=TOKEN): what the invitation is about. */
+export function previewInvitation(token) {
+  return api(`/invitations/${encodeURIComponent(token)}`, { retry: false });
+}
+
+/** Creates the account from the invitation and signs in. */
+export async function acceptInvitation(token, body) {
+  const data = await api(`/invitations/${encodeURIComponent(token)}/accept`, { method: "POST", body, retry: false });
+  return persistAuth(data);
+}

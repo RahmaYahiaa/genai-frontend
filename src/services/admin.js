@@ -115,3 +115,19 @@ export function sendLinkInvitation(userId) {
 export function getAnalytics() {
   return api("/admin/analytics");
 }
+
+export function getInstitutionProfile() {
+  return api("/admin/profile");
+}
+
+export function updateInstitutionProfile(patch) {
+  return api("/admin/profile", { method: "PATCH", body: patch });
+}
+
+export function resendInvitation(invitationId) {
+  return api(`/admin/invitations/${invitationId}/resend`, { method: "POST" });
+}
+
+export function revokeInvitation(invitationId) {
+  return api(`/admin/invitations/${invitationId}/revoke`, { method: "POST" });
+}

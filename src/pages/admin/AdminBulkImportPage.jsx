@@ -3,12 +3,21 @@ import useAsync from "@/hooks/useAsync";
 import { tk, bodyFont } from "@/constants/tokens";
 import { AsyncGate } from "@/components/ui";
 import { AlertStrip, Btn, Card, Chip, ConfirmBtn, toast, bFontFor, hFontFor } from "@/components/ModuleUI";
-import { IconUpload, IconDoc, IconCheck, IconWarning, IconBan, IconClock, IconShield } from "@/components/Icons";
-import { stageImport, listImports, confirmImport, discardImport, listInvitations } from "@/services/admin";
+import { IconUpload, IconDoc, IconCheck, IconWarning, IconBan, IconClock, IconShield, IconRefresh, IconX } from "@/components/Icons";
+import { stageImport, listImports, confirmImport, discardImport, listInvitations, resendInvitation, revokeInvitation } from "@/services/admin";
 import { demoMode } from "@/services/auth";
 import { useAdmin } from "@/store/admin-context";
 
 const MONO = "'JetBrains Mono', monospace";
+
+function InvIconBtn({ tokens, label, onClick, busy, danger, children }) {
+  return (
+    <button type="button" title={label} aria-label={label} disabled={busy} onClick={onClick}
+      style={{ width: 32, height: 32, borderRadius: 8, border: `1px solid ${tokens.cardBorder}`, background: tokens.card, color: danger ? tokens.gap : tokens.primary, display: "grid", placeItems: "center", cursor: busy ? "wait" : "pointer", opacity: busy ? 0.5 : 1 }}>
+      {children}
+    </button>
+  );
+}
 
 const SAMPLE_ROWS = [
   { firstName: "Salma", lastName: "Farouk", email: "salma.farouk@menoufia.edu.eg", role: "student", courseCodes: ["CVL201", "ELE302"] },
@@ -61,6 +70,7 @@ export default function AdminBulkImportPage({ state }) {
 
   const fileRef = useRef(null);
   const [localBusy, setLocalBusy] = useState(false);
+  const [rowBusy, setRowBusy] = useState(null);
 
   const fetchAll = useCallback(async () => {
     if (demo || !canImport) return { imports: [], invitations: [] };
@@ -70,6 +80,25 @@ export default function AdminBulkImportPage({ state }) {
 
   const { data, loading, error, reload } = useAsync(fetchAll);
   const imports = data?.imports ?? [];
+
+  async function act(inv, kind) {
+    if (kind === "revoke" && !window.confirm(t(`Cancel the invitation for ${inv.email}? The link in their email will stop working.`, `إلغاء دعوة ${inv.email}؟ الرابط اللي في الإيميل هيبطل يشتغل.`))) return;
+    setRowBusy(inv.id);
+    try {
+      if (kind === "resend") {
+        await resendInvitation(inv.id);
+        toast(t(`Email sent again to ${inv.email}`, `الإيميل اتبعت تاني لـ ${inv.email}`));
+      } else {
+        await revokeInvitation(inv.id);
+        toast(t("Invitation cancelled", "الدعوة اتلغت"));
+      }
+      await reload();
+    } catch (e) {
+      toast(e?.message || t("That didn't work. Try again.", "محصلش. حاول تاني."));
+    } finally {
+      setRowBusy(null);
+    }
+  }
   const invitations = data?.invitations ?? [];
 
   const openBatch = imports.find((b) => b.status === "staged") ?? null;
@@ -172,8 +201,8 @@ export default function AdminBulkImportPage({ state }) {
                 tone="peri"
                 icon={<IconCheck size={14} color={tokens.primary} />}
                 title={t(
-                  "Each row creates an invitation linked to a course — the real account activates the moment the person self-registers with the same email, and lands in the right course without typing any course code.",
-                  "كل صف ينشئ دعوة مربوطة بمقرر — الحساب الحقيقي يتفعل لحظة تسجيل الشخص بنفس الإيميل، ويصل للمقرر المقصود دون كتابة أي كود.",
+                  "Each person gets an email with a personal link. They choose a password, and their courses are ready the moment they sign in. People who already have an account are added to their courses directly.",
+                  "كل شخص بيوصله إيميل فيه رابط خاص بيه. يختار كلمة سر، ويلاقي مقرراته جاهزة أول ما يدخل. واللي عنده حساب بالفعل بيتضاف لمقرراته على طول.",
                 )}
               />
             </div>
@@ -307,7 +336,7 @@ export default function AdminBulkImportPage({ state }) {
             )}
 
             <div>
-              <SectionHeading title={t("Invitations", "الدعوات")} subtitle={t("Every invitation activates the moment its person self-registers with the same email.", "كل دعوة تتفعل لحظة تسجيل الشخص بنفس الإيميل.")} tokens={tokens} hFont={hFont} bFont={bFont} isRtl={isRtl} />
+              <SectionHeading title={t("Invitations", "الدعوات")} subtitle={t("Each invitation is sent by email. You can send it again or cancel it while it is still waiting.", "كل دعوة بتتبعت بالإيميل. تقدر تبعتها تاني أو تلغيها طول ما هي لسه مستنية.")} tokens={tokens} hFont={hFont} bFont={bFont} isRtl={isRtl} />
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {invitations.map((inv) => {
                   const waitingDays = inv.status === "pending" ? (inv.waitingDays ?? Math.floor((Date.now() - new Date(inv.sentAt).getTime()) / 864e5)) : 0;
@@ -322,7 +351,17 @@ export default function AdminBulkImportPage({ state }) {
                             <Chip tokens={tokens}>{inv.role === "student" ? t("student", "طالب") : t("doctor", "دكتور")}</Chip>
                             {inv.status === "accepted"
                               ? <Chip tokens={tokens} tone="primary">{t("Accepted", "مقبولة")}</Chip>
-                              : <Chip tokens={tokens} tone={waitingDays >= 7 ? "violet" : "default"}>{t("Pending", "بانتظار التفعيل")}</Chip>}
+                              : inv.status === "revoked"
+                                ? <Chip tokens={tokens}>{t("Cancelled", "اتلغت")}</Chip>
+                                : inv.expired
+                                  ? <Chip tokens={tokens} tone="violet">{t("Link expired", "الرابط انتهى")}</Chip>
+                                  : <Chip tokens={tokens} tone={waitingDays >= 7 ? "violet" : "default"}>{t("Waiting", "مستنية")}</Chip>}
+                            {inv.status === "pending" && inv.emailStatus === "failed" && (
+                              <Chip tokens={tokens} tone="violet">{t("Email not delivered", "الإيميل موصلش")}</Chip>
+                            )}
+                            {inv.status === "pending" && inv.emailStatus === "sent" && inv.sendCount > 1 && (
+                              <Chip tokens={tokens}>{t(`Sent ${inv.sendCount} times`, `اتبعتت ${inv.sendCount} مرات`)}</Chip>
+                            )}
                           </div>
                           <div style={{ fontFamily: MONO, fontSize: 11, color: tokens.textMuted, marginTop: 4 }}>{inv.email}</div>
                         </div>
@@ -334,6 +373,16 @@ export default function AdminBulkImportPage({ state }) {
                               ? t(`${waitingDays}d waiting`, `${waitingDays} يوم انتظار`)
                               : t("sent today", "أُرسلت اليوم")}
                         </span>
+                        {inv.status === "pending" && canImport && !demo && (
+                          <span style={{ display: "inline-flex", gap: 6 }}>
+                            <InvIconBtn tokens={tokens} label={t("Send the email again", "ابعت الإيميل تاني")} busy={rowBusy === inv.id} onClick={() => act(inv, "resend")}>
+                              <IconRefresh size={14} />
+                            </InvIconBtn>
+                            <InvIconBtn tokens={tokens} danger label={t("Cancel invitation", "الغِ الدعوة")} busy={rowBusy === inv.id} onClick={() => act(inv, "revoke")}>
+                              <IconX size={14} />
+                            </InvIconBtn>
+                          </span>
+                        )}
                       </div>
                     </Card>
                   );

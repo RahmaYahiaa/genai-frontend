@@ -37,7 +37,12 @@ import AdminLinkAccountsPage from "@/pages/admin/AdminLinkAccountsPage";
 import AdminSettingsPage from "@/pages/admin/AdminSettingsPage";
 import AdminAuditPage from "@/pages/admin/AdminAuditPage";
 import AdminAnalyticsPage from "@/pages/admin/AdminAnalyticsPage";
+import AdminHomePage from "@/pages/admin/AdminHomePage";
+import AdminProfilePage from "@/pages/admin/AdminProfilePage";
+import InvitationPage from "@/pages/InvitationPage";
+import AdminSite from "@/components/admin/AdminSite";
 import AppShell from "@/components/AppShell";
+import { useState } from "react";
 import "./App.css";
 
 const PAGES = {
@@ -61,7 +66,9 @@ const PAGES = {
   [SCREENS.PRACTICE]: PracticePage,
   [SCREENS.REASSESSMENT]: ReassessmentPage,
   [SCREENS.PROFILE]: ProfilePage,
-  [SCREENS.ADMIN]: AdminHealthPage,
+  [SCREENS.ADMIN]: AdminHomePage,
+  [SCREENS.ADMIN_PROFILE]: AdminProfilePage,
+  [SCREENS.ADMIN_STATUS]: AdminHealthPage,
   [SCREENS.ADMIN_COURSES]: AdminCoursesPage,
   [SCREENS.ADMIN_USERS]: AdminUsersPage,
   [SCREENS.ADMIN_OFFICERS]: AdminOfficersPage,
@@ -75,6 +82,18 @@ const PAGES = {
 
 function AppContent() {
   const { state, dispatch } = useApp();
+  // Invitation links from emails look like /?invite=<token>.
+  const [inviteToken, setInviteToken] = useState(() => new URLSearchParams(window.location.search).get("invite"));
+
+  if (inviteToken) {
+    const clear = () => {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("invite");
+      window.history.replaceState(null, "", url.pathname + url.search + url.hash);
+      setInviteToken(null);
+    };
+    return <InvitationPage state={state} dispatch={dispatch} token={inviteToken} onDone={clear} />;
+  }
 
   if (state.screen === SCREENS.WELCOME) return <WelcomePage />;
   if (state.screen === SCREENS.LOGIN) return <LoginPage state={state} dispatch={dispatch} />;
@@ -82,8 +101,20 @@ function AppContent() {
   if (state.screen === SCREENS.VERIFY_EMAIL) return <VerifyEmailPage state={state} dispatch={dispatch} />;
   if (state.screen === SCREENS.FORGOT_PASSWORD) return <ForgotPasswordPage state={state} dispatch={dispatch} />;
 
+  // New accounts can't use anything until the email code is entered
+  // (also covers page refreshes and old links).
+  if (state.user && state.user.emailVerified === false) return <VerifyEmailPage state={state} dispatch={dispatch} />;
+
   const role = state.role === ROLES.INSTRUCTOR || state.role === ROLES.ADMIN ? state.role : ROLES.STUDENT;
   const ActivePage = PAGES[state.screen] ?? DashboardPage;
+
+  if (role === ROLES.ADMIN) {
+    return (
+      <AdminSite state={state} dispatch={dispatch}>
+        <ActivePage state={state} dispatch={dispatch} />
+      </AdminSite>
+    );
+  }
 
   return (
     <AppShell state={state} dispatch={dispatch} role={role}>
