@@ -5,6 +5,7 @@ import { DEMO_ACCOUNTS, DEMO_PASSWORD, DEMO_GUIDE_KEY, SHOW_DEMO_ACCOUNTS, demoA
 import { login, signOut } from "@/services/auth";
 import { apiErrorText } from "@/services/http";
 import { homeScreenFor } from "@/utils";
+import { SanadMark } from "@/components/sanad/SanadKit";
 import { IconProfile, IconClipboard, IconShield, IconChevronDown, IconX, IconArrowRight, IconArrowLeft } from "@/components/Icons";
 
 function IconCap({ size = 16 }) {
@@ -52,6 +53,23 @@ export function DemoAccessPanel({ state, dispatch }) {
       sessionStorage.setItem(DEMO_GUIDE_KEY, account.id);
       dispatch({ type: "SET_USER", user });
       dispatch({ type: "NAVIGATE", screen: homeScreenFor(user.role) });
+    } catch (err) {
+      setError(apiErrorText(err, lang));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  // One click: sign in as the university student and open Plany, the study agent.
+  const tryPlany = async () => {
+    if (busyId) return;
+    setBusyId("plany");
+    setError("");
+    try {
+      const user = await login(demoAccountById("university").email, DEMO_PASSWORD, state.role);
+      sessionStorage.removeItem(DEMO_GUIDE_KEY);
+      dispatch({ type: "SET_USER", user });
+      dispatch({ type: "NAVIGATE", screen: SCREENS.SANAD, planId: undefined, courseId: undefined });
     } catch (err) {
       setError(apiErrorText(err, lang));
     } finally {
@@ -114,6 +132,31 @@ export function DemoAccessPanel({ state, dispatch }) {
         <span style={{ fontSize: 11.5, color: tokens.textMuted, fontFamily: bFont, whiteSpace: "nowrap" }}>{t("or explore with a demo account", "أو جرّب بحساب تجريبي")}</span>
         <span style={{ flex: 1, height: 1, background: tokens.cardBorder }} />
       </div>
+      <button
+        type="button"
+        onClick={() => void tryPlany()}
+        disabled={Boolean(busyId)}
+        className="plany-demo"
+        style={{
+          width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", marginBottom: 14,
+          borderRadius: 14, border: "none", cursor: busyId ? "default" : "pointer", textAlign: isRtl ? "right" : "left",
+          background: "linear-gradient(120deg, #163F8A 0%, #1B4DA8 55%, #3D66D6 100%)", color: "#fff",
+          boxShadow: "0 10px 26px rgba(27,77,168,0.30)", opacity: busyId && busyId !== "plany" ? 0.6 : 1, fontFamily: bFont,
+        }}
+      >
+        <span style={{ flex: "0 0 auto", background: "rgba(255,255,255,0.16)", borderRadius: 12, padding: 3, display: "inline-flex" }}><SanadMark size={34} /></span>
+        <span style={{ flex: 1, minWidth: 0 }}>
+          <span style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: headingFont(lang), fontSize: 14.5, fontWeight: 800 }}>
+            {busyId === "plany" ? t("Opening Plany…", "بيفتح بلاني…") : t("Try Plany", "جرّب بلاني")}
+            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: isRtl ? 0 : "0.06em", textTransform: "uppercase", padding: "2px 7px", borderRadius: 999, background: "rgba(255,255,255,0.2)" }}>{t("AI agent", "وكيل ذكي")}</span>
+          </span>
+          <span style={{ display: "block", fontSize: 11.5, opacity: 0.88, marginTop: 3, lineHeight: 1.45 }}>
+            {t("Tell it about your exam and get a day-by-day plan that adapts to you.", "قولّه على امتحانك وخد خطة يوم بيوم بتتغيّر على حسب مستواك.")}
+          </span>
+        </span>
+        {isRtl ? <IconArrowLeft size={16} color="#fff" /> : <IconArrowRight size={16} color="#fff" />}
+      </button>
+
       <div style={groupLabel}>{t("Students", "الطلاب")}</div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
         {students.map((a) => <Card key={a.id} account={a} />)}

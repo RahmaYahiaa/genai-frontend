@@ -108,3 +108,5 @@
 .sanad-fab { transition: transform 160ms ease, box-shadow 160ms ease; }
 .sanad-fab:hover { transform: translateY(-2px); box-shadow: 0 16px 36px rgba(27,77,168,0.5) !important; }
 @media (prefers-reduced-motion: reduce) { .sanad-pulse, .sanad-rise, .sanad-dots::after { animation: none; } }
+.plany-demo { transition: transform 150ms ease, box-shadow 150ms ease; }
+.plany-demo:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 14px 30px rgba(27,77,168,0.38) !important; }
