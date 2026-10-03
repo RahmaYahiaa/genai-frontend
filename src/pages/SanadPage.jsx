@@ -5,6 +5,7 @@ import useMediaQuery from "@/hooks/useMediaQuery";
 import { apiErrorText } from "@/services/http";
 import { getReminderSettings, getSanadOverview, getStudyPlan, createStudyPlan, replanStudyPlan, stopStudyPlan, sanadChat, localToday, addDays, daysUntil } from "@/services/sanad";
 import { IconCheck, IconClock, IconPlus, IconArrowRight, IconArrowLeft, IconRefresh, IconSend, IconSendRtl, IconWarning } from "@/components/Icons";
+import { DurationInput, formatTime12 } from "@/components/sanad/TimeInputs";
 import SanadTaskRunner from "@/components/sanad/SanadTaskRunner";
 import { SanadMark, SButton, Panel, SectionTitle, Ring, TaskIcon, TASK_META, LEVEL_META, formatDay, sanadGradient, AutoText, tr } from "@/components/sanad/SanadKit";
 
@@ -23,7 +24,6 @@ const BUILD_STEPS = {
   ar: ["بقرا إجاباتك في كل موضوع", "بحدد نقط ضعفك", "برتّب المواضيع كل واحد يبني على اللي قبله", "بوزّعها على أيامك"],
 };
 
-const MINUTES = [30, 45, 60, 90, 120];
 
 function Building({ tokens, font, hFont, lang }) {
   const steps = BUILD_STEPS[lang === "ar" ? "ar" : "en"];
@@ -35,7 +35,7 @@ function Building({ tokens, font, hFont, lang }) {
   return (
     <Panel tokens={tokens} padding={36} style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 20 }}>
       <div className="sanad-pulse"><SanadMark size={64} /></div>
-      <h2 style={{ margin: 0, fontFamily: hFont, fontSize: 20, color: tokens.textPrimary }}>{lang === "ar" ? "سند بيجهّز خطتك" : "Sanad is building your plan"}</h2>
+      <h2 style={{ margin: 0, fontFamily: hFont, fontSize: 20, color: tokens.textPrimary }}>{lang === "ar" ? "بلاني بيجهّز خطتك" : "Plany is building your plan"}</h2>
       <div style={{ display: "flex", flexDirection: "column", gap: 10, textAlign: "start" }}>
         {steps.map((s, n) => (
           <div key={s} style={{ display: "flex", alignItems: "center", gap: 10, fontFamily: font, fontSize: 14.5, color: n <= i ? tokens.textPrimary : tokens.textFaint, transition: "color 300ms" }}>
@@ -65,10 +65,10 @@ export function PlanBuilder({ courses, initial = {}, tokens, font, lang, onBuild
   const days = daysUntil(examDate);
   const label = (s) => <label style={{ display: "block", fontFamily: font, fontSize: 12.5, fontWeight: 650, color: tokens.textSecondary, marginBottom: 6 }}>{s}</label>;
   if (!courses.length) {
-    return <div style={{ fontFamily: font, fontSize: 14, color: tokens.textMuted, lineHeight: 1.6 }}>{t("Join or add a course first, then Sanad can plan for its exam.", "انضم لمادة أو ضيف مادة الأول، وبعدها سند يقدر يخطط لامتحانها.")}</div>;
+    return <div style={{ fontFamily: font, fontSize: 14, color: tokens.textMuted, lineHeight: 1.6 }}>{t("Join or add a course first, then Plany can plan for its exam.", "انضم لمادة أو ضيف مادة الأول، وبعدها بلاني يقدر يخطط لامتحانها.")}</div>;
   }
   return (
-    <form onSubmit={(e) => { e.preventDefault(); onBuild({ courseId, examDate, dailyMinutes: minutes, goal }); }} style={{ display: "flex", flexDirection: "column", gap: compact ? 12 : 16 }}>
+    <form onSubmit={(e) => { e.preventDefault(); if (minutes) onBuild({ courseId, examDate, dailyMinutes: minutes, goal }); }} style={{ display: "flex", flexDirection: "column", gap: compact ? 12 : 16 }}>
       <div>
         {label(t("Course", "المادة"))}
         <select value={courseId} onChange={(e) => setCourseId(e.target.value)} style={fieldStyle(tokens, font)}>
@@ -79,26 +79,20 @@ export function PlanBuilder({ courses, initial = {}, tokens, font, lang, onBuild
         {label(t("Exam date", "ميعاد الامتحان"))}
         <input type="date" value={examDate} min={localToday()} onChange={(e) => setExamDate(e.target.value)} style={fieldStyle(tokens, font)} />
         <div style={{ fontFamily: font, fontSize: 12, color: tokens.textMuted, marginTop: 5 }}>
-          {days <= 0 ? t("Today: Sanad will make a one-day plan.", "النهارده: سند هيعمل خطة يوم واحد.") : t(`${days} day${days === 1 ? "" : "s"} from today`, `بعد ${days} يوم`)}
+          {days <= 0 ? t("Today: Plany will make a one-day plan.", "النهارده: بلاني هيعمل خطة يوم واحد.") : t(`${days} day${days === 1 ? "" : "s"} from today`, `بعد ${days} يوم`)}
         </div>
       </div>
       <div>
         {label(t("Time each day", "وقتك كل يوم"))}
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-          {MINUTES.map((m) => (
-            <button key={m} type="button" onClick={() => setMinutes(m)} style={{ flex: "1 0 54px", padding: "9px 6px", borderRadius: 10, cursor: "pointer", fontFamily: font, fontSize: 13, fontWeight: 650, border: `1px solid ${minutes === m ? tokens.primary : tokens.cardBorder}`, background: minutes === m ? tokens.primaryLight : tokens.card, color: minutes === m ? tokens.primary : tokens.textSecondary }}>
-              {m < 60 ? t(`${m} min`, `${m} د`) : t(`${m / 60} h`, m === 60 ? "ساعة" : m === 120 ? "ساعتين" : "ساعة ونص")}
-            </button>
-          ))}
-        </div>
+        <DurationInput value={minutes} onChange={setMinutes} tokens={tokens} font={font} lang={lang} />
       </div>
       {!compact ? (
         <div>
-          {label(t("Anything Sanad should know? (optional)", "حاجة عايز سند يعرفها؟ (اختياري)"))}
+          {label(t("Anything Plany should know? (optional)", "حاجة عايز بلاني يعرفها؟ (اختياري)"))}
           <input value={goal} onChange={(e) => setGoal(e.target.value)} maxLength={300} placeholder={t("e.g. the exam is mostly problem solving", "مثلاً: الامتحان أغلبه مسائل")} style={fieldStyle(tokens, font)} dir="auto" />
         </div>
       ) : null}
-      <SButton type="submit" tokens={tokens} font={font} disabled={busy || !courseId || !examDate} full>{busy ? t("Building…", "بجهّز…") : t("Build my plan", "اعمل خطتي")}</SButton>
+      <SButton type="submit" tokens={tokens} font={font} disabled={busy || !courseId || !examDate || !minutes} full>{busy ? t("Building…", "بجهّز…") : t("Build my plan", "اعمل خطتي")}</SButton>
     </form>
   );
 }
@@ -141,15 +135,15 @@ function Intro({ dark, courses, initialCourseId, tokens, font, hFont, lang, mobi
         <div style={{ position: "relative" }}>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 10, background: "rgba(255,255,255,0.14)", borderRadius: 999, padding: "6px 14px 6px 6px", marginBottom: 18 }}>
             <SanadMark size={28} radius={14} flat={false} />
-            <span style={{ fontFamily: font, fontSize: 13, fontWeight: 650 }}>{t("Sanad · your study coach", "سند · مدرّب المذاكرة بتاعك")}</span>
+            <span style={{ fontFamily: font, fontSize: 13, fontWeight: 650 }}>{t("Plany · your study coach", "بلاني · مدرّب المذاكرة بتاعك")}</span>
           </div>
           <h1 style={{ margin: 0, fontFamily: hFont, fontSize: mobile ? 28 : 38, lineHeight: 1.15, fontWeight: 800, letterSpacing: "-0.02em" }}>
-            {t("Tell Sanad about your exam. Get a plan that changes with you.", "قول لسند على امتحانك. وخد خطة بتتغيّر معاك.")}
+            {t("Tell Plany about your exam. Get a plan that changes with you.", "قول لبلاني على امتحانك. وخد خطة بتتغيّر معاك.")}
           </h1>
           <p style={{ fontFamily: font, fontSize: 15.5, lineHeight: 1.7, opacity: 0.92, margin: "16px 0 22px", maxWidth: 560 }}>
             {t(
-              "Sanad looks at how you actually answered in every topic, builds your days to the exam, teaches what you are missing, tests you, and changes the plan the moment something is not working.",
-              "سند بيبص على إجاباتك الفعلية في كل موضوع، ويرتّب أيامك لحد الامتحان، ويشرحلك اللي ناقصك، ويختبرك، ويغيّر الخطة أول ما حاجة ما تمشيش.",
+              "Plany looks at how you actually answered in every topic, builds your days to the exam, teaches what you are missing, tests you, and changes the plan the moment something is not working.",
+              "بلاني بيبص على إجاباتك الفعلية في كل موضوع، ويرتّب أيامك لحد الامتحان، ويشرحلك اللي ناقصك، ويختبرك، ويغيّر الخطة أول ما حاجة ما تمشيش.",
             )}
           </p>
           <form onSubmit={ask} style={{ display: "flex", gap: 8, background: "#fff", borderRadius: 14, padding: 6, maxWidth: 560 }}>
@@ -171,7 +165,7 @@ function Intro({ dark, courses, initialCourseId, tokens, font, hFont, lang, mobi
       </section>
 
       <section style={{ marginTop: 28 }}>
-        <SectionTitle tokens={tokens} font={hFont}>{t("How Sanad works", "سند بيشتغل إزاي")}</SectionTitle>
+        <SectionTitle tokens={tokens} font={hFont}>{t("How Plany works", "بلاني بيشتغل إزاي")}</SectionTitle>
         <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr 1fr" : "repeat(7, 1fr)", gap: 10 }}>
           {STEPS.map((s, i) => (
             <div key={s.en} style={{ background: tokens.card, border: `1px solid ${tokens.cardBorder}`, borderRadius: 14, padding: "14px 14px 16px", position: "relative" }}>
@@ -186,7 +180,7 @@ function Intro({ dark, courses, initialCourseId, tokens, font, hFont, lang, mobi
       <section style={{ marginTop: 22, display: "grid", gridTemplateColumns: mobile ? "1fr" : "repeat(3, 1fr)", gap: 14 }}>
         {[
           [t("Built on your real answers", "مبني على إجاباتك الحقيقية"), t("Not a generic timetable. Every day comes from how you did in each topic.", "مش جدول عام. كل يوم جاي من أداءك في كل موضوع.")],
-          [t("Changes when you struggle", "بيتغيّر لما تتعثّر"), t("Miss a question on one topic and Sanad finds the cause, goes back if needed, and rearranges the next days.", "لو غلطت في موضوع، سند بيدوّر على السبب ويرجع لو محتاج ويرتّب الأيام الجاية من جديد.")],
+          [t("Changes when you struggle", "بيتغيّر لما تتعثّر"), t("Miss a question on one topic and Plany finds the cause, goes back if needed, and rearranges the next days.", "لو غلطت في موضوع، بلاني بيدوّر على السبب ويرجع لو محتاج ويرتّب الأيام الجاية من جديد.")],
           [t("Proves the gap is closed", "بيتأكد إن الفجوة اتقفلت"), t("Before the exam it asks new questions on the same topics, so you know you are ready.", "قبل الامتحان بيسألك أسئلة جديدة على نفس المواضيع عشان تتأكد إنك جاهز.")],
         ].map(([h, d]) => (
           <Panel key={h} tokens={tokens} padding={20}>
@@ -237,7 +231,7 @@ function ReminderLine({ tokens, font, lang, onChange }) {
     return () => { alive = false; };
   }, []);
   if (!s) return null;
-  const when = { morning: t("every morning", "كل يوم الصبح"), noon: t("every afternoon", "كل يوم الضهر"), evening: t("every evening", "كل يوم بالليل") }[s.time];
+  const when = t(`every day at ${formatTime12(s.time, lang)}`, `كل يوم الساعة ${formatTime12(s.time, lang)}`);
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", borderRadius: 14, border: `1px solid ${tokens.cardBorder}`, background: tokens.card }}>
       <span style={{ width: 30, height: 30, borderRadius: 9, flexShrink: 0, background: s.enabled ? tokens.primaryLight : tokens.inset, color: s.enabled ? tokens.primary : tokens.textMuted, display: "inline-flex", alignItems: "center", justifyContent: "center" }}><IconClock size={15} /></span>
@@ -276,7 +270,7 @@ function PlanView({ dark, plan, plans, tokens, font, hFont, lang, mobile, onOpen
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, flexWrap: "wrap" }}>
             <SanadMark size={30} radius={10} />
-            <span style={{ fontFamily: font, fontSize: 13, fontWeight: 650, opacity: 0.9 }}>{t("Your plan with Sanad", "خطتك مع سند")}</span>
+            <span style={{ fontFamily: font, fontSize: 13, fontWeight: 650, opacity: 0.9 }}>{t("Your plan with Plany", "خطتك مع بلاني")}</span>
             {plan.status === "completed" ? <span style={{ background: "rgba(255,255,255,0.2)", borderRadius: 999, padding: "2px 10px", fontFamily: font, fontSize: 12, fontWeight: 700 }}>{t("Completed", "خلصت")}</span> : null}
           </div>
           <h1 style={{ margin: 0, fontFamily: hFont, fontSize: mobile ? 22 : 27, fontWeight: 800, letterSpacing: "-0.02em" }}>{plan.courseTitle}</h1>
@@ -299,7 +293,7 @@ function PlanView({ dark, plan, plans, tokens, font, hFont, lang, mobile, onOpen
         <div className="sanad-rise" style={{ display: "flex", gap: 12, alignItems: "flex-start", marginTop: 14, background: tokens.card, border: `1px solid ${tokens.citationBorder}`, borderInlineStart: `4px solid ${tokens.primary}`, borderRadius: 14, padding: "14px 16px" }}>
           <SanadMark size={28} radius={9} />
           <div>
-            <div style={{ fontFamily: font, fontSize: 12, fontWeight: 700, color: tokens.primary, marginBottom: 3 }}>{t("Sanad updated your plan", "سند حدّث خطتك")}</div>
+            <div style={{ fontFamily: font, fontSize: 12, fontWeight: 700, color: tokens.primary, marginBottom: 3 }}>{t("Plany updated your plan", "بلاني حدّث خطتك")}</div>
             <AutoText style={{ fontFamily: font, fontSize: 14.5, color: tokens.textPrimary, lineHeight: 1.6 }}>{lastNote.message}</AutoText>
           </div>
         </div>
@@ -309,7 +303,7 @@ function PlanView({ dark, plan, plans, tokens, font, hFont, lang, mobile, onOpen
         <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", marginTop: 14, background: "#FFF7ED", border: "1px solid #FED7AA", borderRadius: 14, padding: "12px 16px" }}>
           <IconWarning size={18} color="#B4540A" />
           <span style={{ flex: 1, fontFamily: font, fontSize: 14, color: "#7C2D12" }}>{t(`${behind} task${behind === 1 ? "" : "s"} from earlier days are not done.`, `${behind} مهمة من الأيام اللي فاتت لسه ما خلصتش.`)}</span>
-          <SButton tokens={tokens} font={font} disabled={busy} icon={<IconRefresh size={15} color="#fff" />} onClick={onReplan}>{busy ? t("Rearranging…", "بيترتّب…") : t("Let Sanad rearrange", "خلّي سند يرتّب")}</SButton>
+          <SButton tokens={tokens} font={font} disabled={busy} icon={<IconRefresh size={15} color="#fff" />} onClick={onReplan}>{busy ? t("Rearranging…", "بيترتّب…") : t("Let Plany rearrange", "خلّي بلاني يرتّب")}</SButton>
         </div>
       ) : null}
 
@@ -404,7 +398,7 @@ function PlanView({ dark, plan, plans, tokens, font, hFont, lang, mobile, onOpen
           </Panel>
 
           <Panel tokens={tokens}>
-            <SectionTitle tokens={tokens} font={hFont}>{t("What Sanad changed", "سند غيّر إيه")}</SectionTitle>
+            <SectionTitle tokens={tokens} font={hFont}>{t("What Plany changed", "بلاني غيّر إيه")}</SectionTitle>
             {notes.length ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 {notes.map((n, i) => (
@@ -417,7 +411,7 @@ function PlanView({ dark, plan, plans, tokens, font, hFont, lang, mobile, onOpen
                   </div>
                 ))}
               </div>
-            ) : <div style={{ fontFamily: font, fontSize: 13.5, color: tokens.textMuted, lineHeight: 1.6 }}>{t("After each task, Sanad checks your result and adjusts the next days. You will see why here.", "بعد كل مهمة سند بيشوف نتيجتك ويظبط الأيام الجاية. هتشوف السبب هنا.")}</div>}
+            ) : <div style={{ fontFamily: font, fontSize: 13.5, color: tokens.textMuted, lineHeight: 1.6 }}>{t("After each task, Plany checks your result and adjusts the next days. You will see why here.", "بعد كل مهمة بلاني بيشوف نتيجتك ويظبط الأيام الجاية. هتشوف السبب هنا.")}</div>}
           </Panel>
 
           {plan.status === "active" ? <ReminderLine tokens={tokens} font={font} lang={lang} onChange={onReminders} /> : null}

@@ -5,6 +5,7 @@ import { fetchProfile } from "@/services/api";
 import { listCourses } from "@/services/courses";
 import { getAiPreferences, updateAiPreferences } from "@/services/learning";
 import { getReminderSettings, updateReminderSettings, sendTestReminder } from "@/services/sanad";
+import { ClockInput } from "@/components/sanad/TimeInputs";
 import { LANGUAGE_OPTIONS } from "@/services/studyTools";
 import { apiErrorText } from "@/services/http";
 import { inputStyle } from "@/components/ModuleUI";
@@ -107,13 +108,8 @@ function AiPreferencesCard({ tokens, lang, t }) {
   );
 }
 
-const REMINDER_TIMES = [
-  { id: "morning", en: "Morning · 9:00", ar: "الصبح · 9:00" },
-  { id: "noon", en: "Afternoon · 14:00", ar: "الضهر · 2:00" },
-  { id: "evening", en: "Evening · 20:00", ar: "بالليل · 8:00" },
-];
 
-/** Sanad's daily study reminder email: on/off and time. Saves right away. */
+/** Plany's daily study reminder email: on/off and time. Saves right away. */
 function StudyRemindersCard({ tokens, lang, t, focus }) {
   const settingsAsync = useAsync(getReminderSettings);
   const [settings, setSettings] = useState(null);
@@ -165,8 +161,8 @@ function StudyRemindersCard({ tokens, lang, t, focus }) {
         <div style={{ minWidth: 0 }}>
           <div style={{ fontWeight: 700, fontSize: 14, color: tokens.textPrimary, marginBottom: 4 }}>{t("Study reminders", "تذكير المذاكرة")}</div>
           <div style={{ fontSize: 12, color: tokens.textMuted, lineHeight: 1.7 }}>
-            {t("Sanad emails you once a day with your study tasks, and lets you know when you fall behind or your exam is tomorrow. Only while you have a study plan.",
-              "سند بيبعتلك إيميل مرة في اليوم بمهام المذاكرة، ويفكّرك لو اتأخرت أو امتحانك بكرة. بس لما يكون عندك خطة مذاكرة.")}
+            {t("Plany emails you once a day with your study tasks, and lets you know when you fall behind or your exam is tomorrow. Only while you have a study plan.",
+              "بلاني بيبعتلك إيميل مرة في اليوم بمهام المذاكرة، ويفكّرك لو اتأخرت أو امتحانك بكرة. بس لما يكون عندك خطة مذاكرة.")}
           </div>
         </div>
         {settings ? (
@@ -179,12 +175,8 @@ function StudyRemindersCard({ tokens, lang, t, focus }) {
       <AsyncGate tokens={tokens} lang={lang} loading={settingsAsync.loading} error={settingsAsync.error} reload={settingsAsync.reload} label={t("Loading…", "جارٍ التحميل…")}>
         {settings && on ? (
           <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            <span style={{ fontSize: 12.5, color: tokens.textSecondary, marginInlineEnd: 4 }}>{t("Send it in the", "ابعته")}</span>
-            {REMINDER_TIMES.map((o) => (
-              <Btn key={o.id} tokens={tokens} variant={settings.time === o.id ? "soft" : "ghost"} style={{ padding: "6px 12px" }} disabled={busy} onClick={() => settings.time !== o.id && change({ time: o.id })}>
-                {o[lang] ?? o.en}
-              </Btn>
-            ))}
+            <span style={{ fontSize: 12.5, color: tokens.textSecondary, marginInlineEnd: 4 }}>{t("Send it every day at", "ابعته كل يوم الساعة")}</span>
+            <ClockInput value={settings.time} onSave={(time) => change({ time })} tokens={tokens} font={bodyFont(lang)} lang={lang} disabled={busy} />
             <span style={{ flex: 1 }} />
             <Btn tokens={tokens} variant="ghost" style={{ padding: "6px 12px" }} disabled={busy} onClick={test}>{t("Send me one now", "ابعتلي واحد دلوقتي")}</Btn>
           </div>

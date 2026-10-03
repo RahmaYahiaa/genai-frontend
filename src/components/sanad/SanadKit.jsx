@@ -1,14 +1,14 @@
 import { IconBookOpen, IconDiagnostic, IconPractice, IconClipboard, IconRefresh, IconReassessment } from "@/components/Icons";
 
-// Shared look of Sanad (the study agent): brand mark, colours, labels, small UI.
+// Shared look of Plany (the study agent): brand mark, colours, labels, small UI.
 
-export const SANAD_NAME = { en: "Sanad", ar: "سند" };
+export const SANAD_NAME = { en: "Plany", ar: "بلاني" };
 export const SANAD_TAGLINE = { en: "Your study coach", ar: "مدرّب المذاكرة بتاعك" };
 
 export const sanadGradient = (dark) =>
   dark ? "linear-gradient(135deg, #2A4E9E 0%, #3D5FC4 55%, #6A86E6 100%)" : "linear-gradient(135deg, #163F8A 0%, #1B4DA8 45%, #3D66D6 100%)";
 
-/** The Sanad mark: a guiding star over a rising path. */
+/** The Plany mark: a guiding star over a rising path. */
 export function SanadMark({ size = 32, radius, dark = false, flat = false }) {
   const r = radius ?? Math.round(size * 0.3);
   return (
@@ -62,7 +62,7 @@ export function formatDay(iso, lang, opts = { weekday: "short", day: "numeric", 
   }
 }
 
-/** Plain button in the Sanad style. kind: primary | soft | ghost | white */
+/** Plain button in the Plany style. kind: primary | soft | ghost | white */
 export function SButton({ children, onClick, disabled, kind = "primary", tokens, font, icon, full, type = "button", title }) {
   const styles = {
     primary: { background: tokens.primaryBtn, color: "#fff", border: "1px solid transparent", boxShadow: tokens.primaryShadow },

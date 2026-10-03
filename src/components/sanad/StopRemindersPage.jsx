@@ -3,7 +3,7 @@ import { tk, headingFont, bodyFont } from "@/constants/tokens";
 import { stopRemindersFromLink } from "@/services/sanad";
 import { SanadMark } from "./SanadKit";
 
-/** Opened from the "Stop reminders" link in a Sanad email. No sign-in needed. */
+/** Opened from the "Stop reminders" link in a Plany email. No sign-in needed. */
 export default function StopRemindersPage({ state, token, onDone }) {
   const tokens = tk(state.dark);
   const lang = state.lang;

@@ -1,6 +1,6 @@
 import { api } from "@/services/http";
 
-// Sanad, the study agent. All AI runs on the server (LeRna first, with a
+// Plany, the study agent. All AI runs on the server (LeRna first, with a
 // built-in backup), so these calls are plain requests.
 
 /** Today's date on the student's device (YYYY-MM-DD), so days match their calendar. */

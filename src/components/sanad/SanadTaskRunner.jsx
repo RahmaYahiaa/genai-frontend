@@ -178,7 +178,7 @@ function Questions({ courseId, task, tokens, font, lang, mobile, onAnswered }) {
   );
 }
 
-/** Full-screen task view: prepares the task, runs it, then reports back so Sanad can adapt. */
+/** Full-screen task view: prepares the task, runs it, then reports back so Plany can adapt. */
 export default function SanadTaskRunner({ plan, task: initial, tokens, font, hFont, lang, mobile, onClose, onPlan }) {
   const t = tr(lang);
   const [task, setTask] = useState(initial);
@@ -260,7 +260,7 @@ export default function SanadTaskRunner({ plan, task: initial, tokens, font, hFo
               </>
             ) : (
               <SButton tokens={tokens} font={font} disabled={finishing || !answeredOnce} title={!answeredOnce ? t("Answer at least one question", "جاوب سؤال واحد على الأقل") : undefined} onClick={() => finish()}>
-                {finishing ? t("Sanad is updating your plan…", "سند بيحدّث خطتك…") : t("Finish and update my plan", "خلّصت، حدّث خطتي")}
+                {finishing ? t("Plany is updating your plan…", "بلاني بيحدّث خطتك…") : t("Finish and update my plan", "خلّصت، حدّث خطتي")}
               </SButton>
             )}
           </footer>
