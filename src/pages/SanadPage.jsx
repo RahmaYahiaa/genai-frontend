@@ -3,7 +3,7 @@ import { tk, headingFont, bodyFont } from "@/constants/tokens";
 import { SCREENS } from "@/constants/routes";
 import useMediaQuery from "@/hooks/useMediaQuery";
 import { apiErrorText } from "@/services/http";
-import { getSanadOverview, getStudyPlan, createStudyPlan, replanStudyPlan, stopStudyPlan, sanadChat, localToday, addDays, daysUntil } from "@/services/sanad";
+import { getReminderSettings, getSanadOverview, getStudyPlan, createStudyPlan, replanStudyPlan, stopStudyPlan, sanadChat, localToday, addDays, daysUntil } from "@/services/sanad";
 import { IconCheck, IconClock, IconPlus, IconArrowRight, IconArrowLeft, IconRefresh, IconSend, IconSendRtl, IconWarning } from "@/components/Icons";
 import SanadTaskRunner from "@/components/sanad/SanadTaskRunner";
 import { SanadMark, SButton, Panel, SectionTitle, Ring, TaskIcon, TASK_META, LEVEL_META, formatDay, sanadGradient, AutoText, tr } from "@/components/sanad/SanadKit";
@@ -227,7 +227,29 @@ function TaskRow({ task, tokens, font, lang, onOpen, highlight }) {
   );
 }
 
-function PlanView({ dark, plan, plans, tokens, font, hFont, lang, mobile, onOpenTask, onSwitch, onNew, onReplan, onStop, busy, lastNote }) {
+/** "Email reminders: on, every morning · Change" -> Profile > Preferences. */
+function ReminderLine({ tokens, font, lang, onChange }) {
+  const t = tr(lang);
+  const [s, setS] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    getReminderSettings().then((v) => alive && setS(v)).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+  if (!s) return null;
+  const when = { morning: t("every morning", "كل يوم الصبح"), noon: t("every afternoon", "كل يوم الضهر"), evening: t("every evening", "كل يوم بالليل") }[s.time];
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", borderRadius: 14, border: `1px solid ${tokens.cardBorder}`, background: tokens.card }}>
+      <span style={{ width: 30, height: 30, borderRadius: 9, flexShrink: 0, background: s.enabled ? tokens.primaryLight : tokens.inset, color: s.enabled ? tokens.primary : tokens.textMuted, display: "inline-flex", alignItems: "center", justifyContent: "center" }}><IconClock size={15} /></span>
+      <span style={{ flex: 1, fontFamily: font, fontSize: 13, color: tokens.textSecondary, lineHeight: 1.5 }}>
+        {s.enabled ? t(`Email reminders are on, ${when}.`, `تذكير الإيميل شغّال، ${when}.`) : t("Email reminders are off.", "تذكير الإيميل مقفول.")}
+      </span>
+      <button type="button" onClick={onChange} style={{ border: "none", background: "none", cursor: "pointer", color: tokens.primary, fontFamily: font, fontSize: 13, fontWeight: 700, padding: 4 }}>{t("Change", "تغيير")}</button>
+    </div>
+  );
+}
+
+function PlanView({ dark, plan, plans, tokens, font, hFont, lang, mobile, onOpenTask, onSwitch, onNew, onReplan, onStop, busy, lastNote, onReminders }) {
   const t = tr(lang);
   const today = localToday();
   const left = daysUntil(plan.examDate);
@@ -398,6 +420,8 @@ function PlanView({ dark, plan, plans, tokens, font, hFont, lang, mobile, onOpen
             ) : <div style={{ fontFamily: font, fontSize: 13.5, color: tokens.textMuted, lineHeight: 1.6 }}>{t("After each task, Sanad checks your result and adjusts the next days. You will see why here.", "بعد كل مهمة سند بيشوف نتيجتك ويظبط الأيام الجاية. هتشوف السبب هنا.")}</div>}
           </Panel>
 
+          {plan.status === "active" ? <ReminderLine tokens={tokens} font={font} lang={lang} onChange={onReminders} /> : null}
+
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <SButton kind="soft" tokens={tokens} font={font} icon={<IconPlus size={15} />} onClick={onNew}>{t("New plan", "خطة جديدة")}</SButton>
             {plan.status === "active" ? <SButton kind="ghost" tokens={tokens} font={font} onClick={onStop}>{t("Stop this plan", "وقّف الخطة دي")}</SButton> : null}
@@ -518,7 +542,8 @@ export default function SanadPage({ state, dispatch }) {
         <Building tokens={tokens} font={font} hFont={hFont} lang={lang} />
       ) : plan && !creating ? (
         <PlanView dark={state.dark} plan={plan} plans={plans} tokens={tokens} font={font} hFont={hFont} lang={lang} mobile={mobile} busy={busy} lastNote={lastNote}
-          onOpenTask={(task) => setRunner(task)} onSwitch={switchPlan} onNew={() => { setCreating(true); setBuildError(null); }} onReplan={replan} onStop={stop} />
+          onOpenTask={(task) => setRunner(task)} onSwitch={switchPlan} onNew={() => { setCreating(true); setBuildError(null); }} onReplan={replan} onStop={stop}
+          onReminders={() => dispatch({ type: "NAVIGATE", screen: SCREENS.PROFILE, profileFocus: "reminders" })} />
       ) : (
         <>
           {plan ? <div style={{ marginBottom: 14 }}><SButton kind="ghost" tokens={tokens} font={font} onClick={() => setCreating(false)}>{t("Back to my plan", "رجوع لخطتي")}</SButton></div> : null}

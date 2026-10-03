@@ -4,6 +4,7 @@ import useMediaQuery from "@/hooks/useMediaQuery";
 import { fetchProfile } from "@/services/api";
 import { listCourses } from "@/services/courses";
 import { getAiPreferences, updateAiPreferences } from "@/services/learning";
+import { getReminderSettings, updateReminderSettings, sendTestReminder } from "@/services/sanad";
 import { LANGUAGE_OPTIONS } from "@/services/studyTools";
 import { apiErrorText } from "@/services/http";
 import { inputStyle } from "@/components/ModuleUI";
@@ -12,7 +13,7 @@ import { tk, headingFont, bodyFont } from "@/constants/tokens";
 import { Card, Chip, Bar, AsyncGate, Btn } from "@/components/ui";
 import { signOut } from "@/services/auth";
 
-export function AiPreferencesCard({ tokens, lang, t }) {
+function AiPreferencesCard({ tokens, lang, t }) {
   const prefAsync = useAsync(getAiPreferences);
   const pref = prefAsync.data;
   const [language, setLanguage] = useState("");
@@ -106,12 +107,105 @@ export function AiPreferencesCard({ tokens, lang, t }) {
   );
 }
 
+const REMINDER_TIMES = [
+  { id: "morning", en: "Morning · 9:00", ar: "الصبح · 9:00" },
+  { id: "noon", en: "Afternoon · 14:00", ar: "الضهر · 2:00" },
+  { id: "evening", en: "Evening · 20:00", ar: "بالليل · 8:00" },
+];
+
+/** Sanad's daily study reminder email: on/off and time. Saves right away. */
+function StudyRemindersCard({ tokens, lang, t, focus }) {
+  const settingsAsync = useAsync(getReminderSettings);
+  const [settings, setSettings] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState(null);
+
+  useEffect(() => { if (settingsAsync.data) setSettings(settingsAsync.data); }, [settingsAsync.data]);
+  useEffect(() => {
+    if (focus) document.getElementById("study-reminders")?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [focus, settings]);
+
+  async function change(patch) {
+    if (busy) return;
+    const before = settings;
+    setSettings({ ...settings, ...patch });
+    setBusy(true);
+    setNotice(null);
+    try {
+      setSettings(await updateReminderSettings(patch));
+      setNotice({ ok: true, message: t("Saved.", "اتحفظ.") });
+    } catch (error) {
+      setSettings(before);
+      setNotice({ ok: false, message: apiErrorText(error, lang) });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function test() {
+    if (busy) return;
+    setBusy(true);
+    setNotice(null);
+    try {
+      const r = await sendTestReminder();
+      setNotice(r.sent
+        ? { ok: true, message: t("Sent. Check your inbox.", "اتبعت. شوف الإيميل بتاعك.") }
+        : { ok: false, message: t("Nothing to remind you about yet. Make a study plan first.", "مفيش حاجة نفكّرك بيها لسه. اعمل خطة مذاكرة الأول.") });
+    } catch (error) {
+      setNotice({ ok: false, message: apiErrorText(error, lang) });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const on = settings?.enabled !== false;
+  return (
+    <Card tokens={tokens} style={{ marginBottom: 14 }}>
+      <div id="study-reminders" style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 14 }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: 14, color: tokens.textPrimary, marginBottom: 4 }}>{t("Study reminders", "تذكير المذاكرة")}</div>
+          <div style={{ fontSize: 12, color: tokens.textMuted, lineHeight: 1.7 }}>
+            {t("Sanad emails you once a day with your study tasks, and lets you know when you fall behind or your exam is tomorrow. Only while you have a study plan.",
+              "سند بيبعتلك إيميل مرة في اليوم بمهام المذاكرة، ويفكّرك لو اتأخرت أو امتحانك بكرة. بس لما يكون عندك خطة مذاكرة.")}
+          </div>
+        </div>
+        {settings ? (
+          <button type="button" role="switch" aria-checked={on} aria-label={t("Study reminders", "تذكير المذاكرة")} disabled={busy} onClick={() => change({ enabled: !on })}
+            style={{ flexShrink: 0, width: 46, height: 26, borderRadius: 13, border: "none", cursor: "pointer", padding: 3, background: on ? tokens.primaryBtn : tokens.cardBorder, transition: "background 160ms ease", display: "flex", justifyContent: on ? "flex-end" : "flex-start" }}>
+            <span style={{ width: 20, height: 20, borderRadius: 10, background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,0.25)" }} />
+          </button>
+        ) : null}
+      </div>
+      <AsyncGate tokens={tokens} lang={lang} loading={settingsAsync.loading} error={settingsAsync.error} reload={settingsAsync.reload} label={t("Loading…", "جارٍ التحميل…")}>
+        {settings && on ? (
+          <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 12.5, color: tokens.textSecondary, marginInlineEnd: 4 }}>{t("Send it in the", "ابعته")}</span>
+            {REMINDER_TIMES.map((o) => (
+              <Btn key={o.id} tokens={tokens} variant={settings.time === o.id ? "soft" : "ghost"} style={{ padding: "6px 12px" }} disabled={busy} onClick={() => settings.time !== o.id && change({ time: o.id })}>
+                {o[lang] ?? o.en}
+              </Btn>
+            ))}
+            <span style={{ flex: 1 }} />
+            <Btn tokens={tokens} variant="ghost" style={{ padding: "6px 12px" }} disabled={busy} onClick={test}>{t("Send me one now", "ابعتلي واحد دلوقتي")}</Btn>
+          </div>
+        ) : null}
+        {notice ? <div style={{ marginTop: 10, fontSize: 12, color: notice.ok ? tokens.mastered : (tokens.danger ?? "#b33") }}>{notice.message}</div> : null}
+      </AsyncGate>
+    </Card>
+  );
+}
+
 export default function ProfilePage({ state, dispatch }) {
   const tokens = tk(state.dark);
   const lang = state.lang;
   const t = (en, ar) => (lang === "ar" ? ar : en);
   const mobile = useMediaQuery("(max-width: 760px)");
   const real = !demoMode();
+  // Opened from "Change" on the study plan: scroll to the reminders card once.
+  const [reminderFocus] = useState(() => state.profileFocus === "reminders");
+  useEffect(() => {
+    if (state.profileFocus) dispatch({ type: "NAVIGATE", screen: state.screen, profileFocus: undefined });
+  }, [state.profileFocus, state.screen, dispatch]);
   const { data, loading, error, reload } = useAsync(fetchProfile);
   const { data: liveCourses } = useAsync(useCallback(() => (real ? listCourses() : Promise.resolve(null)), [real]));
 
@@ -222,6 +316,7 @@ export default function ProfilePage({ state, dispatch }) {
             </div>
 
             {real && <AiPreferencesCard tokens={tokens} lang={lang} t={t} />}
+            {real && state.role === "student" && <StudyRemindersCard tokens={tokens} lang={lang} t={t} focus={reminderFocus} />}
 
             <Card tokens={tokens} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
               <div>

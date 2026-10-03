@@ -29,8 +29,30 @@ export function getSanadOverview() {
   return api("/sanad/overview");
 }
 
+export function localTimezone() {
+  try { return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined; } catch { return undefined; }
+}
+
 export function createStudyPlan({ courseId, examDate, dailyMinutes, goal, language }) {
-  return api("/sanad/plans", { method: "POST", body: { courseId, examDate, dailyMinutes, goal: goal || undefined, today: localToday(), language } });
+  return api("/sanad/plans", { method: "POST", body: { courseId, examDate, dailyMinutes, goal: goal || undefined, today: localToday(), language, timezone: localTimezone() } });
+}
+
+// Study reminder emails (Profile > Preferences).
+export function getReminderSettings() {
+  return api("/sanad/reminders");
+}
+
+export function updateReminderSettings(body) {
+  return api("/sanad/reminders", { method: "PATCH", body: { ...body, timezone: localTimezone() } });
+}
+
+export function sendTestReminder() {
+  return api("/sanad/reminders/test", { method: "POST" });
+}
+
+/** The "Stop reminders" link from the email (works without signing in). */
+export function stopRemindersFromLink(token) {
+  return api("/sanad/reminders/unsubscribe", { method: "POST", body: { token } });
 }
 
 export function listStudyPlans(params = {}) {

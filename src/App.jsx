@@ -43,7 +43,8 @@ import AdminProfilePage from "@/pages/admin/AdminProfilePage";
 import InvitationPage from "@/pages/InvitationPage";
 import AdminSite from "@/components/admin/AdminSite";
 import AppShell from "@/components/AppShell";
-import { useState } from "react";
+import StopRemindersPage from "@/components/sanad/StopRemindersPage";
+import { useEffect, useState } from "react";
 import "./App.css";
 
 const PAGES = {
@@ -86,6 +87,26 @@ function AppContent() {
   const { state, dispatch } = useApp();
   // Invitation links from emails look like /?invite=<token>.
   const [inviteToken, setInviteToken] = useState(() => new URLSearchParams(window.location.search).get("invite"));
+  // Study reminder emails: /?studyPlan=<planId> opens the plan (after sign-in),
+  // /?stopReminders=<token> turns the reminders off.
+  const [stopToken, setStopToken] = useState(() => new URLSearchParams(window.location.search).get("stopReminders"));
+  const [planLink, setPlanLink] = useState(() => new URLSearchParams(window.location.search).get("studyPlan"));
+  const dropParam = (name) => {
+    const url = new URL(window.location.href);
+    url.searchParams.delete(name);
+    window.history.replaceState(null, "", url.pathname + url.search + url.hash);
+  };
+  const signedInStudent = Boolean(state.user && state.user.emailVerified !== false && state.role === ROLES.STUDENT);
+  useEffect(() => {
+    if (!planLink || !state.user) return;
+    if (signedInStudent) dispatch({ type: "NAVIGATE", screen: SCREENS.SANAD, planId: planLink, courseId: undefined });
+    dropParam("studyPlan");
+    setPlanLink(null);
+  }, [planLink, state.user, signedInStudent, dispatch]);
+
+  if (stopToken) {
+    return <StopRemindersPage state={state} token={stopToken} onDone={() => { dropParam("stopReminders"); setStopToken(null); }} />;
+  }
 
   if (inviteToken) {
     const clear = () => {
