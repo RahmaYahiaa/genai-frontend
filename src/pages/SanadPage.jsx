@@ -275,7 +275,7 @@ function PlanView({ dark, plan, plans, tokens, font, hFont, lang, mobile, onOpen
           </div>
           <h1 style={{ margin: 0, fontFamily: hFont, fontSize: mobile ? 22 : 27, fontWeight: 800, letterSpacing: "-0.02em" }}>{plan.courseTitle}</h1>
           <div style={{ fontFamily: font, fontSize: 14, opacity: 0.9, marginTop: 6 }}>
-            {left > 0 ? t(`Exam in ${left} day${left === 1 ? "" : "s"}`, `الامتحان بعد ${left} يوم`) : left === 0 ? t("Exam today", "الامتحان النهارده") : t("Exam date passed", "ميعاد الامتحان عدّى")} · {formatDay(plan.examDate, lang, { weekday: "long", day: "numeric", month: "long" })} · {plan.dailyMinutes} {t("min a day", "دقيقة في اليوم")}
+            {left > 0 ? t(`Exam in ${left} day${left === 1 ? "" : "s"}`, `الامتحان بعد ${left} يوم`) : left === 0 ? t("Exam today", "الامتحان النهارده") : t("Exam date passed", "ميعاد الامتحان عدّى")} · {formatDay(plan.examDate, lang, { weekday: "long", day: "numeric", month: "long" })} · {plan.dailyMinutes >= 60 ? t(`${Math.floor(plan.dailyMinutes / 60)} h${plan.dailyMinutes % 60 ? ` ${plan.dailyMinutes % 60} min` : ""} a day`, `${Math.floor(plan.dailyMinutes / 60)} ساعة${plan.dailyMinutes % 60 ? ` و${plan.dailyMinutes % 60} دقيقة` : ""} في اليوم`) : t(`${plan.dailyMinutes} min a day`, `${plan.dailyMinutes} دقيقة في اليوم`)}
           </div>
           {plan.summary ? <AutoText style={{ fontFamily: font, fontSize: 14.5, lineHeight: 1.7, marginTop: 14, background: "rgba(255,255,255,0.12)", borderRadius: 14, padding: "12px 14px", maxWidth: 720 }}>{plan.summary}</AutoText> : null}
         </div>

@@ -12,7 +12,7 @@ const digits = (v, max) => v.replace(/\D/g, "").slice(0, max);
  * Study time per day typed by hand: [ 1 ] hours [ 30 ] minutes.
  * Calls onChange(totalMinutes) - or null while the value is out of range.
  */
-export function DurationInput({ value, onChange, min = 15, max = 240, tokens, font, lang }) {
+export function DurationInput({ value, onChange, min = 15, max = 1440, tokens, font, lang }) {
   const t = (en, ar) => (lang === "ar" ? ar : en);
   const [h, setH] = useState(String(Math.floor((value ?? 60) / 60)));
   const [m, setM] = useState(String((value ?? 60) % 60));
@@ -25,7 +25,7 @@ export function DurationInput({ value, onChange, min = 15, max = 240, tokens, fo
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-        <input inputMode="numeric" aria-label={t("Hours", "ساعات")} value={h} onChange={(e) => setH(digits(e.target.value, 1))} style={box(tokens, font, !valid)} />
+        <input inputMode="numeric" aria-label={t("Hours", "ساعات")} value={h} onChange={(e) => setH(digits(e.target.value, 2))} style={box(tokens, font, !valid)} />
         <span style={unit(tokens, font)}>{t("hours", "ساعة")}</span>
         <input inputMode="numeric" aria-label={t("Minutes", "دقايق")} value={m} onChange={(e) => setM(digits(e.target.value, 2))} style={{ ...box(tokens, font, !valid), marginInlineStart: 6 }} />
         <span style={unit(tokens, font)}>{t("minutes", "دقيقة")}</span>
@@ -35,7 +35,7 @@ export function DurationInput({ value, onChange, min = 15, max = 240, tokens, fo
           ? t("Minutes must be less than 60.", "الدقايق لازم تكون أقل من 60.")
           : valid
             ? t("You can change it any time.", "تقدر تغيّره في أي وقت.")
-            : t(`Between ${min} minutes and ${max / 60} hours a day.`, `من ${min} دقيقة لحد ${max / 60} ساعات في اليوم.`)}
+            : t(`Between ${min} minutes and ${max / 60} hours a day.`, `من ${min} دقيقة لحد ${max / 60} ساعة في اليوم.`)}
       </div>
     </div>
   );
