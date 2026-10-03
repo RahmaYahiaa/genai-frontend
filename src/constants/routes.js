@@ -38,6 +38,7 @@ export const SCREENS = Object.freeze({
   STUDENT_ASSIGNMENT: "student-assignment",
   STUDENT_COURSE: "student-course",
   STUDY_TOOLS: "study-tools",
+  SANAD: "sanad",
 });
 
 export const LANGS = Object.freeze({

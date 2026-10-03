@@ -436,3 +436,11 @@ export function IconDownload({ size = defaultSize, color = "currentColor" }) {
       <line x1="12" y1="15" x2="12" y2="3" />
     </svg>;
 }
+/** Sanad (study coach): a path that climbs to a star. */
+export function IconStar({ size = defaultSize, color = "currentColor" }) {
+  return <svg width={size} height={size} viewBox="0 0 20 20" fill="none">
+      <path d="M3 17C6 17 6.5 12.5 10 12.5C12.5 12.5 13 10 13 8.5" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M14.5 2L15.4 4.6L18 5.5L15.4 6.4L14.5 9L13.6 6.4L11 5.5L13.6 4.6L14.5 2Z" stroke={color} strokeWidth="1.3" strokeLinejoin="round" />
+      <circle cx="3" cy="17" r="1.3" fill={color} />
+    </svg>;
+}

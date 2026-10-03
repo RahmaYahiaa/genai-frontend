@@ -16,6 +16,7 @@ import {
   IconGear,
   IconHistory,
   IconTrendUp,
+  IconStar,
 } from "@/components/Icons";
 import { SCREENS } from "./routes";
 
@@ -24,6 +25,7 @@ import { SCREENS } from "./routes";
 // Student nav in plain language, grouped by what the student wants to do.
 export const STUDENT_NAV = [
   { id: SCREENS.DASHBOARD, en: "Home", ar: "الرئيسية", Icon: IconDashboard },
+  { id: SCREENS.SANAD, en: "Sanad · Study plan", ar: "سند · خطة المذاكرة", Icon: IconStar },
   { section: { en: "My studies", ar: "دراستي" } },
   { id: SCREENS.COURSES, en: "My Courses", ar: "مقرراتي", Icon: IconCourses, match: [SCREENS.STUDENT_COURSE, SCREENS.BROWSE_COURSES] },
   { id: SCREENS.STUDENT_ASSIGNMENTS, en: "Assignments", ar: "التكليفات", Icon: IconClipboard, match: [SCREENS.STUDENT_ASSIGNMENT] },

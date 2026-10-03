@@ -5,6 +5,7 @@ import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
 import { Toaster } from "./ModuleUI";
 import { DemoGuide } from "./DemoAccess";
+import SanadLauncher from "./sanad/SanadLauncher";
 
 export default function AppShell({ state, dispatch, role = "student", children }) {
   const tokens = tk(state.dark);
@@ -66,6 +67,7 @@ export default function AppShell({ state, dispatch, role = "student", children }
         </main>
       </div>
 
+      {role === "student" ? <SanadLauncher state={state} dispatch={dispatch} /> : null}
       <Toaster tokens={tokens} lang={lang} />
     </div>
   );

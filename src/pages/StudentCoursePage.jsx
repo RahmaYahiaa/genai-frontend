@@ -8,6 +8,7 @@ import { Card, Btn, Chip, BackCircle, inputStyle, bFontFor, hFontFor, toast } fr
 import { IconPlus, IconDoc, IconDownload, IconPencil, IconTrash, IconCheck, IconX, IconBookOpen } from "@/components/Icons";
 import MaterialUploader from "@/components/MaterialUploader";
 import StudyCoursePanel from "@/components/StudyCoursePanel";
+import SanadCourseCard from "@/components/sanad/SanadCourseCard";
 import { fmtBytes, fileKind } from "@/utils/fileMeta";
 import { SCREENS } from "@/constants/routes";
 import { demoMode } from "@/services/auth";
@@ -194,6 +195,10 @@ function RealCourseView({ state, dispatch, tokens, lang, isRtl, hFont, bFont, mo
                 lang={lang}
                 mobile={mobile}
               />
+            )}
+
+            {state.role !== "instructor" && (
+              <SanadCourseCard courseId={course.id} dispatch={dispatch} lang={lang} mobile={mobile} />
             )}
 
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>

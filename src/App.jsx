@@ -27,6 +27,7 @@ import StudentCoursePage from "@/pages/StudentCoursePage";
 import StudyToolsPage from "@/pages/StudyToolsPage";
 import TutorPage from "@/pages/TutorPage";
 import MasteryPage from "@/pages/MasteryPage";
+import SanadPage from "@/pages/SanadPage";
 import AdminHealthPage from "@/pages/admin/AdminHealthPage";
 import AdminCoursesPage from "@/pages/admin/AdminCoursesPage";
 import AdminUsersPage from "@/pages/admin/AdminUsersPage";
@@ -57,6 +58,7 @@ const PAGES = {
   [SCREENS.STUDENT_ASSIGNMENT]: StudentAssignmentPage,
   [SCREENS.STUDENT_COURSE]: StudentCoursePage,
   [SCREENS.STUDY_TOOLS]: StudyToolsPage,
+  [SCREENS.SANAD]: SanadPage,
   [SCREENS.DASHBOARD]: DashboardPage,
   [SCREENS.COURSES]: CoursesPage,
   [SCREENS.BROWSE_COURSES]: StudentBrowseCoursesPage,
