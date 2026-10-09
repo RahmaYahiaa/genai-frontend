@@ -7,6 +7,10 @@ import { fmtBytes, fileKind } from "@/utils/fileMeta";
 import { apiErrorText } from "@/services/http";
 
 const MAX_BYTES = 25 * 1024 * 1024;
+// Same list the server allows (shared/security/file-guard.js). Programs and scripts are never accepted.
+const MATERIAL_EXTENSIONS = ["pdf", "txt", "md", "markdown", "csv", "docx", "pptx", "xlsx", "png", "jpg", "jpeg", "webp", "mp4", "webm", "mp3", "wav"];
+const ACCEPT = MATERIAL_EXTENSIONS.map((e) => `.${e}`).join(",");
+const extOf = (name) => (/\.([a-z0-9]+)$/i.exec(name ?? "")?.[1] ?? "").toLowerCase();
 
 export default function MaterialUploader({ courseId, topicId, tokens, lang, style, autoApprove = false, onUpload = null, onDone = null }) {
   const { addMaterial } = useInstructorModule();
@@ -23,6 +27,10 @@ export default function MaterialUploader({ courseId, topicId, tokens, lang, styl
     if (!files.length) return;
     const ok = [];
     for (const f of files) {
+      if (!MATERIAL_EXTENSIONS.includes(extOf(f.name))) {
+        toast(lang === "ar" ? `«${f.name}» نوع ملف غير مسموح.` : `"${f.name}" is not an allowed file type.`);
+        continue;
+      }
       if (f.size > MAX_BYTES) {
         toast(lang === "ar" ? `«${f.name}» أكبر من 25MB — تم تجاوزه.` : `"${f.name}" is over 25 MB — skipped.`);
         continue;
@@ -101,12 +109,13 @@ export default function MaterialUploader({ courseId, topicId, tokens, lang, styl
           {lang === "ar" ? "أفلتى الملفات هنا أو اضغطى للاختيار" : "Drop files here or click to browse"}
         </div>
         <div style={{ fontFamily: MONO, fontSize: 10.5, color: tokens.textMuted, marginTop: 5 }}>
-          {lang === "ar" ? "PDF · شرائح · مستندات · فيديو — حتى 25MB للملف" : "PDF · slides · docs · video — up to 25 MB per file"}
+          {lang === "ar" ? "PDF · Word · PowerPoint · Excel · صور · فيديو · صوت — حتى 25MB للملف" : "PDF · Word · PowerPoint · Excel · images · video · audio — up to 25 MB per file"}
         </div>
         <input
           ref={inputRef}
           type="file"
           multiple
+          accept={ACCEPT}
           style={{ display: "none" }}
           onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }}
         />
