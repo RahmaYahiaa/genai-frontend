@@ -53,6 +53,6 @@ export const ROLES = Object.freeze({
 });
 
 export const STORAGE_KEYS = Object.freeze({
-  PREFS: "genai-prefs",
+  PREFS: "lerna-prefs-v2",
   SESSION: "genai-session",
 });

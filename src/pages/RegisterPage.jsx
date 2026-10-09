@@ -364,8 +364,8 @@ export default function RegisterPage({ state, dispatch }) {
           >
             <p style={{ fontSize: 11, color: tokens.textMuted, margin: 0, lineHeight: 1.55, fontFamily: bFont }}>
               {lang === "ar"
-                ? "بياناتك الأكاديمية محمية ومشفّرة وفق FERPA وسياسة حوكمة البيانات للمنصة ومؤسستك (إن وجدت)."
-                : "Your academic data is protected and encrypted under FERPA and the data governance policy of the platform and your institution (if any)."}
+                ? "بياناتك الأكاديمية محمية، ومحدش يقدر يشوفها غير الأشخاص المسموح لهم."
+                : "Your academic data is protected and only visible to people who are allowed to see it."}
             </p>
           </div>
 

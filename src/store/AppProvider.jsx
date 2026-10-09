@@ -8,7 +8,7 @@ import { AppContext } from "./app-context";
 
 const initialState = {
   screen: SCREENS.WELCOME,
-  dark: false,
+  dark: true,
   lang: "en",
   role: null,
   user: null,
@@ -52,7 +52,7 @@ function bootstrap(persisted) {
 
 export default function AppProvider({ children }) {
   const [persisted, setPersisted] = useLocalStorage(STORAGE_KEYS.PREFS, {
-    dark: false,
+    dark: true,
     lang: "en",
   });
 
@@ -64,8 +64,10 @@ export default function AppProvider({ children }) {
 
   useEffect(() => {
     document.documentElement.lang = state.lang;
+    document.documentElement.style.colorScheme = state.dark ? "dark" : "light";
+    document.documentElement.classList.toggle("theme-dark", state.dark);
     document.documentElement.dir = state.lang === "ar" ? "rtl" : "ltr";
-  }, [state.lang]);
+  }, [state.lang, state.dark]);
 
   useEffect(() => {
     let alive = true;

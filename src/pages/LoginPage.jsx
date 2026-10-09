@@ -192,7 +192,7 @@ export default function LoginPage({ state, dispatch }) {
       </p>
 
       <p style={{ textAlign: "center", fontSize: 10.5, color: tokens.textFaint, marginTop: 18, lineHeight: 1.6, fontFamily: bFont }}>
-        {lang === "ar" ? "متوافق مع FERPA · حوكمة بيانات مؤسسية" : "FERPA-compliant · Institutional data governance"}
+        {lang === "ar" ? "حسابات آمنة · إيميل موثّق · صلاحيات لكل دور" : "Secure accounts · Verified email · Role-based access"}
         <br />© 2026 Lerna
       </p>
     </>

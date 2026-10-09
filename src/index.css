@@ -169,3 +169,33 @@ textarea:focus-visible {
 /* Student home rows */
 .genai-row:hover { background: rgba(27, 77, 168, 0.04) !important; }
 @keyframes genai-spin { to { transform: rotate(360deg); } }
+
+/* Dark theme: native controls (dropdown lists, date pickers, scrollbars) follow the theme */
+html.theme-dark {
+  color-scheme: dark;
+}
+html.theme-dark select {
+  background-color: #161e42;
+  color: #edf0f5;
+}
+html.theme-dark select option,
+html.theme-dark select optgroup {
+  background-color: #131a38;
+  color: #edf0f5;
+}
+html.theme-dark select option:checked {
+  background-color: #1b4da8;
+  color: #ffffff;
+}
+html.theme-dark select option:disabled {
+  color: #7c869e;
+}
+html.theme-dark .genai-input:focus {
+  border-color: #7d9bf6 !important;
+  box-shadow: 0 0 0 3px rgba(125, 155, 246, 0.16) !important;
+  background: #1a2248 !important;
+  color: #edf0f5 !important;
+}
+html.theme-dark {
+  accent-color: #1b4da8;
+}

@@ -194,7 +194,7 @@ export function DemoGuide({ state, dispatch }) {
   const Arrow = isRtl ? IconArrowLeft : IconArrowRight;
 
   return (
-    <div style={{ borderBottom: `1px solid ${tokens.cardBorder}`, background: tint(account.accent, state.dark ? 0.12 : 0.05), fontFamily: bodyFont(lang) }}>
+    <div style={{ borderBottom: `1px solid ${tokens.cardBorder}`, background: `linear-gradient(${tint(account.accent, state.dark ? 0.16 : 0.05)}, ${tint(account.accent, state.dark ? 0.16 : 0.05)}), ${tokens.card}`, fontFamily: bodyFont(lang) }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 20px", flexWrap: "wrap" }}>
         <span style={{ width: 24, height: 24, borderRadius: 7, display: "grid", placeItems: "center", background: tint(account.accent, state.dark ? 0.3 : 0.14), color: state.dark ? "#fff" : account.accent }}>
           {ICONS[account.id](13)}
