@@ -444,3 +444,29 @@ export function IconStar({ size = defaultSize, color = "currentColor" }) {
       <circle cx="3" cy="17" r="1.3" fill={color} />
     </svg>;
 }
+
+export function IconMic({ size = defaultSize, color = "currentColor" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <rect x="7.5" y="2.5" width="5" height="9" rx="2.5" stroke={color} strokeWidth="1.5" />
+      <path d="M4.5 9.5a5.5 5.5 0 0 0 11 0M10 15v2.5" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function IconHand({ size = defaultSize, color = "currentColor" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path d="M6.5 10V4.6a1.2 1.2 0 0 1 2.4 0V9M8.9 9V3.2a1.2 1.2 0 0 1 2.4 0V9M11.3 9V4.4a1.2 1.2 0 0 1 2.4 0V11.5c0 2.9-1.9 4.9-4.7 4.9-2 0-3.2-.9-4.1-2.5L3.4 11a1.2 1.2 0 0 1 1.9-1.4L6.5 11"
+        stroke={color} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function IconStop({ size = defaultSize, color = "currentColor" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <rect x="5.5" y="5.5" width="9" height="9" rx="2" fill={color} />
+    </svg>
+  );
+}

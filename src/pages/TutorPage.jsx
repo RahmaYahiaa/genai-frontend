@@ -2,11 +2,12 @@ import { textDir } from "@/utils/textDir";
 import { demoMode } from "@/services/auth";
 import useStudyCourse from "@/hooks/useStudyCourse";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { listCourses, listMaterials } from "@/services/courses";
+import { listCourses, listMaterials, uploadMaterialFile } from "@/services/courses";
 import { listTutorSessions, renameTutorSession, deleteTutorSession, createTutorSession, getTutorSession, sendTutorMessage as sendLiveTutorMessage, getAiHealth, TUTOR_MODE_LABELS } from "@/services/learning";
 import { apiErrorText } from "@/services/http";
 import { CoursePicker, Panel, IconTile, PrimaryButton, SecondaryButton, TextButton, Notice, LoadingBlock, ErrorBlock, EmptyBlock, Spinner as KitSpinner } from "@/components/study/StudyKit";
-import { IconTutor, IconHistory, IconPencil, IconTrash, IconCheck, IconX, IconArrowUpRight } from "@/components/Icons";
+import { IconTutor, IconHistory, IconPencil, IconTrash, IconCheck, IconX, IconArrowUpRight, IconMic, IconPlus, IconArrowRight } from "@/components/Icons";
+import VoicePanel from "@/components/voice/VoicePanel";
 import IconAction from "@/components/IconAction";
 import { SCREENS } from "@/constants/routes";
 import { AlertStrip, inputStyle } from "@/components/ModuleUI";
@@ -17,6 +18,8 @@ import { tk, headingFont, bodyFont } from "@/constants/tokens";
 import { TUTOR_TOPICS } from "@/data/student";
 import { Chip, Btn, Loading, Spinner, Card, AsyncGate } from "@/components/ui";
 import { LearningHeader, AIWorking, SessionHistoryList, sessionStatusTone } from "@/components/learning";
+
+const TUTOR_FILE_ACCEPT = ".pdf,.txt,.md,.markdown,.csv,.docx,.pptx,.xlsx,.png,.jpg,.jpeg,.webp,.mp4,.webm,.mp3,.wav";
 
 function DemoTutorPage({ state }) {
   const tokens = tk(state.dark);
@@ -180,6 +183,10 @@ function RealTutorPage({ state, dispatch }) {
   const [typing, setTyping] = useState(false);
   const [notice, setNotice] = useState(null);
   const [selectedMaterialIds, setSelectedMaterialIds] = useState([]);
+  const [view, setView] = useState("write");
+  const [uploading, setUploading] = useState(false);
+  const [success, setSuccess] = useState(null);
+  const fileRef = useRef(null);
   const endRef = useRef(null);
 
   const loadCourses = useCallback(() => listCourses(), []);
@@ -227,6 +234,9 @@ function RealTutorPage({ state, dispatch }) {
   const healthAsync = useAsync(loadHealth);
   // The health call itself can succeed while the AI engine has no working model.
   const aiReady = Boolean(healthAsync.data) && !healthAsync.data?.fallback && healthAsync.data?.ai_status?.real_generation_ready !== false;
+  // Spoken answers are on only when the AI service reports realtime voice.
+  const caps = healthAsync.data?.capabilities ?? {};
+  const voiceReady = (caps.realtime_voice ?? caps.capabilities?.realtime_voice) === true;
   const session = sessionAsync.data;
   const messages = session?.messages ?? [];
   const activeTopicLabel = session?.topicId
@@ -277,7 +287,40 @@ function RealTutorPage({ state, dispatch }) {
     }
   };
 
-  
+  const startTopic = async (topicId) => {
+    if (!effectiveCourseId || typing) return;
+    setTyping(true);
+    setNotice(null);
+    try {
+      const created = await createTutorSession(effectiveCourseId, { topicId, mode });
+      setSessionId(created.id);
+      listAsync.reload();
+    } catch (err) {
+      setNotice(apiErrorText(err, lang));
+    } finally {
+      setTyping(false);
+    }
+  };
+
+  // Students add files to their own (personal) space only. Course files are
+  // managed by course staff, so the + button is shown for personal courses.
+  const addOwnFile = async (file) => {
+    if (!file || !effectiveCourseId) return;
+    setUploading(true);
+    setNotice(null);
+    setSuccess(null);
+    try {
+      await uploadMaterialFile(effectiveCourseId, file, file.name);
+      materialsAsync.reload();
+      setSuccess(t("File added. Your tutor can use it now.", "الملف اتضاف. المعلم يقدر يستخدمه دلوقتي."));
+    } catch (err) {
+      setNotice(apiErrorText(err, lang));
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
   // Suggested opening prompts (only on an empty chat) — they feed the exact
   // same ask() pipe as the composer, so nothing here is a mock.
   const suggestedPrompts = [
@@ -299,7 +342,16 @@ function RealTutorPage({ state, dispatch }) {
             <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: tokens.textPrimary, fontFamily: headingFont(lang) }}>{t("AI Tutor", "المعلم الذكي")}</h1>
             <CoursePicker tokens={tokens} lang={lang} courses={courses} value={effectiveCourseId ?? ""} onChange={setCourseId} />
           </div>
-          <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
+            <div role="tablist" aria-label={t("Tutor mode", "طريقة الدرس")} style={{ display: "inline-flex", padding: 3, borderRadius: 999, background: tokens.inset, border: `1px solid ${tokens.cardBorder}`, gap: 2 }}>
+              {[["write", IconPencil, t("Write", "كتابة")], ["talk", IconMic, t("Talk", "صوت")]].map(([key, Ic, label]) => (
+                <button key={key} type="button" role="tab" aria-selected={view === key} onClick={() => setView(key)}
+                  style={{ display: "inline-flex", alignItems: "center", gap: 6, height: 30, padding: "0 12px", borderRadius: 999, border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 12.5, fontWeight: 600, background: view === key ? tokens.card : "transparent", color: view === key ? tokens.textPrimary : tokens.textMuted, boxShadow: view === key ? "0 1px 3px rgba(16,24,40,0.12)" : "none" }}>
+                  <Ic size={14} />
+                  {label}
+                </button>
+              ))}
+            </div>
             {historyRows.length > 0 && (
               <IconAction tokens={tokens} active={showHistory} label={showHistory ? t("Close chat history", "اقفل سجل المحادثات") : t("Chat history", "سجل المحادثات")} onClick={() => setShowHistory((v) => !v)}>
                 <IconHistory size={18} />
@@ -313,6 +365,7 @@ function RealTutorPage({ state, dispatch }) {
 
       <div style={column}>
         {notice && <Notice tokens={tokens} tone="warning">{notice}</Notice>}
+        {success && <Notice tokens={tokens} tone="info">{success}</Notice>}
         {showHistory && (
           <ChatHistory
             tokens={tokens}
@@ -342,7 +395,20 @@ function RealTutorPage({ state, dispatch }) {
             action={<PrimaryButton tokens={tokens} onClick={() => dispatch({ type: "NAVIGATE", screen: SCREENS.COURSES })}>{t("Go to my courses", "روح لمقرراتي")}</PrimaryButton>} />
         </div>
       ) : (
+        view === "talk" && !sessionId ? (
+          <div style={{ flex: 1, overflowY: "auto" }}>
+            <div style={{ ...column, paddingBottom: 24 }}>
+              <TalkStart tokens={tokens} lang={lang} t={t} mobile={mobile} topics={topics} rows={historyRows} topicName={topicName} busy={typing}
+                onPick={startTopic} onResume={(id) => setSessionId(id)} onWrite={() => setView("write")} />
+            </div>
+          </div>
+        ) : (
         <>
+          {view === "talk" && (
+            <div style={column}>
+              <VoicePanel tokens={tokens} lang={lang} mobile={mobile} voiceReady={voiceReady} busy={typing} />
+            </div>
+          )}
           <div style={{ flex: 1, overflowY: "auto" }}>
             <div style={{ ...column, paddingBottom: 16 }}>
               {messages.length === 0 && !typing && (
@@ -420,6 +486,15 @@ function RealTutorPage({ state, dispatch }) {
               />
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap", marginTop: 6 }}>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                  {course?.isPersonal && (
+                    <>
+                      <input ref={fileRef} type="file" accept={TUTOR_FILE_ACCEPT} onChange={(e) => void addOwnFile(e.target.files?.[0])} style={{ display: "none" }} aria-hidden="true" tabIndex={-1} />
+                      <button type="button" aria-label={t("Add a file to your space", "أضف ملف لمساحتك")} title={t("Add a file to your space", "أضف ملف لمساحتك")} disabled={uploading} onClick={() => fileRef.current?.click()}
+                        style={{ width: 32, height: 32, borderRadius: "50%", border: `1px solid ${tokens.cardBorder}`, background: tokens.card, color: tokens.textSecondary, display: "inline-flex", alignItems: "center", justifyContent: "center", cursor: uploading ? "wait" : "pointer", opacity: uploading ? 0.5 : 1 }}>
+                        <IconPlus size={16} />
+                      </button>
+                    </>
+                  )}
                   {!sessionId && (
                     <select aria-label={t("Answer style", "أسلوب الإجابة")} value={mode} onChange={(e) => setMode(e.target.value)} style={smallSelect}>
                       {Object.entries(TUTOR_MODE_LABELS).map(([key, label]) => <option key={key} value={key}>{lang === "ar" ? label.ar : label.en}</option>)}
@@ -441,6 +516,7 @@ function RealTutorPage({ state, dispatch }) {
             <div style={{ fontSize: 12, color: tokens.textFaint, textAlign: "center", marginTop: 8 }}>{t("Answers are based on your course materials. Always double-check important information.", "الإجابات مبنية على مواد مقررك. راجع المعلومات المهمة دايماً.")}</div>
           </div>
         </>
+        )
       )}
     </div>
   );
@@ -515,6 +591,48 @@ function ChatHistory({ tokens, t, lang, rows, activeId, topicName, onOpen, onRen
         })}
       </div>
     </Panel>
+  );
+}
+
+function TalkStart({ tokens, lang, t, mobile, topics, rows, topicName, busy, onPick, onResume, onWrite }) {
+  const isRtl = lang === "ar";
+  const resume = rows.find((row) => (row.messageCount ?? row.messages?.length ?? 0) > 0);
+  const card = { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, width: "100%", padding: "14px 16px", borderRadius: 12, border: `1px solid ${tokens.cardBorder}`, background: tokens.card, color: tokens.textPrimary, textAlign: "start", cursor: busy ? "wait" : "pointer", fontFamily: "inherit" };
+  return (
+    <div style={{ paddingTop: mobile ? 14 : 22 }}>
+      <h2 style={{ margin: "0 0 6px", fontSize: 20, fontWeight: 650, color: tokens.textPrimary }}>{t("What do you want to learn today?", "عايز تتعلم إيه النهارده؟")}</h2>
+      <p style={{ margin: "0 0 18px", fontSize: 14, color: tokens.textMuted, lineHeight: 1.6 }}>
+        {t("Pick a topic. The tutor explains it step by step.", "اختار موضوع، والمعلم هيشرحه خطوة خطوة.")}
+      </p>
+
+      {resume && (
+        <button type="button" className="genai-row" disabled={busy} onClick={() => onResume(resume.id)} style={{ ...card, marginBottom: 16 }}>
+          <span style={{ minWidth: 0 }}>
+            <span style={{ display: "block", fontSize: 12, color: tokens.textMuted, marginBottom: 2 }}>{t("Continue where you stopped", "كمّل من حيث وقفت")}</span>
+            <span style={{ display: "block", fontSize: 14.5, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{chatTitle(resume, topicName, t)}</span>
+          </span>
+          <span style={{ flexShrink: 0, color: tokens.primary, transform: isRtl ? "scaleX(-1)" : "none", display: "inline-flex" }}><IconArrowRight size={18} /></span>
+        </button>
+      )}
+
+      {topics.length > 0 ? (
+        <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "1fr 1fr", gap: 10 }}>
+          {topics.map((topic) => (
+            <button key={topic.id} type="button" className="genai-row" disabled={busy} onClick={() => onPick(topic.id)} style={{ ...card, display: "block" }}>
+              <span style={{ display: "block", fontSize: 14.5, fontWeight: 600 }}>{topic.label?.[lang] ?? topic.label?.en}</span>
+              {topic.description && <span style={{ display: "block", fontSize: 12.5, color: tokens.textMuted, marginTop: 4, lineHeight: 1.5 }}>{topic.description}</span>}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div style={{ padding: "18px 0", fontSize: 14, color: tokens.textMuted, lineHeight: 1.6 }}>
+          {t("No topics yet. You can still ask in writing.", "مفيش مواضيع لسه. تقدر تسأل بالكتابة.")}
+          <div style={{ marginTop: 12 }}>
+            <SecondaryButton tokens={tokens} onClick={onWrite}>{t("Write a question", "اكتب سؤال")}</SecondaryButton>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
