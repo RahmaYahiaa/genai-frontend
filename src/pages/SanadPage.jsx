@@ -503,7 +503,7 @@ export default function SanadPage({ state, dispatch }) {
   async function replan() {
     setBusy(true);
     try {
-      const r = await replanStudyPlan(plan.id);
+      const r = await replanStudyPlan(plan.id, lang);
       setPlan(r.plan);
       setLastNote(r.note);
     } finally {

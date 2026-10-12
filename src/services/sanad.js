@@ -71,12 +71,12 @@ export function stopStudyPlan(planId) {
   return api(`/sanad/plans/${planId}`, { method: "DELETE" });
 }
 
-export function replanStudyPlan(planId) {
-  return api(`/sanad/plans/${planId}/replan`, { method: "POST", body: { today: localToday() } });
+export function replanStudyPlan(planId, language) {
+  return api(`/sanad/plans/${planId}/replan`, { method: "POST", body: { today: localToday(), language } });
 }
 
-export function startPlanTask(planId, taskId) {
-  return api(`/sanad/plans/${planId}/tasks/${taskId}/start`, { method: "POST" });
+export function startPlanTask(planId, taskId, language) {
+  return api(`/sanad/plans/${planId}/tasks/${taskId}/start`, { method: "POST", body: { language } });
 }
 
 export function completePlanTask(planId, taskId, body = {}) {

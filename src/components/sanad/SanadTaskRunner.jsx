@@ -193,7 +193,7 @@ export default function SanadTaskRunner({ plan, task: initial, tokens, font, hFo
     if (initial.status === "done" && initial.type !== "learn") return undefined;
     (async () => {
       try {
-        const res = await startPlanTask(plan.id, initial.id);
+        const res = await startPlanTask(plan.id, initial.id, lang);
         if (!alive) return;
         setTask(res.task);
         onPlan?.(res.plan, null, false);
@@ -209,7 +209,7 @@ export default function SanadTaskRunner({ plan, task: initial, tokens, font, hFo
     setFinishing(true);
     setError(null);
     try {
-      const res = await completePlanTask(plan.id, task.id, feeling ? { feeling } : {});
+      const res = await completePlanTask(plan.id, task.id, { ...(feeling ? { feeling } : {}), language: lang });
       onPlan?.(res.plan, res.note, true);
     } catch (e) {
       setError(apiErrorText(e, lang));
