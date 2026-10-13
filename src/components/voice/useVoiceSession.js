@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { startVoiceSession, mintVoiceToken } from "@/services/voice";
+import { startVoiceSession, mintVoiceToken, saveVoiceTranscript } from "@/services/voice";
 import { ApiError } from "@/services/http";
 import { floatToPcm16, base64ToBytes, pcm16ToFloat32, INPUT_RATE, OUTPUT_RATE } from "@/components/voice/pcm";
 import { createMicWorkletUrl } from "@/components/voice/micWorklet";
@@ -20,21 +20,31 @@ function levelOf(analyser, buf) {
 }
 
 /**
- * Live voice session for the AI Tutor (LernaVoice protocol).
+ * Live voice lesson for the AI Tutor (LernaVoice protocol).
  *
  * - Mic frames go up as binary PCM16 @16 kHz while the mic is on.
  * - Tutor audio plays as PCM16 @24 kHz, scheduled back to back.
- * - `assistant.interrupted` stops playback at once (barge-in).
- * - On a dropped socket we mint a new token and send `resume`, so the lesson
- *   continues instead of restarting. Events already applied are skipped by seq.
+ * - `assistant.interrupted` (and the local "stop tutor") stops playback at once.
+ * - A dropped socket gets a new token and a `resume`, so the lesson continues.
+ *   Events already applied are skipped by seq.
+ * - The transcript is saved to the student's chat history when the lesson
+ *   ends, is left, or the page closes.
  */
-export default function useVoiceSession({ courseId }) {
+// Matches tags such as <noise>, <ctrl46>, </ctrl46>. Ordinary text with "<" and ">" is left alone.
+const CONTROL_TAG = /<\/?[a-zA-Z_][a-zA-Z_-]*\d*>/g;
+const stripControlTags = (text) => text.replace(CONTROL_TAG, "").replace(/[ \t]{2,}/g, " ");
+
+// Words that mean "carry on" after the student has stopped the tutor (English and Egyptian Arabic).
+const CONTINUE_WORDS = /^\s*(continue|go on|keep going|carry on|resume|كمل|كمّل|كمّل الشرح|كمل الشرح|استمر)\s*[.!؟?]*\s*$/i;
+
+export default function useVoiceSession({ courseId, onSaved }) {
   const [status, setStatus] = useState("idle"); // idle | connecting | live | reconnecting | ended | error
   const [errorCode, setErrorCode] = useState(null); // mic_denied | mic_unavailable | unavailable | connection | server
   const [topic, setTopic] = useState(null);
   const [micOn, setMicOn] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const [turns, setTurns] = useState([]);
+  const [tutorUnavailable, setTutorUnavailable] = useState(false);
   const [visual, setVisual] = useState(null);
   const [sources, setSources] = useState([]);
   const levelRef = useRef(0);
@@ -49,8 +59,10 @@ export default function useVoiceSession({ courseId }) {
     currentTutorId: null,
     partialStudentId: null,
     nextId: 1,
+    turns: [],
     stopping: false,
     starting: false,
+    ended: false,
     reconnects: 0,
     ping: null,
     reconnectTimer: null,
@@ -58,21 +70,81 @@ export default function useVoiceSession({ courseId }) {
     levelRaf: 0,
     mic: null,
     play: null,
+    savedCount: -1,
+    pendingResume: false, // resume the explanation once the student's answer is done
+    awaitingAnswer: false,
+    resumePending: false, // a `resume` was sent and `resume.started` has not arrived yet
+    resumeTimer: null,
+    resumeFallback: null, // opens a fresh lesson if the saved one cannot be resumed
   });
+  const onSavedRef = useRef(onSaved);
+  onSavedRef.current = onSaved;
 
+  // Turns live in a ref too, so saving always sees the latest text.
+  const commitTurns = (next) => {
+    R.current.turns = next;
+    setTurns(next);
+  };
+  // The voice service sometimes sends control tokens such as <noise> or <ctrl46> inside text.
+  // They are not words, so they are removed everywhere a turn's text is stored or shown.
+  const cleanTurn = (turn) => (typeof turn.text === "string" ? { ...turn, text: stripControlTags(turn.text) } : turn);
   const addTurn = (turn) => {
     const id = R.current.nextId;
     R.current.nextId += 1;
-    setTurns((prev) => [...prev.slice(-80), { id, final: false, ...turn }]);
+    commitTurns([...R.current.turns.slice(-200), cleanTurn({ id, final: false, ...turn })]);
     return id;
   };
   const patchTurn = (id, patch) => {
-    setTurns((prev) => prev.map((turn) => (turn.id === id ? { ...turn, ...patch(turn) } : turn)));
+    commitTurns(R.current.turns.map((turn) => (turn.id === id ? cleanTurn({ ...turn, ...patch(turn) }) : turn)));
+  };
+
+  // The voice service streams the student's speech as fragments (" round", " Ro", "bin", …).
+  // A fragment is appended; a cumulative version of the same text replaces the bubble text.
+  const joinTranscript = (prev, next) => {
+    if (!prev) return next.trimStart();
+    if (next.startsWith(prev)) return next.trimStart();
+    if (prev.endsWith(next)) return prev;
+    return prev + next;
+  };
+
+  // Ends the student's current utterance. Each spoken question gets its own bubble;
+  // a bubble stays open only until the next utterance, answer, or question begins.
+  const closeStudentTurn = () => {
+    const r = R.current;
+    clearTimeout(r.studentTimer);
+    if (!r.partialStudentId) return;
+    const id = r.partialStudentId;
+    r.partialStudentId = null;
+    patchTurn(id, (turn) => ({ final: true, text: turn.text.trim() }));
+  };
+  // Silence closes the bubble, so the next spoken question starts a new one.
+  const armStudentTimer = () => {
+    const r = R.current;
+    clearTimeout(r.studentTimer);
+    r.studentTimer = setTimeout(closeStudentTurn, 1600);
   };
 
   const safeSend = (message) => {
     const ws = R.current.ws;
     if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(message));
+  };
+
+  // ── saving to chat history ────────────────────────────────────────────────
+  const saveTranscript = () => {
+    const r = R.current;
+    const sessionId = r.session?.sessionId;
+    if (!sessionId) return;
+    const toSave = r.turns
+      .filter((turn) => turn.text && turn.text.trim())
+      .map((turn) => ({ role: turn.role, text: turn.text }));
+    if (toSave.length === 0 || toSave.length === r.savedCount) return;
+    r.savedCount = toSave.length;
+    saveVoiceTranscript(sessionId, toSave)
+      .then(() => onSavedRef.current?.())
+      .catch(() => {
+        // The lesson itself is over; the student can still see it on screen.
+        R.current.savedCount = -1;
+      });
   };
 
   // ── speaker ───────────────────────────────────────────────────────────────
@@ -183,6 +255,9 @@ export default function useVoiceSession({ courseId }) {
   };
 
   // ── protocol events ───────────────────────────────────────────────────────
+  // While `interrupted` is set (after the student stops the tutor), audio and
+  // text from the old explanation are dropped. The gate lifts on the first
+  // event of the student's turn (their speech or question) or of the resume.
   const handleEvent = (event) => {
     const r = R.current;
     if (typeof event.seq === "number") {
@@ -192,32 +267,48 @@ export default function useVoiceSession({ courseId }) {
 
     switch (event.event) {
       case "input.transcript": {
-        const text = (event.text ?? "").trim();
-        if (!text) break;
-        if (event.final) {
-          if (r.partialStudentId) {
-            const id = r.partialStudentId;
-            r.partialStudentId = null;
-            patchTurn(id, () => ({ text, final: true }));
-          } else {
-            addTurn({ role: "student", text, final: true });
-          }
-        } else if (r.partialStudentId) {
+        r.interrupted = false;
+        r.awaitingAnswer = true;
+        const fragment = event.text ?? "";
+        if (!fragment.trim() && !event.final) break;
+        if (r.partialStudentId) {
           const id = r.partialStudentId;
-          patchTurn(id, () => ({ text }));
-        } else {
-          r.partialStudentId = addTurn({ role: "student", text, final: false });
+          patchTurn(id, (turn) => ({ text: joinTranscript(turn.text, fragment) }));
+        } else if (fragment.trim()) {
+          r.partialStudentId = addTurn({ role: "student", text: fragment.trimStart(), final: false });
         }
+        if (event.final) closeStudentTurn();
+        else armStudentTimer();
         break;
       }
-      case "assistant.response.started":
+      case "audio.input.started":
+        closeStudentTurn();
+        break;
+      case "question.started":
+        closeStudentTurn();
         r.interrupted = false;
+        r.awaitingAnswer = true;
+        break;
+      case "resume.started":
+        r.interrupted = false;
+        r.pendingResume = false;
+        r.awaitingAnswer = false;
+        r.resumePending = false;
+        clearTimeout(r.resumeTimer);
+        break;
+      case "assistant.response.started":
+        closeStudentTurn();
+        r.interrupted = false;
+        r.tutorSpoke = true;
+        setTutorUnavailable(false);
         r.currentTutorId = addTurn({ role: "tutor", text: "", final: false });
         break;
       case "assistant.text.delta": {
+        if (r.interrupted) break;
         if (!r.currentTutorId) r.currentTutorId = addTurn({ role: "tutor", text: "", final: false });
         const delta = event.text ?? "";
-        patchTurn(r.currentTutorId, (turn) => ({ text: turn.text + delta }));
+        const id = r.currentTutorId;
+        patchTurn(id, (turn) => ({ text: turn.text + delta }));
         break;
       }
       case "assistant.audio.chunk":
@@ -229,12 +320,19 @@ export default function useVoiceSession({ courseId }) {
           patchTurn(id, (turn) => ({ final: true, text: turn.text || event.text || "" }));
         }
         r.currentTutorId = null;
+        if (r.pendingResume && r.awaitingAnswer && !r.interrupted) {
+          // The student's answer is done: carry on with the explanation, by voice.
+          r.pendingResume = false;
+          r.awaitingAnswer = false;
+          safeSend({ type: "resume" });
+        }
         break;
       }
       case "assistant.interrupted": {
-        // Barge-in: stop the sound first, then mark the turn.
+        // The provider stopped the tutor (for example on the student's speech).
         stopPlayback();
         r.interrupted = true;
+        r.pendingResume = true;
         if (r.currentTutorId) {
           const id = r.currentTutorId;
           patchTurn(id, () => ({ final: true, interrupted: true }));
@@ -256,9 +354,18 @@ export default function useVoiceSession({ courseId }) {
         break;
       case "session.ended":
         r.ended = true;
+        setStatus("ended");
+        saveTranscript();
         break;
       case "error":
+        // A saved lesson that cannot be resumed is replaced by a fresh one, so the student is never stuck.
+        if (r.resumePending) {
+          r.resumeFallback?.();
+          break;
+        }
         if (event.recoverable === false) setErrorCode("server");
+        // Before the tutor has said anything, a recoverable error means the lesson is stuck on providers.
+        else if (!r.tutorSpoke) setTutorUnavailable(true);
         break;
       default:
         break;
@@ -266,6 +373,32 @@ export default function useVoiceSession({ courseId }) {
   };
 
   // ── connection and reconnect ──────────────────────────────────────────────
+  // The saved lesson could not be resumed: close that socket and open a new lesson for the same topic.
+  const openFreshLesson = async (ws) => {
+    const r = R.current;
+    if (r.ws !== ws || !r.resumePending) return;
+    r.resumePending = false;
+    clearTimeout(r.resumeTimer);
+    clearInterval(r.ping);
+    r.ws = null;
+    try { ws.close(); } catch { /* already closed */ }
+    try {
+      const fresh = await startVoiceSession(courseId, r.topicId ?? null, { resume: false });
+      if (R.current.ended || R.current.stopping) return;
+      r.session = fresh;
+      r.lastSeq = -1; // the new session numbers its events from the start
+      r.interrupted = false;
+      r.pendingResume = false;
+      r.awaitingAnswer = false;
+      setTopic(fresh.topic ?? null);
+      connect(fresh, { resume: false });
+    } catch {
+      setStatus("error");
+      setErrorCode("connection");
+      closeAll();
+    }
+  };
+
   const connect = (session, { resume }) => {
     const r = R.current;
     const ws = new WebSocket(`${session.wsUrl}?token=${encodeURIComponent(session.token)}`);
@@ -277,7 +410,20 @@ export default function useVoiceSession({ courseId }) {
       R.current.reconnects = 0;
       setStatus("live");
       setErrorCode(null);
-      ws.send(JSON.stringify({ type: resume ? "resume" : "start" }));
+      if (resume) {
+        ws.send(JSON.stringify({ type: "resume" }));
+        R.current.resumePending = true;
+        R.current.resumeFallback = () => openFreshLesson(ws);
+        clearTimeout(R.current.resumeTimer);
+        R.current.resumeTimer = setTimeout(() => openFreshLesson(ws), 15000);
+      } else {
+        // `start` opens the lesson; the explicit request makes the tutor begin the explanation right away.
+        ws.send(JSON.stringify({ type: "start" }));
+        const lessonTopic = session.topic || "this course";
+        R.current.explainText = `Explain ${lessonTopic} now, starting from the basics.`;
+        R.current.tutorSpoke = false;
+        ws.send(JSON.stringify({ type: "text", text: R.current.explainText }));
+      }
       clearInterval(R.current.ping);
       R.current.ping = setInterval(() => safeSend({ type: "ping" }), PING_MS);
     };
@@ -309,6 +455,7 @@ export default function useVoiceSession({ courseId }) {
     if (r.reconnects >= MAX_RECONNECTS) {
       setStatus("error");
       setErrorCode("connection");
+      saveTranscript();
       closeAll();
       return;
     }
@@ -342,6 +489,7 @@ export default function useVoiceSession({ courseId }) {
       if (error instanceof ApiError && (error.status === 403 || error.status === 404)) {
         setStatus("error");
         setErrorCode("connection");
+        saveTranscript();
         closeAll();
         return;
       }
@@ -349,7 +497,7 @@ export default function useVoiceSession({ courseId }) {
     }
   };
 
-  // ── public controls ───────────────────────────────────────────────────────
+  // ── teardown ──────────────────────────────────────────────────────────────
   function closeAll() {
     const r = R.current;
     clearTimeout(r.reconnectTimer);
@@ -376,8 +524,9 @@ export default function useVoiceSession({ courseId }) {
     levelRef.current = 0;
   }
 
+  // ── public controls ───────────────────────────────────────────────────────
   const start = useCallback(
-    async (topicId = null) => {
+    async (topicId = null, options = {}) => {
       const r = R.current;
       if (r.ws || r.starting || r.mic) return;
       r.starting = true;
@@ -390,10 +539,14 @@ export default function useVoiceSession({ courseId }) {
       r.interrupted = false;
       r.partialStudentId = null;
       r.currentTutorId = null;
-      setTurns([]);
+      r.savedCount = -1;
+      r.pendingResume = false;
+      r.awaitingAnswer = false;
+      commitTurns([]);
       setVisual(null);
       setSources([]);
       setErrorCode(null);
+      setTutorUnavailable(false);
       setSpeaking(false);
       setStatus("connecting");
       try {
@@ -407,12 +560,16 @@ export default function useVoiceSession({ courseId }) {
         }
         openPlayback();
         startLevelLoop();
-        const session = await startVoiceSession(courseId, topicId);
+        const session = await startVoiceSession(courseId, topicId, { resume: !!options.resume });
         R.current.session = session;
+        R.current.topicId = topicId;
         setTopic(session.topic ?? null);
-        R.current.micOn = true;
-        setMicOn(true);
-        connect(session, { resume: false });
+        // The microphone starts closed so the explanation can begin. The hand button opens it
+        // when the student wants to speak. Live mic audio is what stalls the voice providers.
+        R.current.micOn = false;
+        setMicOn(false);
+        // A resumed lesson attaches with `resume` (no restart); a new one starts with `start`.
+        connect(session, { resume: !!session.resumed });
       } catch (error) {
         setStatus("error");
         setErrorCode(error instanceof ApiError && error.status === 503 ? "unavailable" : "connection");
@@ -430,9 +587,10 @@ export default function useVoiceSession({ courseId }) {
     r.stopping = true;
     r.micOn = false;
     setMicOn(false);
-    safeSend({ type: "end" });
+    // Not sending `end`: the lesson stays resumable from chat history.
     setStatus("ended");
-    // Give the service a moment to write the summary before closing.
+    saveTranscript();
+    // Give the service a moment to write its summary before closing.
     clearTimeout(r.stopTimer);
     r.stopTimer = setTimeout(closeAll, STOP_GRACE_MS);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -445,16 +603,23 @@ export default function useVoiceSession({ courseId }) {
     setMicOn(r.micOn);
   }, []);
 
-  const interrupt = useCallback(() => {
+  // Stop the tutor right now and let the student speak (the raised-hand / stop button).
+  // Stop the tutor now and let the student speak. This only silences the tutor
+  // here: nothing is sent to the voice service. Sending an explicit `interrupt`
+  // leaves the session in a state where typed questions get no answer, while
+  // the service's own barge-in on the student's speech (and a plain `question`)
+  // keeps voice answers working.
+  const stopTutor = useCallback(() => {
     const r = R.current;
+    if (!r.ws) return;
     stopPlayback();
     r.interrupted = true;
+    r.pendingResume = true;
     if (r.currentTutorId) {
       const id = r.currentTutorId;
       patchTurn(id, () => ({ final: true, interrupted: true }));
     }
     r.currentTutorId = null;
-    safeSend({ type: "interrupt" });
     if (r.mic && !r.micOn) {
       r.micOn = true;
       setMicOn(true);
@@ -462,9 +627,49 @@ export default function useVoiceSession({ courseId }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Ask the tutor to begin the explanation again (used when no provider could answer the first time).
+  const retryExplain = useCallback(() => {
+    const r = R.current;
+    if (!r.ws || !r.explainText) return;
+    setTutorUnavailable(false);
+    safeSend({ type: "text", text: r.explainText });
+  }, []);
+
+  // Typed question inside the lesson: it appears in the transcript and the tutor answers by voice.
+  const ask = useCallback((text) => {
+    const r = R.current;
+    const clean = (text ?? "").trim();
+    if (!clean || !r.ws || r.ws.readyState !== WebSocket.OPEN) return false;
+    if (r.pendingResume && CONTINUE_WORDS.test(clean)) {
+      // "continue" after a stop: carry on with the explanation, by voice.
+      stopPlayback();
+      r.interrupted = true; // lifted by resume.started
+      r.pendingResume = false;
+      r.awaitingAnswer = false;
+      addTurn({ role: "student", text: clean, final: true });
+      safeSend({ type: "resume" });
+      return true;
+    }
+    stopPlayback();
+    r.interrupted = true; // lifted by question.started
+    r.pendingResume = true;
+    r.awaitingAnswer = true;
+    if (r.currentTutorId) {
+      const id = r.currentTutorId;
+      patchTurn(id, () => ({ final: true, interrupted: true }));
+      r.currentTutorId = null;
+    }
+    addTurn({ role: "student", text: clean, final: true });
+    safeSend({ type: "question", text: clean });
+    return true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
+    const r = R.current;
     return () => {
-      R.current.stopping = true;
+      r.stopping = true;
+      saveTranscript();
       closeAll();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -483,6 +688,9 @@ export default function useVoiceSession({ courseId }) {
     start,
     stop,
     toggleMic,
-    interrupt,
+    stopTutor,
+    ask,
+    tutorUnavailable,
+    retryExplain,
   };
 }

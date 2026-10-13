@@ -393,9 +393,9 @@ function RealTutorPage({ state, dispatch }) {
                 <VoicePanel
                   key={`${effectiveCourseId}-${voiceStart.topicId ?? "general"}`}
                   tokens={tokens} lang={lang} mobile={mobile}
-                  courseId={effectiveCourseId} topicId={voiceStart.topicId}
+                  courseId={effectiveCourseId} topicId={voiceStart.topicId} resumeLesson={!!voiceStart.resume}
                   topicLabel={voiceStart.topicId ? (topicName(voiceStart.topicId) || null) : t("Anything in this course", "أي حاجة في المقرر")}
-                  voiceReady={voiceReady} onExit={() => setVoiceStart(null)}
+                  voiceReady={voiceReady} onExit={() => setVoiceStart(null)} onSaved={listAsync.reload}
                 />
               ) : (
                 <TalkStart tokens={tokens} lang={lang} t={t} mobile={mobile} topics={topics} rows={historyRows} topicName={topicName} busy={typing}

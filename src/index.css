@@ -34,19 +34,29 @@ textarea {
   box-sizing: border-box;
 }
 
-::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+/* One quiet, thin scrollbar across the platform: standard properties for
+   Firefox and recent Chromium, WebKit pseudo-elements for Safari and older Chrome. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(100, 116, 139, 0.35) transparent;
 }
-::-webkit-scrollbar-track {
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(100, 116, 139, 0.2);
-  border-radius: 3px;
+  background: rgba(100, 116, 139, 0.3);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(100, 116, 139, 0.4);
+  background: rgba(100, 116, 139, 0.5);
+  background-clip: padding-box;
 }
 
 button:focus-visible,
@@ -173,6 +183,17 @@ textarea:focus-visible {
 /* Dark theme: native controls (dropdown lists, date pickers, scrollbars) follow the theme */
 html.theme-dark {
   color-scheme: dark;
+}
+html.theme-dark * {
+  scrollbar-color: rgba(148, 163, 184, 0.3) transparent;
+}
+html.theme-dark ::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.28);
+  background-clip: padding-box;
+}
+html.theme-dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.45);
+  background-clip: padding-box;
 }
 html.theme-dark select {
   background-color: #161e42;
