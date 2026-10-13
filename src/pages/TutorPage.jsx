@@ -8,6 +8,7 @@ import { apiErrorText } from "@/services/http";
 import { CoursePicker, Panel, IconTile, PrimaryButton, SecondaryButton, TextButton, Notice, LoadingBlock, ErrorBlock, EmptyBlock, Spinner as KitSpinner } from "@/components/study/StudyKit";
 import { IconTutor, IconHistory, IconPencil, IconTrash, IconCheck, IconX, IconArrowUpRight, IconMic, IconPlus, IconArrowRight } from "@/components/Icons";
 import VoicePanel from "@/components/voice/VoicePanel";
+import { getVoiceStatus } from "@/services/voice";
 import IconAction from "@/components/IconAction";
 import { SCREENS } from "@/constants/routes";
 import { AlertStrip, inputStyle } from "@/components/ModuleUI";
@@ -214,6 +215,7 @@ function RealTutorPage({ state, dispatch }) {
     setShowHistory(false);
     setNotice(null);
     setSelectedMaterialIds([]);
+    setVoiceStart(null);
   }, [effectiveCourseId]);
 
   const loadSession = useCallback(
@@ -235,8 +237,12 @@ function RealTutorPage({ state, dispatch }) {
   // The health call itself can succeed while the AI engine has no working model.
   const aiReady = Boolean(healthAsync.data) && !healthAsync.data?.fallback && healthAsync.data?.ai_status?.real_generation_ready !== false;
   // Spoken answers are on only when the AI service reports realtime voice.
-  const caps = healthAsync.data?.capabilities ?? {};
-  const voiceReady = (caps.realtime_voice ?? caps.capabilities?.realtime_voice) === true;
+  // Talk mode is ready only when our backend can reach the voice service.
+  const loadVoiceStatus = useCallback(() => getVoiceStatus().catch(() => ({ realtimeVoice: false })), []);
+  const voiceStatusAsync = useAsync(loadVoiceStatus);
+  const voiceReady = voiceStatusAsync.data?.realtimeVoice === true;
+  // null = Talk tab shows the topic picker; otherwise a live lesson: { topicId: string | null }
+  const [voiceStart, setVoiceStart] = useState(null);
   const session = sessionAsync.data;
   const messages = session?.messages ?? [];
   const activeTopicLabel = session?.topicId
@@ -282,21 +288,6 @@ function RealTutorPage({ state, dispatch }) {
             : apiErrorText(err, lang),
       );
       sessionAsync.reload();
-    } finally {
-      setTyping(false);
-    }
-  };
-
-  const startTopic = async (topicId) => {
-    if (!effectiveCourseId || typing) return;
-    setTyping(true);
-    setNotice(null);
-    try {
-      const created = await createTutorSession(effectiveCourseId, { topicId, mode });
-      setSessionId(created.id);
-      listAsync.reload();
-    } catch (err) {
-      setNotice(apiErrorText(err, lang));
     } finally {
       setTyping(false);
     }
@@ -398,17 +389,23 @@ function RealTutorPage({ state, dispatch }) {
         view === "talk" && !sessionId ? (
           <div style={{ flex: 1, overflowY: "auto" }}>
             <div style={{ ...column, paddingBottom: 24 }}>
-              <TalkStart tokens={tokens} lang={lang} t={t} mobile={mobile} topics={topics} rows={historyRows} topicName={topicName} busy={typing}
-                onPick={startTopic} onResume={(id) => setSessionId(id)} onWrite={() => setView("write")} />
+              {voiceStart ? (
+                <VoicePanel
+                  key={`${effectiveCourseId}-${voiceStart.topicId ?? "general"}`}
+                  tokens={tokens} lang={lang} mobile={mobile}
+                  courseId={effectiveCourseId} topicId={voiceStart.topicId}
+                  topicLabel={voiceStart.topicId ? (topicName(voiceStart.topicId) || null) : t("Anything in this course", "أي حاجة في المقرر")}
+                  voiceReady={voiceReady} onExit={() => setVoiceStart(null)}
+                />
+              ) : (
+                <TalkStart tokens={tokens} lang={lang} t={t} mobile={mobile} topics={topics} rows={historyRows} topicName={topicName} busy={typing}
+                  onPick={(topicId) => setVoiceStart({ topicId })} onGeneral={() => setVoiceStart({ topicId: null })}
+                  onResume={(id) => setSessionId(id)} onWrite={() => setView("write")} />
+              )}
             </div>
           </div>
         ) : (
         <>
-          {view === "talk" && (
-            <div style={column}>
-              <VoicePanel tokens={tokens} lang={lang} mobile={mobile} voiceReady={voiceReady} busy={typing} />
-            </div>
-          )}
           <div style={{ flex: 1, overflowY: "auto" }}>
             <div style={{ ...column, paddingBottom: 16 }}>
               {messages.length === 0 && !typing && (
@@ -594,7 +591,7 @@ function ChatHistory({ tokens, t, lang, rows, activeId, topicName, onOpen, onRen
   );
 }
 
-function TalkStart({ tokens, lang, t, mobile, topics, rows, topicName, busy, onPick, onResume, onWrite }) {
+function TalkStart({ tokens, lang, t, mobile, topics, rows, topicName, busy, onPick, onGeneral, onResume, onWrite }) {
   const isRtl = lang === "ar";
   const resume = rows.find((row) => (row.messageCount ?? row.messages?.length ?? 0) > 0);
   const card = { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, width: "100%", padding: "14px 16px", borderRadius: 12, border: `1px solid ${tokens.cardBorder}`, background: tokens.card, color: tokens.textPrimary, textAlign: "start", cursor: busy ? "wait" : "pointer", fontFamily: "inherit" };
@@ -614,6 +611,10 @@ function TalkStart({ tokens, lang, t, mobile, topics, rows, topicName, busy, onP
           <span style={{ flexShrink: 0, color: tokens.primary, transform: isRtl ? "scaleX(-1)" : "none", display: "inline-flex" }}><IconArrowRight size={18} /></span>
         </button>
       )}
+
+      <button type="button" className="genai-row" disabled={busy} onClick={onGeneral} style={{ ...card, display: "block", marginBottom: 16 }}>
+        <span style={{ display: "block", fontSize: 14.5, fontWeight: 600 }}>{t("Ask about anything in this course", "اسأل عن أي حاجة في المقرر")}</span>
+      </button>
 
       {topics.length > 0 ? (
         <div style={{ display: "grid", gridTemplateColumns: mobile ? "1fr" : "1fr 1fr", gap: 10 }}>
