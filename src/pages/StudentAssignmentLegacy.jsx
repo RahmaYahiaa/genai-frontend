@@ -85,6 +85,7 @@ export default function StudentAssignmentPage({ state, dispatch }) {
 
   const [answers, setAnswers] = useState(initial);
   const [saving, setSaving] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [lastSaved, setLastSaved] = useState(null);
   useEffect(() => {
     setAnswers(initial);
@@ -129,21 +130,25 @@ export default function StudentAssignmentPage({ state, dispatch }) {
   }
 
   const doSubmit = async () => {
-    if (!assignment) return;
+    if (!assignment || submitting) return;
+    setSubmitting(true);
     try {
-      for (const q of assignment.questions) {
-        const a = answers[q.id] ?? { text: "", selected: [] };
-        if (isChoiceKind(kindOf(q))) {
-          await saveAnswer(assignment.id, q.id, { answerText: "", selectedOptionIds: a.selected ?? [] });
-        } else {
-          await saveAnswer(assignment.id, q.id, { answerText: a.text ?? "" });
-        }
-      }
+      // Save every answer in parallel (the old sequential loop made submit take ~5 s per question).
+      await Promise.all(
+        assignment.questions.map((q) => {
+          const a = answers[q.id] ?? { text: "", selected: [] };
+          return isChoiceKind(kindOf(q))
+            ? saveAnswer(assignment.id, q.id, { answerText: "", selectedOptionIds: a.selected ?? [] })
+            : saveAnswer(assignment.id, q.id, { answerText: a.text ?? "" });
+        })
+      );
       await submitAssignment(assignment.id);
       toast(lang === "ar" ? "أُرسل التكليف — إجاباتك قيد المراجعة." : "Assignment submitted — your answers are under review.");
       reload();
     } catch (err) {
       toast(apiErrorText(err, lang));
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -332,7 +337,8 @@ export default function StudentAssignmentPage({ state, dispatch }) {
           </div>
           <ConfirmBtn
             tokens={tokens} lang={lang} variant="solid"
-            label={anyResub ? (lang === "ar" ? "إعادة التسليم" : "Resubmit assignment") : (lang === "ar" ? "تسليم التكليف" : "Submit assignment")}
+            disabled={submitting}
+            label={submitting ? (lang === "ar" ? "جارٍ التسليم…" : "Submitting…") : anyResub ? (lang === "ar" ? "إعادة التسليم" : "Resubmit assignment") : (lang === "ar" ? "تسليم التكليف" : "Submit assignment")}
             confirmLabel={lang === "ar" ? "اضغط للتأكيد — إرسال للمراجعة" : "Click again to confirm — send for review"}
             onConfirm={doSubmit}
             style={{ padding: "10px 20px", fontSize: 13 }}

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import AuthLayout from "@/components/AuthLayout";
+import MasteryLadder from "@/components/MasteryLadder";
 import { tk, headingFont, bodyFont } from "@/constants/tokens";
 import { SCREENS } from "@/constants/routes";
 import { IconEye, IconEyeOff } from "@/components/Icons";
@@ -216,11 +217,12 @@ export default function LoginPage({ state, dispatch }) {
       }
       hero={
         <div className="rise-in" style={{ animationDelay: "360ms" }}>
-          <p style={{ fontSize: 14, color: "rgba(255,255,255,0.6)", lineHeight: 1.6, maxWidth: 420, margin: 0 }}>
+          <MasteryLadder dark={state.dark} />
+          {/* <p style={{ fontSize: 14, color: "rgba(255,255,255,0.6)", lineHeight: 1.6, maxWidth: 420, margin: "28px 0 0" }}>
             {lang === "ar"
               ? "جرّب حساب تجريبي لترى تقدّم الطالب الحقيقي، والمعلم الذكي، والخطة الدراسية."
               : "Try a demo account to see real student progress, the AI tutor, and the study plan."}
-          </p>
+          </p> */}
         </div>
       }
       form={form}
