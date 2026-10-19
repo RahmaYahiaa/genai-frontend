@@ -1,16 +1,13 @@
 import { useState } from "react";
 import AuthLayout from "@/components/AuthLayout";
-import MasteryLadder from "@/components/MasteryLadder";
 import { tk, headingFont, bodyFont } from "@/constants/tokens";
 import { SCREENS } from "@/constants/routes";
-import { INSTITUTIONS } from "@/data/auth";
 import { IconEye, IconEyeOff } from "@/components/Icons";
 import { login } from "@/services/auth";
 import { apiErrorText } from "@/services/http";
 import { homeScreenFor } from "@/utils";
 import { DemoAccessPanel } from "@/components/DemoAccess";
 
-const MONO = "'JetBrains Mono', monospace";
 
 export default function LoginPage({ state, dispatch }) {
   const tokens = tk(state.dark);
@@ -208,7 +205,7 @@ export default function LoginPage({ state, dispatch }) {
           {lang === "ar" ? "الإتقان يُبنى على" : "Mastery is built on"}
           <br />
           <span style={{ color: "rgba(255,255,255,0.65)" }}>
-            {lang === "ar" ? "أدلة حقيقية، لا تخمين AI." : "real evidence, not AI guesses."}
+            {lang === "ar" ? "أدلة يمكنك مراجعتها." : "evidence you can review."}
           </span>
         </>
       }
@@ -219,14 +216,11 @@ export default function LoginPage({ state, dispatch }) {
       }
       hero={
         <div className="rise-in" style={{ animationDelay: "360ms" }}>
-          <MasteryLadder dark={state.dark} />
-          <div style={{ display: "flex", gap: 24, marginTop: 36, alignItems: "center", opacity: 0.35 }}>
-            {INSTITUTIONS.map((uni) => (
-              <span key={uni} style={{ fontFamily: MONO, fontSize: 11, color: "white", letterSpacing: "0.06em" }}>
-                {uni}
-              </span>
-            ))}
-          </div>
+          <p style={{ fontSize: 14, color: "rgba(255,255,255,0.6)", lineHeight: 1.6, maxWidth: 420, margin: 0 }}>
+            {lang === "ar"
+              ? "جرّب حساب تجريبي لترى تقدّم الطالب الحقيقي، والمعلم الذكي، والخطة الدراسية."
+              : "Try a demo account to see real student progress, the AI tutor, and the study plan."}
+          </p>
         </div>
       }
       form={form}
