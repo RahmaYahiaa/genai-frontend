@@ -1,9 +1,8 @@
+import { useEffect, useState } from "react";
 import { masteryLevel } from "@/constants/tokens";
-import { getCourse } from "@/data/courses";
+import { getDemoMastery } from "@/services/learning";
 
 const MONO = "'JetBrains Mono', monospace";
-
-const COURSE_ID = "CS301";
 
 const LEVEL_STEPS = [
   { level: "no-evidence", en: "No Evidence" },
@@ -23,7 +22,20 @@ const HERO_LEVEL_COLORS = {
 };
 
 export default function MasteryLadder({ dark }) {
-  const course = getCourse(COURSE_ID);
+  // Real data: read-only topic mastery of the demo student (GET /public/demo-mastery).
+  // Nothing is shown while it loads, and nothing is shown if it cannot be loaded.
+  const [course, setCourse] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    getDemoMastery()
+      .then((data) => alive && setCourse(data))
+      .catch(() => alive && setCourse(null));
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  if (!course) return null;
 
   return (
     <div
@@ -38,7 +50,7 @@ export default function MasteryLadder({ dark }) {
       {/* Card header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
         <span style={{ fontFamily: MONO, fontSize: 10, color: "rgba(255,255,255,0.55)", letterSpacing: "0.08em" }}>
-          {course.id} · TOPIC MASTERY LADDER
+          {course.courseCode} · TOPIC MASTERY LADDER
         </span>
         <span style={{ fontFamily: MONO, fontSize: 10, color: "rgba(255,255,255,0.35)" }}>{course.topics.length} topics</span>
       </div>

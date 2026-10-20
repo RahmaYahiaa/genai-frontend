@@ -1,6 +1,10 @@
 import { api } from "@/services/http";
 // ── AI learning engine bridge: user-scoped AI state ───────────────────────
 // These call our backend; no AI-service credentials ever reach the client.
+export function getDemoMastery() {
+  return api("/public/demo-mastery");
+}
+
 export function getMyLearning() {
   return api("/students/me/learning");
 }

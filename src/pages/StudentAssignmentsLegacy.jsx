@@ -46,7 +46,7 @@ export default function StudentAssignmentsPage({ state, dispatch }) {
     if (s === "RESUBMISSION_REQUESTED") return { en: "Resubmission requested", ar: "طُلبت إعادة التسليم", tone: "violet" };
     if (s === "FINALIZED") return { en: "Graded", ar: "مُقيّم", tone: "primary" };
     if (s === "SUBMITTED" || s === "GRADING" || s === "GRADED") return { en: "Under review", ar: "قيد المراجعة", tone: "peri" };
-    if (s === "DRAFT" && (a.workingAnswers ?? []).some((w) => (w.answerText ?? "").trim() || (w.selectedOptionIds ?? []).length))
+    if ((s === "DRAFT" || s === null) && a.hasDraftAnswers)
       return { en: "Draft saved", ar: "مسودة محفوظة", tone: "default" };
     return { en: "Not started", ar: "لم يبدأ", tone: "slate" };
   };

@@ -8,8 +8,6 @@ export const ROLE_TABS = [
 
 export const REGISTER_ROLES = ROLE_TABS.filter((r) => r.id !== ROLES.ADMIN);
 
-export const INSTITUTIONS = ["MIT", "Stanford", "Oxford", "KAUST", "AUB"];
-
 export const PREVIEW_SCREENS = [
   { id: SCREENS.DASHBOARD, label: "Dashboard" },
   { id: SCREENS.TUTOR, label: "AI Tutor" },

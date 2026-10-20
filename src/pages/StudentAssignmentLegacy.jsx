@@ -325,6 +325,13 @@ export default function StudentAssignmentPage({ state, dispatch }) {
         })}
       </div>
 
+      {allFinal && assignment.showGradeToStudent && resultData?.result?.finalScoreTotal != null && (
+        <Card tokens={tokens} style={{ marginTop: 16, padding: "14px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, flexDirection: isRtl ? "row-reverse" : "row" }}>
+          <span style={{ fontFamily: bFont, fontSize: 13, fontWeight: 600, color: tokens.textPrimary }}>{lang === "ar" ? "المجموع النهائي" : "Final total"}</span>
+          <ScoreValue kind="final" score={resultData.result.finalScoreTotal} max={(assignment.questions ?? []).reduce((s, q) => s + (q.maxScore || 0), 0)} tokens={tokens} lang={lang} />
+        </Card>
+      )}
+
       {anyEditable && !closedBlocked && (
         <Card tokens={tokens} style={{ marginTop: 16, padding: "14px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, flexWrap: "wrap", flexDirection: isRtl ? "row-reverse" : "row" }}>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 7, fontFamily: MONO, fontSize: 10.5, color: saving ? tokens.developing : tokens.textFaint }}>

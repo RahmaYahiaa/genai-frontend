@@ -59,6 +59,7 @@ export function mapAssignment(assignment) {
     questions: Array.isArray(assignment.questions) ? assignment.questions.map(mapQuestion) : null,
     canSubmit: assignment.canSubmit ?? null,
     submission: assignment.submission ?? null,
+    hasDraftAnswers: Boolean(assignment.hasDraftAnswers),
     resubmissionRequest: assignment.resubmissionRequest ?? null,
     workingAnswers: assignment.workingAnswers ?? null,
   };
