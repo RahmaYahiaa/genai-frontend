@@ -522,9 +522,12 @@ function RealTutorPage({ state, dispatch }) {
   );
 }
 
+const CONTINUE_COMMAND = /^\s*(continue|go on|keep going|carry on|resume|كمل|كمّل|كمّل الشرح|كمل الشرح|استمر)\s*[.!؟?]*\s*$/i;
+
 function chatTitle(row, topicName, t) {
   if (row.title) return row.title;
-  const first = (row.messages ?? []).find((m) => m.role === "student")?.content;
+  // Skip "continue" commands: they are not the lesson's topic (older voice lessons have no title).
+  const first = (row.messages ?? []).find((m) => m.role === "student" && !CONTINUE_COMMAND.test(m.content ?? ""))?.content;
   if (first) return first.length > 70 ? `${first.slice(0, 70)}…` : first;
   return topicName(row.topicId) || t("Chat", "محادثة");
 }

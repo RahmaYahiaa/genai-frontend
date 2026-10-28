@@ -70,7 +70,7 @@ export default function useVoiceSession({ courseId, onSaved }) {
     levelRaf: 0,
     mic: null,
     play: null,
-    savedCount: -1,
+    savedSignature: null,
     pendingResume: false, // resume the explanation once the student's answer is done
     awaitingAnswer: false,
     resumePending: false, // a `resume` was sent and `resume.started` has not arrived yet
@@ -137,13 +137,16 @@ export default function useVoiceSession({ courseId, onSaved }) {
     const toSave = r.turns
       .filter((turn) => turn.text && turn.text.trim())
       .map((turn) => ({ role: turn.role, text: turn.text }));
-    if (toSave.length === 0 || toSave.length === r.savedCount) return;
-    r.savedCount = toSave.length;
+    if (toSave.length === 0) return;
+    // Compare the content, not just the count: a turn can change text after an earlier save.
+    const signature = JSON.stringify(toSave);
+    if (signature === r.savedSignature) return;
+    r.savedSignature = signature;
     saveVoiceTranscript(sessionId, toSave)
       .then(() => onSavedRef.current?.())
       .catch(() => {
         // The lesson itself is over; the student can still see it on screen.
-        R.current.savedCount = -1;
+        R.current.savedSignature = null;
       });
   };
 
@@ -151,6 +154,7 @@ export default function useVoiceSession({ courseId, onSaved }) {
   const openPlayback = () => {
     const Ctx = window.AudioContext || window.webkitAudioContext;
     const ctx = new Ctx();
+    ctx.resume?.().catch(() => {});
     const gain = ctx.createGain();
     const analyser = ctx.createAnalyser();
     analyser.fftSize = 512;
@@ -211,6 +215,7 @@ export default function useVoiceSession({ courseId, onSaved }) {
     });
     const Ctx = window.AudioContext || window.webkitAudioContext;
     const ctx = new Ctx();
+    ctx.resume?.().catch(() => {});
     const source = ctx.createMediaStreamSource(stream);
     const analyser = ctx.createAnalyser();
     analyser.fftSize = 512;
@@ -539,7 +544,7 @@ export default function useVoiceSession({ courseId, onSaved }) {
       r.interrupted = false;
       r.partialStudentId = null;
       r.currentTutorId = null;
-      r.savedCount = -1;
+      r.savedSignature = null;
       r.pendingResume = false;
       r.awaitingAnswer = false;
       commitTurns([]);
