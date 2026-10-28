@@ -432,9 +432,12 @@ function RealTutorPage({ state, dispatch }) {
                   <div key={m.id} style={{ display: "flex", gap: 10, justifyContent: mine ? "flex-end" : "flex-start", margin: "16px 0" }}>
                     {!mine && <IconTile tokens={tokens} Icon={IconTutor} size={32} />}
                     <div style={{ maxWidth: mobile ? "88%" : "78%" }}>
-                      <div style={{ padding: mine ? "10px 14px" : "12px 16px", borderRadius: 14, background: mine ? tokens.primaryBtn : tokens.card, color: mine ? "#fff" : tokens.textPrimary, border: mine ? "none" : `1px solid ${tokens.cardBorder}`, fontSize: 14.5, lineHeight: 1.7, whiteSpace: "pre-wrap", direction: textDir(m.content), textAlign: "start", unicodeBidi: "isolate" }} dir={textDir(m.content)}>
+                      <div style={{ padding: mine ? "10px 14px" : "12px 16px", borderRadius: 14, background: mine ? tokens.primaryBtn : tokens.card, color: mine ? "#fff" : tokens.textPrimary, border: mine ? "none" : `1px ${m.grounding === "out_of_scope" ? "dashed" : "solid"} ${tokens.cardBorder}`, fontSize: 14.5, lineHeight: 1.7, whiteSpace: "pre-wrap", direction: textDir(m.content), textAlign: "start", unicodeBidi: "isolate", opacity: m.grounding === "out_of_scope" ? 0.92 : 1 }} dir={textDir(m.content)}>
                         {m.content}
                       </div>
+                      {!mine && m.grounding === "out_of_scope" && (
+                        <div style={{ marginTop: 6, fontSize: 12, color: tokens.textMuted, lineHeight: 1.6 }}>{t("Outside study topics: the tutor answers educational questions only.", "خارج نطاق المذاكرة: المعلم بيجاوب على الأسئلة التعليمية بس.")}</div>
+                      )}
                       {!mine && m.evidenceLimitation && (
                         <div style={{ marginTop: 6, fontSize: 12.5, color: tokens.textMuted, lineHeight: 1.6 }}>{t("Note", "ملحوظة")}: {m.evidenceLimitation}</div>
                       )}
